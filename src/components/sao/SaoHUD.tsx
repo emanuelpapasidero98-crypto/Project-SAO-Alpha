@@ -7,38 +7,38 @@ import { useSaoSound } from '@/hooks/useSaoSound';
 /**
  * SAO HUD — top-left status bars (HP / MP / Energy).
  *
- * Built EXCLUSIVELY from canonical assets in "Pezzi barra HP, Mana e Energia":
+ * Built EXCLUSIVELY from the canonical "[Blank] 2.png" asset found in the
+ * "Pezzi barra HP, Mana e Energia" folder. This PNG (1620×258, aspect 6.28:1)
+ * is the OFFICIAL rendered template of a single SAO bar — it contains:
+ *   - Dark outer border (#373737)
+ *   - White decorative top line
+ *   - Hexagonal shape (right side cut)
+ *   - Colored gradient fill (green for HP, recolored to blue for MP and
+ *     yellow for Energy via hue rotation)
  *
- *   1. Bar background = "[Blank] 2.png" (1620×258, aspect 6.28:1) — the
- *      OFFICIAL rendered template of a single SAO bar. It contains only the
- *      dark border (#373737) + white decorative top line + hexagonal right
- *      cut + colored gradient fill. It does NOT contain the value box.
+ * Value/LV boxes are placed INSIDE each bar (overlaid on the fill, in the
+ * right portion), styled as semi-transparent dark boxes that match the
+ * SAO HUD aesthetic:
+ *   - HP/MP bars: only the value box (current/max), NO LV box
+ *   - Energy bar: value box + LV box (both inside the bar)
  *
- *   2. Value box = "pezzi valori barre e lv.svg" (viewBox 110×30) — a dark
- *      #303030 rectangular box with:
- *        - Left section (0-35px): contains "/" — where current/max values go
- *        - Right section (35-110px): contains "LV:" — where the level goes
- *      A vertical #151515 separator line divides the two sections.
+ * The value/LV box style uses:
+ *   - Semi-transparent dark background (rgba(0,0,0,0.55)) — same as the
+ *     "pezzi valori barre e lv.svg" #303030 aesthetic but with transparency
+ *   - Thin border (rgba(255,255,255,0.15)) matching the canonical style
+ *   - White text (#FBFBFB) for values, yellow (#EBA601) for LV number
+ *   - All using the SAO UI font
  *
- * Layout per the user's request:
- *   - The value box is placed INSIDE each bar (overlaid on the fill), in the
- *     right portion of the bar (semi-transparent so the bar color shows through).
- *   - HP bar: only the LEFT section of the box (values "300/300"), NO LV box.
- *   - MP bar: same as HP — only values, NO LV box.
- *   - Energy bar: the FULL box (values + LV) inside the bar.
- *   - All standalone LV boxes/badges are ELIMINATED — only the one inside the
- *     Energy bar remains.
+ * The bar type label (HP/MP/EN) is placed ABOVE each bar (small, top-left).
  *
- * The bar type label (HP/MP/EN) is placed ABOVE each bar (small, top-left)
- * so it doesn't intersect with the fill or the value box.
+ * The player name is placed ABOVE the HP bar, styled as a semi-transparent
+ * dark box matching the bar value box aesthetic (so it looks like part of
+ * the same HUD system, not a separate white card). It takes most of the
+ * HP bar's width, positioned to the right of the "HP" label.
  *
- * The player name is placed ABOVE the HP bar, taking most of the HP bar's
- * width, and positioned so it doesn't intersect with the "HP" label.
- *
- * Player name uses the "bianco SAO" card style: #FBFBFB background with
- * #1a2a3a dark text and angular clip-path.
- *
- * No graphics are invented — only the existing canonical assets are used.
+ * No graphics are invented — only the existing canonical PNG asset is used
+ * as the bar background, and the value/LV boxes are styled to match the
+ * canonical "pezzi valori barre e lv.svg" aesthetic.
  */
 
 export interface BarValue {
@@ -143,7 +143,6 @@ function SaoBar({
 }) {
   const config = BAR_CONFIG[type];
   const pct = Math.max(0, Math.min(1, current / max));
-  // Inset percentage from the right (how much to hide)
   const hidePct = (1 - pct) * 100;
 
   const displayCurrent = String(current).padStart(3, '0');
@@ -151,20 +150,22 @@ function SaoBar({
 
   return (
     <div className="relative" style={{ width: 'min(420px, 40vw)' }}>
-      {/* Player name — placed ABOVE the HP bar, taking most of its width.
-          Positioned to the RIGHT of the "HP" label so they don't intersect. */}
+      {/* Player name — placed ABOVE the HP bar only, taking most of its width.
+          Styled as a semi-transparent dark box matching the bar value box
+          aesthetic (so it looks like part of the same HUD system, not a
+          separate white card). Positioned to the RIGHT of the "HP" label. */}
       {playerName && type === 'hp' && (
         <div
-          className="absolute -top-5 left-8 right-1 px-2 py-0.5 text-[0.6rem] tracking-[0.25em] truncate"
+          className="absolute -top-5 left-8 right-1 px-2 py-0.5 text-[0.6rem] tracking-[0.25em] truncate text-center"
           style={{
-            color: '#1a2a3a',
+            color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
-            background: '#FBFBFB',
+            background: 'rgba(8, 12, 20, 0.6)',
             border: '1px solid rgba(43, 115, 179, 0.5)',
-            clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-            boxShadow: '0 0 6px rgba(43, 115, 179, 0.3)',
-            textAlign: 'center',
+            boxShadow: '0 0 8px rgba(0, 0, 0, 0.5), inset 0 0 4px rgba(43, 115, 179, 0.2)',
+            textShadow: '0 0 6px rgba(92, 196, 240, 0.6)',
+            backdropFilter: 'blur(4px)',
           }}
         >
           {playerName.toUpperCase()}
@@ -214,85 +215,77 @@ function SaoBar({
           {config.label}
         </div>
 
-        {/* ===== Value box INSIDE the bar (using pezzi valori barre e lv.svg) =====
-            The SVG (110×30) is placed inside the right portion of the bar,
-            semi-transparent so the bar color shows through.
-            - HP/MP: show only the LEFT section of the box (values "300/300"), NO LV.
-              We clip the SVG to show only 0-35px of the 110px width (31.8%).
-            - Energy: show the FULL box (values + LV) inside the bar.
-
-            The box is positioned in the right portion of the bar, vertically centered.
-            Per the SAO canon, the box sits at roughly 60-95% of the bar width. */}
+        {/* ===== Value box INSIDE the bar (right portion) =====
+            Styled as a semi-transparent dark box matching the canonical
+            "pezzi valori barre e lv.svg" aesthetic (#303030 background with
+            transparency, #151515 border accent, white text).
+            Positioned inside the bar's right portion, vertically centered.
+            - HP/MP: only the value box (current/max), NO LV box
+            - Energy: value box + LV box side by side inside the bar */}
         <div
-          className="absolute overflow-hidden"
+          className="absolute flex items-stretch gap-0"
           style={{
-            // Position in the right portion of the bar
-            right: '3%',
+            right: '4%',
             top: '50%',
             transform: 'translateY(-50%)',
-            // Width: small box for HP/MP (only values section), larger for Energy (values+LV)
-            // The SVG aspect ratio is 110/30 = 3.67:1
-            // For HP/MP we show 35/110 = 31.8% of the SVG width
-            // For Energy we show 100% of the SVG width
-            width: showLevel ? '22%' : '7%',
-            height: '50%',
-            // Semi-transparent overlay so the bar color shows through
-            opacity: 0.92,
+            height: '55%',
+            // Semi-transparent dark background matching the canonical SAO box
           }}
         >
-          {/* The values SVG.
-              For HP/MP: render at 314% width (110/35) to show only the left section
-              For Energy: render at 100% width to show full SVG */}
-          <img
-            src="/sao/hpbar/pezzi valori barre e lv.svg"
-            alt=""
-            className="absolute inset-0 h-full"
-            draggable={false}
-            aria-hidden
-            style={{
-              width: showLevel ? '100%' : '314%',
-              maxWidth: 'none',
-              objectFit: 'fill',
-            }}
-          />
-
-          {/* Values text overlay (current/max) — positioned in the left section.
-              For HP/MP: full width of the (clipped) box.
-              For Energy: only the left 31.8% of the box. */}
+          {/* Value sub-box (current/max) — always present */}
           <div
-            className="absolute inset-0 flex items-center justify-center"
+            className="relative flex items-center justify-center px-1.5"
             style={{
+              background: 'rgba(48, 48, 48, 0.85)',
+              border: '1px solid rgba(21, 21, 21, 0.9)',
+              boxShadow:
+                'inset 0 0 0 1px rgba(90, 90, 90, 0.6), 0 1px 2px rgba(0,0,0,0.4)',
               color: '#FBFBFB',
               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
               fontWeight: 400,
-              fontSize: 'clamp(0.45rem, 0.9vw, 0.65rem)',
-              letterSpacing: '0.05em',
+              fontSize: 'clamp(0.55rem, 1vw, 0.75rem)',
+              letterSpacing: '0.04em',
               textShadow: '0 1px 1px rgba(0,0,0,0.9)',
-              width: showLevel ? '31.8%' : '100%',
+              minWidth: '60px',
             }}
           >
-            <span className="opacity-90">{displayCurrent}</span>
-            <span className="opacity-50 mx-0.5">/</span>
-            <span className="opacity-75">{displayMax}</span>
+            <span className="opacity-95">{displayCurrent}</span>
+            <span className="opacity-60 mx-0.5">/</span>
+            <span className="opacity-80">{displayMax}</span>
           </div>
 
-          {/* Level number overlay — only for Energy bar.
-              Positioned in the right section (35-110 of 110 = 31.8%-100%). */}
+          {/* LV sub-box — ONLY for the Energy bar.
+              Has a vertical separator like the canonical SVG. */}
           {showLevel && (
             <div
-              className="absolute top-0 bottom-0 flex items-center justify-center"
+              className="relative flex items-center justify-center px-1.5"
               style={{
-                left: '31.8%',
-                right: '0',
-                color: '#EBA601',
+                background: 'rgba(48, 48, 48, 0.85)',
+                border: '1px solid rgba(21, 21, 21, 0.9)',
+                borderLeft: '2px solid rgba(21, 21, 21, 0.9)',
+                boxShadow:
+                  'inset 0 0 0 1px rgba(90, 90, 90, 0.6), 0 1px 2px rgba(0,0,0,0.4)',
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 fontWeight: 400,
-                fontSize: 'clamp(0.45rem, 0.9vw, 0.65rem)',
-                letterSpacing: '0.05em',
-                textShadow: '0 0 6px rgba(235, 166, 1, 0.6)',
+                fontSize: 'clamp(0.55rem, 1vw, 0.75rem)',
+                letterSpacing: '0.04em',
+                minWidth: '36px',
               }}
             >
-              {String(level).padStart(2, '0')}
+              <span
+                className="opacity-70 mr-1"
+                style={{ color: '#FBFBFB' }}
+              >
+                LV
+              </span>
+              <span
+                style={{
+                  color: '#EBA601',
+                  textShadow: '0 0 6px rgba(235, 166, 1, 0.7)',
+                }}
+              >
+                {String(level).padStart(2, '0')}
+              </span>
             </div>
           )}
         </div>
