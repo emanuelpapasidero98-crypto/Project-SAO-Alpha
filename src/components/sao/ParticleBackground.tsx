@@ -21,7 +21,7 @@ interface ParticleFieldProps {
   spotlight?: { x: number; y: number; intensity: number } | null;
 }
 
-function ParticleField({ glowColor = '#5CC4F0', spotlight }: ParticleFieldProps) {
+function ParticleField({ glowColor = '#2B73B3', spotlight }: ParticleFieldProps) {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const light1Ref = useRef<THREE.PointLight>(null);
@@ -211,7 +211,7 @@ function ParticleField({ glowColor = '#5CC4F0', spotlight }: ParticleFieldProps)
   );
 }
 
-function VolumetricPlanes({ glowColor = '#5CC4F0' }: { glowColor?: string }) {
+function VolumetricPlanes({ glowColor = '#2B73B3' }: { glowColor?: string }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
@@ -234,7 +234,7 @@ function VolumetricPlanes({ glowColor = '#5CC4F0' }: { glowColor?: string }) {
 }
 
 export default function ParticleBackground({
-  glowColor = '#5CC4F0',
+  glowColor = '#2B73B3',
   spotlight = null,
 }: ParticleFieldProps) {
   // Lazy initial state — avoids setState-in-effect lint error

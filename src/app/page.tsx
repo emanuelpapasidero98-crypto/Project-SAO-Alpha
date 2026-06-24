@@ -19,11 +19,10 @@ export default function Home() {
   const { play } = useSaoSound();
   const [stage, setStage] = useState<Stage>('login');
   const [spotlight, setSpotlight] = useState<Spotlight | null>(null);
-  const [glowColor, setGlowColor] = useState<string>('#5CC4F0');
+  const [glowColor, setGlowColor] = useState<string>('#2B73B3');
 
   const handleLogin = () => {
     setStage('linkstart');
-    // Link Start sequence plays in the transition component
   };
 
   const handleLinkStartDone = () => {
@@ -33,7 +32,6 @@ export default function Home() {
   const handleCreationComplete = () => {
     setStage('entering');
     setTimeout(() => {
-      // Loop back to login for demo purposes
       setStage('login');
     }, 5000);
   };
@@ -58,22 +56,35 @@ export default function Home() {
       />
       <ParticleBackground glowColor={glowColor} spotlight={spotlight} />
 
-      {/* Subtle scanlines overlay for the SAO "VR display" feel */}
+      {/* Subtle scanlines overlay for the SAO VR display feel */}
       <div
-        className="fixed inset-0 -z-5 pointer-events-none opacity-[0.07]"
+        className="fixed inset-0 -z-5 pointer-events-none opacity-[0.08]"
         style={{
           backgroundImage:
             'repeating-linear-gradient(0deg, transparent 0, transparent 2px, rgba(92,196,240,0.5) 3px, transparent 4px)',
           mixBlendMode: 'screen',
         }}
       />
-      {/* Vignette */}
+
+      {/* VR vignette */}
       <div
         className="fixed inset-0 -z-5 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,4,8,0.8) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,4,8,0.85) 100%)',
         }}
       />
+
+      {/* VR chromatic aberration edge tint */}
+      <div
+        className="fixed inset-0 -z-5 pointer-events-none opacity-30"
+        style={{
+          background:
+            'linear-gradient(90deg, rgba(190, 33, 86, 0.08) 0%, transparent 8%, transparent 92%, rgba(43, 115, 179, 0.08) 100%)',
+        }}
+      />
+
+      {/* Persistent VR HUD corner markers (like a VR headset overlay) */}
+      <VrCornerMarkers />
 
       <AnimatePresence mode="wait">
         {stage === 'login' && (
@@ -133,8 +144,68 @@ export default function Home() {
 }
 
 /**
- * "Link Start" transition — full-screen blue/white flash sequence
- * inspired by the iconic SAO login moment.
+ * VR headset-style corner markers — small angular brackets at each corner of
+ * the viewport, giving the impression of looking through a VR HMD.
+ */
+function VrCornerMarkers() {
+  const cornerStyle = (position: 'tl' | 'tr' | 'bl' | 'br') => {
+    const base: React.CSSProperties = {
+      position: 'fixed',
+      width: '32px',
+      height: '32px',
+      pointerEvents: 'none',
+      zIndex: 5,
+      opacity: 0.6,
+    };
+    const color = 'rgba(92, 196, 240, 0.6)';
+    switch (position) {
+      case 'tl':
+        return {
+          ...base,
+          top: '16px',
+          left: '16px',
+          borderTop: `2px solid ${color}`,
+          borderLeft: `2px solid ${color}`,
+        };
+      case 'tr':
+        return {
+          ...base,
+          top: '16px',
+          right: '16px',
+          borderTop: `2px solid ${color}`,
+          borderRight: `2px solid ${color}`,
+        };
+      case 'bl':
+        return {
+          ...base,
+          bottom: '16px',
+          left: '16px',
+          borderBottom: `2px solid ${color}`,
+          borderLeft: `2px solid ${color}`,
+        };
+      case 'br':
+        return {
+          ...base,
+          bottom: '16px',
+          right: '16px',
+          borderBottom: `2px solid ${color}`,
+          borderRight: `2px solid ${color}`,
+        };
+    }
+  };
+  return (
+    <>
+      <div style={cornerStyle('tl')} aria-hidden />
+      <div style={cornerStyle('tr')} aria-hidden />
+      <div style={cornerStyle('bl')} aria-hidden />
+      <div style={cornerStyle('br')} aria-hidden />
+    </>
+  );
+}
+
+/**
+ * "Link Start" transition — full-screen VR dive sequence.
+ * Expanding rings + flash + "LINK START" text, exactly like the anime.
  */
 function LinkStartTransition({ onDone }: { onDone: () => void }) {
   useEffect(() => {
@@ -148,17 +219,18 @@ function LinkStartTransition({ onDone }: { onDone: () => void }) {
       {[0, 0.2, 0.4, 0.6].map((delay, i) => (
         <motion.div
           key={i}
-          className="absolute rounded-full border border-cyan-300"
+          className="absolute rounded-full border"
+          style={{
+            borderColor: '#5CC4F0',
+            boxShadow: '0 0 40px rgba(43, 115, 179, 0.8)',
+          }}
           initial={{ width: 0, height: 0, opacity: 0.9 }}
           animate={{ width: '180vmax', height: '180vmax', opacity: 0 }}
           transition={{ duration: 2.2, delay, ease: 'easeOut' }}
-          style={{
-            boxShadow: '0 0 40px rgba(92,196,240,0.8)',
-          }}
         />
       ))}
 
-      {/* Center logo / text */}
+      {/* Center text */}
       <motion.div
         className="relative z-10 text-center"
         initial={{ scale: 0.6, opacity: 0 }}
@@ -169,7 +241,8 @@ function LinkStartTransition({ onDone }: { onDone: () => void }) {
           className="text-white tracking-[0.5em] font-light"
           style={{
             fontSize: 'clamp(1.5rem, 5vw, 3.5rem)',
-            textShadow: '0 0 30px rgba(255,255,255,0.9), 0 0 60px rgba(92,196,240,0.9)',
+            textShadow:
+              '0 0 30px rgba(255,255,255,0.9), 0 0 60px rgba(43,115,179,0.9)',
           }}
           animate={{ opacity: [1, 0.4, 1] }}
           transition={{ duration: 0.8, repeat: Infinity }}
@@ -177,7 +250,8 @@ function LinkStartTransition({ onDone }: { onDone: () => void }) {
           LINK START
         </motion.h1>
         <motion.p
-          className="text-cyan-200 tracking-[0.4em] mt-3 text-sm"
+          className="tracking-[0.4em] mt-3 text-sm"
+          style={{ color: '#5CC4F0' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
@@ -219,15 +293,16 @@ function EnteringAincrad({ onDone }: { onDone: () => void }) {
             src="/sao/login/SAO_Nervegear.svg"
             alt="NerveGear"
             className="w-full h-full"
-            style={{ filter: 'drop-shadow(0 0 30px rgba(92,196,240,0.8))' }}
+            style={{ filter: 'drop-shadow(0 0 30px rgba(43, 115, 179, 0.85))' }}
           />
         </div>
       </motion.div>
       <motion.h2
-        className="text-cyan-100 tracking-[0.4em] font-light"
+        className="tracking-[0.4em] font-light"
         style={{
           fontSize: 'clamp(1.2rem, 3vw, 2rem)',
-          textShadow: '0 0 25px rgba(92, 196, 240, 0.7)',
+          color: '#FBFBFB',
+          textShadow: '0 0 25px rgba(43, 115, 179, 0.7)',
         }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -236,7 +311,8 @@ function EnteringAincrad({ onDone }: { onDone: () => void }) {
         BENVENUTO AD AINCRAD
       </motion.h2>
       <motion.p
-        className="text-cyan-200/60 tracking-[0.3em] mt-4 text-xs sm:text-sm"
+        className="tracking-[0.3em] mt-4 text-xs sm:text-sm"
+        style={{ color: 'rgba(92, 196, 240, 0.6)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
@@ -252,10 +328,13 @@ function EnteringAincrad({ onDone }: { onDone: () => void }) {
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
-            className="w-2 h-2 rounded-full bg-cyan-300"
+            className="w-2 h-2 rounded-full"
+            style={{
+              background: '#5CC4F0',
+              boxShadow: '0 0 10px rgba(43,115,179,0.8)',
+            }}
             animate={{ opacity: [0.2, 1, 0.2] }}
             transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-            style={{ boxShadow: '0 0 10px rgba(92,196,240,0.8)' }}
           />
         ))}
       </motion.div>

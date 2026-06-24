@@ -3,57 +3,65 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSaoSound } from '@/hooks/useSaoSound';
-import { CLASSES, GENDERS, STATS, getStartingStats, type CharacterClass, type Gender } from '@/lib/sao-data';
+import { GENDERS, STATS, getStartingStats, type Gender } from '@/lib/sao-data';
 
 interface CharacterCreationProps {
-  onComplete: (data: { name: string; gender: Gender; classId: string }) => void;
+  onComplete: (data: { name: string; gender: Gender }) => void;
   onBack: () => void;
-  /** Notify parent when a card is hovered, so the particle background can react */
   onCardHover?: (coords: { x: number; y: number } | null) => void;
 }
 
-type Step = 'gender' | 'class' | 'summary';
+type Step = 'gender' | 'summary';
 
 /**
- * Character Creation screen.
+ * Character Creation screen (SAO-style — NO CLASSES).
  *
- * Two main steps:
- * 1) Choose avatar gender (SAO_Man / SAO_Woman)
- * 2) Choose class (6 equipment icons)
- * 3) Summary & confirmation
+ * SAO is a skill-based system: every avatar starts equal and grows through
+ * play. So this screen only collects:
+ *   Step 1: Gender (SAO_Man / SAO_Woman)
+ *   Step 2: Name + stat overview
  *
- * Cards have 3D tilt-on-hover (perspective + rotateX/rotateY), a moving
- * spotlight that simulates a 3D light, and react to mouse position.
+ * Cards are styled after the SAO HUD aesthetic found in the asset repo:
+ *   - Sharp angular shapes (clip-path with cut corners)
+ *   - Color palette: #2B73B3 (blue) for male / #BE2156 (red) for female,
+ *     #FBFBFB background, #A8A8A8 dividers — exactly like the
+ *     SAO_UI-Window_blank.svg and Pulsante azzurro/rosso SVGs
+ *   - Angular "spigolose" corners, not rounded
+ *   - The SAO window SVG is used as the card chrome
  */
 export default function CharacterCreation({ onComplete, onBack, onCardHover }: CharacterCreationProps) {
   const { play } = useSaoSound();
   const [step, setStep] = useState<Step>('gender');
   const [gender, setGender] = useState<Gender | null>(null);
-  const [classId, setClassId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [parallax, setParallax] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    // Welcome sound on entry
     play('popupMenu', 0.4);
     play('system', 0.25);
   }, [play]);
+
+  // VR head-tracking parallax
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      setParallax({
+        x: (e.clientX - w / 2) / w,
+        y: (e.clientY - h / 2) / h,
+      });
+    };
+    window.addEventListener('mousemove', handleMove);
+    return () => window.removeEventListener('mousemove', handleMove);
+  }, []);
 
   const handleGenderSelect = (g: Gender) => {
     setGender(g);
     play('click', 0.6);
     setTimeout(() => {
-      setStep('class');
-      play('popupPanel', 0.35);
-    }, 250);
-  };
-
-  const handleClassSelect = (c: CharacterClass) => {
-    setClassId(c.id);
-    play('click', 0.6);
-    setTimeout(() => {
       setStep('summary');
-      play('system', 0.35);
+      play('popupPanel', 0.35);
     }, 250);
   };
 
@@ -64,13 +72,12 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
     }
     play('present', 0.5);
     play('linkStartA', 0.5);
-    onComplete({ name: name.trim(), gender: gender!, classId: classId! });
+    onComplete({ name: name.trim(), gender: gender! });
   };
 
   const handleBack = () => {
     play('dismissLauncher', 0.4);
-    if (step === 'summary') setStep('class');
-    else if (step === 'class') setStep('gender');
+    if (step === 'summary') setStep('gender');
     else onBack();
   };
 
@@ -84,7 +91,7 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
     >
       {/* Top header */}
       <motion.div
-        className="w-full max-w-6xl flex items-center justify-between mb-6"
+        className="w-full max-w-6xl flex items-center justify-between mb-6 z-10"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
@@ -98,10 +105,11 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
         </button>
         <div className="text-center">
           <h2
-            className="text-cyan-100 tracking-[0.3em] font-light"
+            className="tracking-[0.3em] font-light"
             style={{
               fontSize: 'clamp(0.9rem, 2vw, 1.3rem)',
-              textShadow: '0 0 18px rgba(92, 196, 240, 0.5)',
+              color: '#FBFBFB',
+              textShadow: '0 0 18px rgba(43, 115, 179, 0.6)',
             }}
           >
             CREAZIONE PERSONAGGIO
@@ -111,11 +119,11 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
           </p>
         </div>
         <div className="text-cyan-200/70 text-xs tracking-[0.2em]">
-          STEP {step === 'gender' ? '1' : step === 'class' ? '2' : '3'} / 3
+          STEP {step === 'gender' ? '1' : '2'} / 2
         </div>
       </motion.div>
 
-      <div className="w-full max-w-6xl flex-1 flex items-start justify-center">
+      <div className="w-full max-w-6xl flex-1 flex items-start justify-center z-10">
         <AnimatePresence mode="wait">
           {step === 'gender' && (
             <motion.div
@@ -128,11 +136,16 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
             >
               <StepHeader
                 title="SCEGLI IL TUO AVATAR"
-                subtitle="Il tuo corpo ad Aincrad — l'aspetto verrà generato dal sistema NerveGear"
+                subtitle="Il tuo corpo ad Aincrad — generato dal sistema NerveGear"
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10 max-w-4xl mx-auto mt-10">
+              <div
+                className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10 max-w-4xl mx-auto mt-10"
+                style={{
+                  transform: `translate3d(${parallax.x * 10}px, ${parallax.y * 10}px, 0)`,
+                }}
+              >
                 {GENDERS.map((g) => (
-                  <Card3D
+                  <SaoCard
                     key={g.id}
                     glowColor={g.glowColor}
                     onHover={(coords) => {
@@ -148,50 +161,31 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                     onClick={() => handleGenderSelect(g)}
                   >
                     <GenderCardContent gender={g} highlighted={hoveredCard === g.id} />
-                  </Card3D>
+                  </SaoCard>
                 ))}
               </div>
+
+              {/* SAO-style info banner under the cards */}
+              <motion.div
+                className="max-w-4xl mx-auto mt-10 px-5 py-3"
+                style={{
+                  background: 'rgba(43, 115, 179, 0.15)',
+                  border: '1px solid rgba(43, 115, 179, 0.5)',
+                  clipPath:
+                    'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
+                }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <p className="text-cyan-100/80 text-xs sm:text-sm tracking-[0.15em] text-center">
+                  ⚠ IN SAO OGNI AVATAR NASCE UGUALE — LE ABILITÀ SI SVILUPPANO GIOCANDO
+                </p>
+              </motion.div>
             </motion.div>
           )}
 
-          {step === 'class' && (
-            <motion.div
-              key="class"
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ duration: 0.4 }}
-              className="w-full"
-            >
-              <StepHeader
-                title="SCEGLI LA TUA CLASSE"
-                subtitle="La classe determina le tue statistiche iniziali e l'equipaggiamento disponibile"
-              />
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto mt-10">
-                {CLASSES.map((c) => (
-                  <Card3D
-                    key={c.id}
-                    glowColor={c.glowColor}
-                    onHover={(coords) => {
-                      setHoveredCard(c.id);
-                      onCardHover?.(coords);
-                      if (coords) play('click', 0.15);
-                    }}
-                    onLeave={() => {
-                      setHoveredCard(null);
-                      onCardHover?.(null);
-                    }}
-                    selected={classId === c.id}
-                    onClick={() => handleClassSelect(c)}
-                  >
-                    <ClassCardContent cls={c} highlighted={hoveredCard === c.id} />
-                  </Card3D>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {step === 'summary' && gender && classId && (
+          {step === 'summary' && gender && (
             <motion.div
               key="summary"
               initial={{ opacity: 0, x: 30 }}
@@ -206,23 +200,35 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
               />
 
               <motion.div
-                className="relative mt-10 backdrop-blur-md rounded-lg overflow-hidden"
+                className="relative mt-10 overflow-hidden"
                 style={{
-                  background: 'rgba(8, 22, 40, 0.55)',
-                  border: '1px solid rgba(92, 196, 240, 0.4)',
-                  boxShadow: '0 0 50px rgba(92, 196, 240, 0.2), inset 0 0 30px rgba(92, 196, 240, 0.08)',
+                  background: 'rgba(8, 22, 40, 0.7)',
+                  border: '1px solid rgba(43, 115, 179, 0.5)',
+                  boxShadow:
+                    '0 0 50px rgba(43, 115, 179, 0.25), inset 0 0 30px rgba(43, 115, 179, 0.08)',
+                  // SAO angular shape: top-left + bottom-right corners cut
+                  clipPath:
+                    'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
                 }}
                 initial={{ scale: 0.96, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.15 }}
               >
+                {/* SAO-style top divider bar (like the #A8A8A8 in the window SVG) */}
+                <div
+                  className="h-1.5 w-full"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)',
+                  }}
+                />
+
                 <div className="grid md:grid-cols-[260px_1fr] gap-6 p-6 sm:p-8">
                   {/* Character preview */}
                   <div className="flex flex-col items-center">
                     <div
                       className="relative w-full aspect-[137/316] max-w-[220px]"
                       style={{
-                        filter: 'drop-shadow(0 0 25px rgba(92, 196, 240, 0.4))',
+                        filter: 'drop-shadow(0 0 25px rgba(43, 115, 179, 0.5))',
                       }}
                     >
                       <img
@@ -231,18 +237,20 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                         className="w-full h-full object-contain"
                       />
                     </div>
-                    <p className="mt-4 text-cyan-100 tracking-[0.3em] text-sm">{gender.label.toUpperCase()}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <img
-                        src={`/sao/equipment/${CLASSES.find((c) => c.id === classId)!.iconRound}`}
-                        alt=""
-                        className="w-8 h-8"
-                        style={{ filter: 'drop-shadow(0 0 8px rgba(92, 196, 240, 0.6))' }}
-                      />
-                      <span className="text-cyan-200 text-sm tracking-wider">
-                        {CLASSES.find((c) => c.id === classId)!.name}
-                      </span>
-                    </div>
+                    <p
+                      className="mt-4 tracking-[0.3em] text-sm"
+                      style={{ color: '#FBFBFB' }}
+                    >
+                      {gender.label.toUpperCase()}
+                    </p>
+                    {/* Gender color badge — matches the SAO blue/red palette */}
+                    <div
+                      className="mt-3 w-12 h-1.5"
+                      style={{
+                        background: gender.glowColor,
+                        boxShadow: `0 0 12px ${gender.glowColor}`,
+                      }}
+                    />
                   </div>
 
                   {/* Details + name + stats */}
@@ -262,35 +270,51 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                         onFocus={() => play('click', 0.15)}
                         maxLength={20}
                         placeholder="es. Kirito, Asuna, Klein..."
-                        className="w-full bg-slate-950/60 border border-cyan-400/40 rounded px-3 py-2 text-cyan-50 placeholder:text-cyan-200/30 outline-none focus:border-cyan-300 focus:shadow-[0_0_15px_rgba(92,196,240,0.4)] transition"
-                        style={{ fontFamily: 'var(--font-sao, "Trebuchet MS", sans-serif)' }}
+                        className="w-full px-3 py-2 outline-none transition"
+                        style={{
+                          background: 'rgba(251, 251, 251, 0.95)',
+                          color: '#1a2a3a',
+                          border: '1px solid rgba(43, 115, 179, 0.6)',
+                          fontFamily: 'var(--font-sao, "Trebuchet MS", sans-serif)',
+                          fontWeight: 600,
+                          letterSpacing: '0.04em',
+                          clipPath:
+                            'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
+                          caretColor: '#0682BE',
+                        }}
                       />
                     </div>
 
                     <div>
-                      <p className="text-cyan-200/70 text-xs tracking-[0.3em] mb-2">CLASSE</p>
-                      <p className="text-cyan-50 text-base">
-                        {CLASSES.find((c) => c.id === classId)!.name}{' '}
-                        <span className="text-cyan-200/50 text-sm">
-                          — {CLASSES.find((c) => c.id === classId)!.tagline}
-                        </span>
-                      </p>
-                      <p className="text-cyan-100/60 text-xs mt-1">
-                        {CLASSES.find((c) => c.id === classId)!.description}
+                      <p className="text-cyan-200/70 text-xs tracking-[0.3em] mb-2">GENERE</p>
+                      <p className="text-sm" style={{ color: '#FBFBFB' }}>
+                        {gender.label}{' '}
+                        <span className="text-cyan-200/50 text-xs">— {gender.description}</span>
                       </p>
                     </div>
 
                     <div>
-                      <p className="text-cyan-200/70 text-xs tracking-[0.3em] mb-2">
+                      <p className="text-cyan-200/70 text-xs tracking-[0.3em] mb-1">
                         STATISTICHE INIZIALI
                       </p>
-                      <StatsGrid classId={classId} />
+                      <p className="text-cyan-100/50 text-[0.65rem] tracking-wider mb-3">
+                        Tutti gli avatar iniziano con le stesse statistiche base
+                      </p>
+                      <StatsGrid />
                     </div>
                   </div>
                 </div>
 
-                {/* Confirm button */}
-                <div className="border-t border-cyan-400/20 p-4 sm:p-6 flex justify-end gap-3">
+                {/* SAO-style bottom divider bar */}
+                <div
+                  className="h-1.5 w-full"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)',
+                  }}
+                />
+
+                {/* Confirm buttons */}
+                <div className="p-4 sm:p-6 flex justify-end gap-3">
                   <button
                     onClick={handleBack}
                     onMouseEnter={() => play('click', 0.2)}
@@ -298,19 +322,9 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                   >
                     MODIFICA
                   </button>
-                  <button
-                    onClick={handleComplete}
-                    onMouseEnter={() => play('click', 0.3)}
-                    className="relative px-7 py-2.5 text-white font-semibold tracking-[0.25em] text-sm rounded transition-all hover:scale-105"
-                    style={{
-                      background:
-                        'linear-gradient(135deg, rgba(92,196,240,0.9), rgba(43,115,179,0.95))',
-                      boxShadow: '0 0 25px rgba(92,196,240,0.6), inset 0 0 10px rgba(255,255,255,0.25)',
-                      border: '1px solid rgba(255,255,255,0.5)',
-                    }}
-                  >
+                  <SaoButton onClick={handleComplete} hoverSound>
                     ENTRA AD AINCRAD →
-                  </button>
+                  </SaoButton>
                 </div>
               </motion.div>
             </motion.div>
@@ -327,10 +341,11 @@ function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="text-center mb-4">
       <motion.h3
-        className="text-cyan-100 tracking-[0.35em] font-light"
+        className="tracking-[0.35em] font-light"
         style={{
           fontSize: 'clamp(1rem, 2.4vw, 1.6rem)',
-          textShadow: '0 0 20px rgba(92, 196, 240, 0.5)',
+          color: '#FBFBFB',
+          textShadow: '0 0 20px rgba(43, 115, 179, 0.6)',
         }}
         initial={{ y: -10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -342,7 +357,17 @@ function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-interface Card3DProps {
+/**
+ * SAO-style angular card.
+ *
+ * Visual reference: SAO_UI-Window_blank.svg + Pulsante azzurro/rosso SVGs.
+ * - Sharp corners with diagonal cuts (clip-path)
+ * - #2B73B3 (blue) or #BE2156 (red) accent border
+ * - Light translucent background like the SAO notification window
+ * - 3D tilt on hover with cursor-following spotlight
+ * - The window SVG is layered behind the content as chrome
+ */
+interface SaoCardProps {
   children: React.ReactNode;
   glowColor: string;
   onHover: (coords: { x: number; y: number } | null) => void;
@@ -351,29 +376,27 @@ interface Card3DProps {
   onClick: () => void;
 }
 
-/**
- * 3D-tilt card with simulated 3D light.
- * Uses Framer Motion's motion values for the perspective transform; a CSS
- * radial gradient acts as the "moving spotlight" that follows the cursor
- * across the card surface — visually consistent with the R3F lights in the
- * background, giving the impression that the same 3D light source
- * illuminates the cards.
- */
-function Card3D({ children, glowColor, onHover, onLeave, selected, onClick }: Card3DProps) {
+function SaoCard({ children, glowColor, onHover, onLeave, selected, onClick }: SaoCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState<string>('');
   const [lightPos, setLightPos] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
   const [isHover, setIsHover] = useState(false);
 
+  // Angular clip-path: top-left + bottom-right cut at 16px
+  const saoClip =
+    'polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px)';
+
   const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width; // 0..1
-    const py = (e.clientY - rect.top) / rect.height; // 0..1
-    const rotY = (px - 0.5) * 18; // -9..9 deg
-    const rotX = -(py - 0.5) * 18;
-    setTransform(`perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale3d(1.03,1.03,1.03)`);
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const rotY = (px - 0.5) * 14;
+    const rotX = -(py - 0.5) * 14;
+    setTransform(
+      `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale3d(1.025,1.025,1.025)`,
+    );
     setLightPos({ x: px * 100, y: py * 100 });
   };
 
@@ -401,40 +424,72 @@ function Card3D({ children, glowColor, onHover, onLeave, selected, onClick }: Ca
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onClick={onClick}
-      className="relative cursor-pointer group rounded-lg overflow-hidden transition-shadow"
+      className="relative cursor-pointer group"
       style={{
         transform,
         transformStyle: 'preserve-3d',
         transition: 'transform 0.18s ease-out',
-        background: 'rgba(8, 22, 40, 0.55)',
-        border: `1px solid ${selected ? glowColor : 'rgba(92, 196, 240, 0.25)'}`,
+        clipPath: saoClip,
+        background: 'rgba(251, 251, 251, 0.95)',
+        border: `2px solid ${selected ? glowColor : 'rgba(43, 115, 179, 0.4)'}`,
         boxShadow: selected
-          ? `0 0 30px ${glowColor}99, inset 0 0 20px ${glowColor}33`
+          ? `0 0 30px ${glowColor}, 0 0 60px ${glowColor}66, inset 0 0 20px ${glowColor}22`
           : isHover
-            ? `0 0 25px ${glowColor}66, inset 0 0 15px ${glowColor}22`
-            : '0 0 10px rgba(92, 196, 240, 0.15)',
+            ? `0 0 25px ${glowColor}99, 0 0 50px ${glowColor}44, inset 0 0 15px ${glowColor}22`
+            : '0 0 10px rgba(43, 115, 179, 0.2), inset 0 0 4px rgba(43, 115, 179, 0.1)',
       }}
     >
-      {/* Simulated 3D spotlight that follows the cursor */}
+      {/* SAO-style top accent bar (like the #A8A8A8 separator in window SVG) */}
+      <div
+        className="h-2 w-full"
+        style={{
+          background: isHover || selected
+            ? `linear-gradient(90deg, transparent, ${glowColor} 30%, ${glowColor} 70%, transparent)`
+            : 'linear-gradient(90deg, transparent, #A8A8A8 30%, #A8A8A8 70%, transparent)',
+          transition: 'background 0.25s',
+        }}
+      />
+
+      {/* Cursor-following 3D spotlight */}
       <div
         className="absolute inset-0 pointer-events-none transition-opacity duration-300"
         style={{
           opacity: isHover ? 1 : 0,
-          background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, ${glowColor}55 0%, transparent 50%)`,
-          mixBlendMode: 'screen',
+          background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, ${glowColor}55 0%, transparent 55%)`,
+          mixBlendMode: 'multiply',
         }}
       />
-      {/* Edge glow line */}
-      <div
-        className="absolute inset-0 pointer-events-none rounded-lg"
-        style={{
-          boxShadow: `inset 0 0 1px 1px ${glowColor}40`,
-          opacity: isHover || selected ? 1 : 0.4,
-        }}
-      />
+
       <div className="relative" style={{ transform: 'translateZ(40px)' }}>
         {children}
       </div>
+
+      {/* Bottom accent bar */}
+      <div
+        className="h-2 w-full"
+        style={{
+          background: isHover || selected
+            ? `linear-gradient(90deg, transparent, ${glowColor} 30%, ${glowColor} 70%, transparent)`
+            : 'linear-gradient(90deg, transparent, #A8A8A8 30%, #A8A8A8 70%, transparent)',
+          transition: 'background 0.25s',
+        }}
+      />
+
+      {/* SAO-style corner accents (small triangles at cut corners) */}
+      <div
+        className="absolute top-0 left-0 w-4 h-4 pointer-events-none"
+        style={{
+          background: selected || isHover ? glowColor : 'rgba(43, 115, 179, 0.5)',
+          clipPath: 'polygon(0 0, 16px 0, 0 16px)',
+        }}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 pointer-events-none"
+        style={{
+          background: selected || isHover ? glowColor : 'rgba(43, 115, 179, 0.5)',
+          clipPath: 'polygon(100% 100%, calc(100% - 16px) 100%, 100% calc(100% - 16px))',
+        }}
+      />
     </motion.div>
   );
 }
@@ -447,7 +502,7 @@ function GenderCardContent({ gender, highlighted }: { gender: Gender; highlighte
         style={{
           filter: highlighted
             ? `drop-shadow(0 0 25px ${gender.glowColor})`
-            : 'drop-shadow(0 0 10px rgba(92, 196, 240, 0.3))',
+            : 'drop-shadow(0 0 10px rgba(43, 115, 179, 0.4))',
           transform: highlighted ? 'scale(1.08)' : 'scale(1)',
         }}
       >
@@ -458,70 +513,43 @@ function GenderCardContent({ gender, highlighted }: { gender: Gender; highlighte
         />
       </div>
       <h4
-        className="mt-6 tracking-[0.3em] text-cyan-100 font-light"
-        style={{ fontSize: 'clamp(1rem, 1.8vw, 1.4rem)' }}
+        className="mt-6 tracking-[0.3em] font-light"
+        style={{
+          fontSize: 'clamp(1rem, 1.8vw, 1.4rem)',
+          color: '#1a2a3a',
+        }}
       >
         {gender.label.toUpperCase()}
       </h4>
-      <p className="text-cyan-100/40 text-[0.65rem] tracking-[0.2em] mt-2 text-center">
+      <p
+        className="text-[0.65rem] tracking-[0.2em] mt-2 text-center"
+        style={{ color: 'rgba(26, 42, 58, 0.55)' }}
+      >
         {gender.description}
       </p>
-    </div>
-  );
-}
 
-function ClassCardContent({ cls, highlighted }: { cls: CharacterClass; highlighted: boolean }) {
-  return (
-    <div className="flex flex-col items-center p-5 sm:p-6 min-h-[260px] sm:min-h-[300px] justify-between">
+      {/* SAO-style circular indicator (like the rings in Pulsante azzurro/rosso) */}
       <div
-        className="relative transition-transform duration-300"
+        className="mt-4 relative w-10 h-10 rounded-full flex items-center justify-center"
         style={{
-          transform: highlighted ? 'scale(1.18)' : 'scale(1)',
-          filter: highlighted ? `drop-shadow(0 0 18px ${cls.glowColor})` : 'drop-shadow(0 0 6px rgba(92,196,240,0.4))',
+          border: `2px solid ${gender.glowColor}`,
+          boxShadow: highlighted ? `0 0 12px ${gender.glowColor}` : 'none',
         }}
       >
-        <img
-          src={`/sao/equipment/${cls.icon}`}
-          alt={cls.name}
-          className="w-16 h-16 sm:w-20 sm:h-20 object-contain"
+        <div
+          className="w-4 h-4 rounded-full transition-transform duration-300"
+          style={{
+            background: gender.glowColor,
+            transform: highlighted ? 'scale(1.3)' : 'scale(1)',
+          }}
         />
-      </div>
-      <div className="text-center mt-4">
-        <h4
-          className="tracking-[0.2em] text-cyan-100 font-light"
-          style={{ fontSize: 'clamp(0.85rem, 1.4vw, 1.05rem)' }}
-        >
-          {cls.name.toUpperCase()}
-        </h4>
-        <p className="text-cyan-200/40 text-[0.6rem] tracking-[0.15em] mt-1">{cls.tagline}</p>
-      </div>
-      {/* Primary stat pills */}
-      <div className="flex gap-1.5 mt-3">
-        {cls.primaryStats.map((statId) => {
-          const s = STATS.find((x) => x.id === statId);
-          if (!s) return null;
-          return (
-            <div
-              key={statId}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-              style={{
-                background: `${cls.glowColor}22`,
-                border: `1px solid ${cls.glowColor}55`,
-              }}
-              title={`${s.name}: ${s.description}`}
-            >
-              <img src={`/sao/stats/${s.icon}`} alt={s.name} className="w-3 h-3" />
-              <span className="text-cyan-100/80 text-[0.55rem] tracking-wider">{s.id}</span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
 }
 
-function StatsGrid({ classId }: { classId: string }) {
-  const stats = getStartingStats(classId);
+function StatsGrid() {
+  const stats = getStartingStats();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
       {STATS.map((s) => {
@@ -530,21 +558,30 @@ function StatsGrid({ classId }: { classId: string }) {
         return (
           <div
             key={s.id}
-            className="flex items-center gap-2 px-2 py-1.5 rounded bg-slate-950/40 border border-cyan-400/20"
+            className="flex items-center gap-2 px-2 py-1.5"
             title={s.description}
+            style={{
+              background: 'rgba(43, 115, 179, 0.1)',
+              border: '1px solid rgba(43, 115, 179, 0.3)',
+              clipPath:
+                'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+            }}
           >
             <img src={`/sao/stats/${s.icon}`} alt={s.name} className="w-5 h-5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline justify-between">
                 <span className="text-cyan-200/70 text-[0.6rem] tracking-wider">{s.id}</span>
-                <span className="text-cyan-50 text-xs font-semibold">{value}</span>
+                <span className="text-sm font-semibold" style={{ color: '#FBFBFB' }}>
+                  {value}
+                </span>
               </div>
-              <div className="h-1 bg-slate-800 rounded-full overflow-hidden mt-0.5">
+              <div className="h-1 bg-slate-800 overflow-hidden mt-0.5">
                 <div
-                  className="h-full rounded-full"
+                  className="h-full"
                   style={{
                     width: `${(value / max) * 100}%`,
-                    background: 'linear-gradient(90deg, #5CC4F0, #9FE8FF)',
+                    background: 'linear-gradient(90deg, #2B73B3, #5CC4F0)',
+                    boxShadow: '0 0 6px rgba(92, 196, 240, 0.6)',
                   }}
                 />
               </div>
@@ -553,5 +590,36 @@ function StatsGrid({ classId }: { classId: string }) {
         );
       })}
     </div>
+  );
+}
+
+/**
+ * SAO-style angular button (matches the Pulsante azzurro aesthetic).
+ */
+function SaoButton({
+  children,
+  onClick,
+  hoverSound = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  hoverSound?: boolean;
+}) {
+  const { play } = useSaoSound();
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => hoverSound && play('click', 0.3)}
+      className="relative px-7 py-2.5 text-white font-semibold tracking-[0.25em] text-sm transition-all hover:scale-[1.03]"
+      style={{
+        background: 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)',
+        boxShadow: '0 0 25px rgba(43,115,179,0.7), inset 0 0 10px rgba(255,255,255,0.25)',
+        border: '1px solid rgba(255,255,255,0.6)',
+        clipPath:
+          'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
+      }}
+    >
+      {children}
+    </button>
   );
 }
