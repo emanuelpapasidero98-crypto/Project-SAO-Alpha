@@ -298,7 +298,7 @@ function SaoWindow({
   );
 }
 
-/* ---------- Hover button with glow + rotating dashed ring ---------- */
+/* ---------- Hover button with simple "lift" effect ---------- */
 
 function HoverButton({
   side,
@@ -312,22 +312,10 @@ function HoverButton({
   const [isHover, setIsHover] = useState(false);
   const isConfirm = side === 'confirm';
   const left = isConfirm ? 'calc(27.5% - 9%)' : 'calc(72.5% - 9%)';
-  // Colors per side
-  const glowColor = isConfirm
-    ? 'rgba(43, 115, 179, 0.95)'
-    : 'rgba(190, 33, 86, 0.95)';
-  const glowColor2 = isConfirm
-    ? 'rgba(92, 196, 240, 0.6)'
-    : 'rgba(255, 100, 150, 0.6)';
-  const innerGlow = isConfirm
-    ? 'rgba(92, 196, 240, 0.4)'
-    : 'rgba(255, 100, 150, 0.4)';
-  const ringColor = isConfirm
-    ? 'rgba(92, 196, 240, 0.9)'
-    : 'rgba(255, 100, 150, 0.9)';
-  const bgRadial = isConfirm
-    ? 'radial-gradient(circle, rgba(92,196,240,0.25) 0%, transparent 70%)'
-    : 'radial-gradient(circle, rgba(190, 33, 86, 0.25) 0%, transparent 70%)';
+  // Shadow color per side
+  const shadowColor = isConfirm
+    ? 'rgba(43, 115, 179, 0.6)'
+    : 'rgba(190, 33, 86, 0.6)';
 
   return (
     <motion.button
@@ -350,40 +338,24 @@ function HoverButton({
         padding: 0,
         borderRadius: '50%',
       }}
-      animate={{ scale: isHover ? 1.12 : 1 }}
-      whileTap={{ scale: 0.92 }}
-      transition={{ duration: 0.2 }}
+      animate={{
+        // Simple "lift" effect: button rises slightly on hover with a stronger shadow below
+        y: isHover ? -4 : 0,
+        scale: isHover ? 1.05 : 1,
+      }}
+      whileTap={{ scale: 0.95, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       aria-label={isConfirm ? 'Conferma' : 'Annulla'}
     >
-      {/* Glow ring on hover — appears around the circle */}
+      {/* Drop shadow under the button — intensifies on hover to enhance the lift */}
       <motion.div
         className="absolute inset-0 rounded-full pointer-events-none"
-        animate={{ opacity: isHover ? 1 : 0 }}
-        transition={{ duration: 0.25 }}
-        style={{
-          boxShadow: `0 0 20px ${glowColor}, 0 0 40px ${glowColor2}, inset 0 0 12px ${innerGlow}`,
-          background: bgRadial,
-        }}
-        aria-hidden
-      />
-      {/* Rotating dashed ring on hover (VR feel, matching the menu icon) */}
-      <motion.div
-        className="absolute inset-0 rounded-full pointer-events-none border"
         animate={{
-          opacity: isHover ? 1 : 0,
-          rotate: isHover ? 360 : 0,
-          scale: isHover ? 1.18 : 1,
+          boxShadow: isHover
+            ? `0 8px 16px ${shadowColor}, 0 4px 8px rgba(0,0,0,0.4)`
+            : '0 2px 4px rgba(0,0,0,0.3)',
         }}
-        transition={{
-          opacity: { duration: 0.25 },
-          rotate: { duration: 3, repeat: Infinity, ease: 'linear' },
-          scale: { duration: 0.25 },
-        }}
-        style={{
-          borderColor: ringColor,
-          borderWidth: '1px',
-          borderStyle: 'dashed',
-        }}
+        transition={{ duration: 0.2 }}
         aria-hidden
       />
     </motion.button>

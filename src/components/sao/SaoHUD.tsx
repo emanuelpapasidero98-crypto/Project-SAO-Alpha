@@ -7,27 +7,34 @@ import { useSaoSound } from '@/hooks/useSaoSound';
 /**
  * SAO HUD — top-left status bars (HP / MP / Energy).
  *
- * Built EXCLUSIVELY from the canonical "[Blank] 2.png" asset found in the
- * "Pezzi barra HP, Mana e Energia" folder of the asset repository. This PNG
- * (1620×258, aspect 6.28:1) is the OFFICIAL rendered template of a single
- * SAO bar — it already contains:
- *   - The dark outer border (#373737)
- *   - The white decorative top line
- *   - The hexagonal shape (right side cut)
- *   - The colored fill with gradient (green for HP, recolored to blue for MP
- *     and yellow for Energy via hue rotation — same PNG, different colors)
+ * Built EXCLUSIVELY from canonical assets in "Pezzi barra HP, Mana e Energia":
  *
- * We render 3 stacked bars (HP / MP / Energy), each using its own blank PNG
- * as background. The fill level is animated via `clip-path: inset(0 X% 0 0)`
- * which hides the right portion of the PNG proportionally to the missing
- * percentage. The hexagonal shape is preserved because the PNG itself has
- * the cut on the right side, so clipping just reveals less of the bar.
+ *   1. Bar background = "[Blank] 2.png" (1620×258, aspect 6.28:1) — the
+ *      OFFICIAL rendered template of a single SAO bar (dark border, white
+ *      decorative top line, hexagonal right cut, colored gradient fill).
+ *      Recolored to blue (MP) and yellow (Energy) via hue rotation of the
+ *      original green pixels.
  *
- * The LV badge is built from the "pezzi valori barre e lv.svg" aesthetic:
- * dark #303030 box, #151515 outer border, #5a5a5a inner border, vertical
- * divider between the "/" indicator and the "LV:" label.
+ *   2. Values box = "pezzi valori barre e lv.svg" (viewBox 110×30) — a dark
+ *      #303030 rectangular box with:
+ *        - Left section (0-35px): contains "/" — this is where current/max
+ *          values are placed (e.g. "300/300")
+ *        - Right section (35-110px): contains "LV:" — this is where the
+ *          level number is placed
+ *      A vertical #151515 separator line divides the two sections.
  *
- * No graphics are invented — only the existing canonical PNG assets are used.
+ * Per the SAO canon:
+ *   - HP and MP bars show ONLY the values box (left section, no LV)
+ *   - Energy bar (the last one) shows the FULL values box (values + LV)
+ *   - The standalone LV badge below the bars is REMOVED
+ *
+ * The bar type label (HP/MP/EN) is placed ABOVE each bar (small, top-left),
+ * so it doesn't intersect with the colored fill or the values box.
+ *
+ * Player name uses the "bianco SAO" card style: #FBFBFB background with
+ * #1a2a3a dark text and angular clip-path (matching the gender cards).
+ *
+ * No graphics are invented — only the existing canonical assets are used.
  */
 
 export interface BarValue {
@@ -80,18 +87,20 @@ export default function SaoHUD({
       transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
       onMouseEnter={() => play('click', 0.12)}
     >
-      {/* Optional player name above bars */}
+      {/* Player name — "bianco SAO" style matching the gender cards:
+          #FBFBFB background with #1a2a3a dark text, angular clip-path,
+          subtle blue border accent. */}
       {playerName && (
         <div
-          className="mb-1 px-2 py-0.5 text-[0.65rem] tracking-[0.25em]"
+          className="mb-1.5 inline-block px-2.5 py-0.5 text-[0.65rem] tracking-[0.25em]"
           style={{
-            color: '#FBFBFB',
+            color: '#1a2a3a',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
-            background: 'rgba(8, 12, 20, 0.65)',
+            background: '#FBFBFB',
             border: '1px solid rgba(43, 115, 179, 0.5)',
             clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
-            textShadow: '0 0 8px rgba(43, 115, 179, 0.6)',
+            boxShadow: '0 0 8px rgba(43, 115, 179, 0.3)',
           }}
         >
           {playerName.toUpperCase()}
@@ -99,59 +108,10 @@ export default function SaoHUD({
       )}
 
       <div className="relative flex flex-col gap-[2px]">
-        <SaoBar type="hp" current={hp.current} max={hp.max} mounted={mounted} />
-        <SaoBar type="mp" current={mp.current} max={mp.max} mounted={mounted} />
-        <SaoBar type="energy" current={energy.current} max={energy.max} mounted={mounted} />
+        <SaoBar type="hp" current={hp.current} max={hp.max} mounted={mounted} showLevel={false} level={level} />
+        <SaoBar type="mp" current={mp.current} max={mp.max} mounted={mounted} showLevel={false} level={level} />
+        <SaoBar type="energy" current={energy.current} max={energy.max} mounted={mounted} showLevel={true} level={level} />
       </div>
-
-      {/* LV badge — built from the "pezzi valori barre e lv.svg" aesthetic:
-          dark #303030 box, #151515 outer border, #5a5a5a inner border,
-          vertical divider between "/" and "LV:" sections */}
-      <motion.div
-        className="mt-1.5 flex items-center"
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.6, duration: 0.4 }}
-      >
-        <div
-          className="flex items-center"
-          style={{
-            background: '#303030',
-            border: '2px solid #151515',
-            boxShadow: 'inset 0 0 0 1px #5a5a5a, 0 0 8px rgba(0,0,0,0.5)',
-            padding: '3px 10px',
-            clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-          }}
-        >
-          <span
-            className="text-[0.65rem] tracking-[0.2em] mr-2 pr-2"
-            style={{
-              color: '#FBFBFB',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-              borderRight: '1px solid #151515',
-              opacity: 0.9,
-            }}
-          >
-            LV
-          </span>
-          <motion.span
-            className="text-sm"
-            style={{
-              color: '#EBA601',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-              textShadow: '0 0 8px rgba(235, 166, 1, 0.6)',
-            }}
-            key={level}
-            initial={{ scale: 1.4, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.4 }}
-          >
-            {String(level).padStart(2, '0')}
-          </motion.span>
-        </div>
-      </motion.div>
     </motion.div>
   );
 }
@@ -163,11 +123,15 @@ function SaoBar({
   current,
   max,
   mounted,
+  showLevel,
+  level,
 }: {
   type: BarType;
   current: number;
   max: number;
   mounted: boolean;
+  showLevel: boolean;
+  level: number;
 }) {
   const config = BAR_CONFIG[type];
   const pct = Math.max(0, Math.min(1, current / max));
@@ -178,18 +142,10 @@ function SaoBar({
   const displayMax = String(max).padStart(3, '0');
 
   return (
-    <div className="relative" style={{ width: 'min(380px, 35vw)' }}>
-      {/* The bar PNG has aspect ratio 6.28:1 (1620x258). */}
-      <div className="relative" style={{ aspectRatio: '1620 / 258' }}>
-        {/* Layer 1: The canonical "[Blank] 2.png" — used DIRECTLY as the bar
-            background. It already contains:
-              - dark outer border (#373737)
-              - white decorative top line
-              - hexagonal shape (right side cut)
-              - colored fill with gradient (green/blue/yellow depending on type)
-            We animate the fill level by clipping the right portion via
-            clip-path: inset(0 X% 0 0). This reveals less of the bar when
-            the value is low, while preserving the hexagonal right cut. */}
+    <div className="relative flex items-stretch gap-1.5" style={{ width: 'min(420px, 40vw)' }}>
+      {/* ===== Bar (using [Blank] 2.png as background) ===== */}
+      <div className="relative flex-1" style={{ aspectRatio: '1620 / 258' }}>
+        {/* Bar PNG — animated fill via clip-path */}
         <motion.img
           src={config.png}
           alt=""
@@ -212,43 +168,22 @@ function SaoBar({
           }}
         />
 
-        {/* Label tag (left side, like the SAO HUD) — small dark badge with
-            the bar type abbreviation (HP/MP/EN) colored to match the bar */}
+        {/* Bar type label (HP/MP/EN) — placed ABOVE the bar (small, top-left),
+            so it doesn't intersect with the colored fill or values box. */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 left-2 px-1.5 py-0.5"
-          style={{
-            background: 'rgba(0, 0, 0, 0.55)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-          }}
-        >
-          <span
-            className="text-[0.6rem] tracking-[0.2em]"
-            style={{ color: config.labelColor }}
-          >
-            {config.label}
-          </span>
-        </div>
-
-        {/* Numeric value display (right side, like the SAO HUD) */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 right-[3%] flex items-baseline gap-1"
+          className="absolute -top-3 left-1 px-1"
           style={{
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
-            textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.7)',
+            fontSize: '0.55rem',
+            letterSpacing: '0.25em',
+            color: config.labelColor,
+            textShadow: '0 0 4px rgba(0,0,0,0.9), 0 1px 1px rgba(0,0,0,0.8)',
+            lineHeight: 1,
           }}
+          aria-hidden
         >
-          <span className="text-sm sm:text-base" style={{ color: '#FBFBFB' }}>
-            {displayCurrent}
-          </span>
-          <span className="text-[0.65rem]" style={{ color: '#FBFBFB', opacity: 0.6 }}>
-            /
-          </span>
-          <span className="text-[0.7rem]" style={{ color: '#FBFBFB', opacity: 0.75 }}>
-            {displayMax}
-          </span>
+          {config.label}
         </div>
 
         {/* Pulse glow when low (<25%) — warning state */}
@@ -263,6 +198,78 @@ function SaoBar({
             transition={{ duration: 1.2, repeat: Infinity }}
             aria-hidden
           />
+        )}
+      </div>
+
+      {/* ===== Values box (pezzi valori barre e lv.svg) =====
+          The SVG has viewBox 110×30. Left section (0-35) holds the values
+          with "/", right section (35-110) holds "LV:".
+          - For HP/MP: show only the left section (clip to 0-31.8%)
+          - For Energy: show the full box (values + LV) */}
+      <div
+        className="relative flex-shrink-0 overflow-hidden"
+        style={{
+          width: showLevel ? '24%' : '11%',
+          aspectRatio: showLevel ? '110 / 30' : '35 / 30',
+          alignSelf: 'center',
+          height: '60%',
+        }}
+      >
+        {/* The values SVG — for HP/MP (no level), we show only the left section
+            by making the image wider (314%) and clipping via overflow:hidden
+            on the parent. For Energy, we show the full SVG at 100% width. */}
+        <img
+          src="/sao/hpbar/pezzi valori barre e lv.svg"
+          alt=""
+          className="absolute inset-0 h-full"
+          draggable={false}
+          aria-hidden
+          style={{
+            width: showLevel ? '100%' : '314%', // 110/35 ≈ 3.14x to show only left part
+            maxWidth: 'none',
+            objectFit: 'fill',
+          }}
+        />
+
+        {/* Values text overlay (current/max) — positioned in the left section.
+            For HP/MP: full width of the (clipped) box.
+            For Energy: only the left 31.8% of the box. */}
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            color: '#FBFBFB',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: 'clamp(0.5rem, 1vw, 0.7rem)',
+            letterSpacing: '0.05em',
+            textShadow: '0 1px 1px rgba(0,0,0,0.9)',
+            // For Energy, restrict to left section (31.8% of width)
+            width: showLevel ? '31.8%' : '100%',
+          }}
+        >
+          <span className="opacity-90">{displayCurrent}</span>
+          <span className="opacity-50 mx-0.5">/</span>
+          <span className="opacity-75">{displayMax}</span>
+        </div>
+
+        {/* Level number overlay — only for Energy bar.
+            Positioned in the right section (35-110 of 110 = 31.8%-100%). */}
+        {showLevel && (
+          <div
+            className="absolute top-0 bottom-0 flex items-center justify-center"
+            style={{
+              left: '31.8%',
+              right: '0',
+              color: '#EBA601',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: 'clamp(0.5rem, 1vw, 0.7rem)',
+              letterSpacing: '0.05em',
+              textShadow: '0 0 6px rgba(235, 166, 1, 0.6)',
+            }}
+          >
+            {String(level).padStart(2, '0')}
+          </div>
         )}
       </div>
     </div>
