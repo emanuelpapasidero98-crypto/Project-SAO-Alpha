@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 120" width="100%" height="100%">
+  <!-- Linea bianca decorativa superiore -->
+  <path d="M 8,5 L 1012,5" 
+        fill="none" stroke="#FFFFFF" stroke-width="2" />
+
+  <!-- Sfondo interno vuoto/scuro della barra (dove scorre la vita) -->
+  <path d="M 10,10 
+           L 1010,10 
+           L 980,70 
+           L 610,70 
+           L 590,110 
+           L 10,110 
+           Z" 
+        fill="#2A2A2A" />
+
+  <!-- Cornice esterna scura (struttura principale) -->
+  <path d="M 10,10 
+           L 1010,10 
+           L 980,70 
+           L 610,70 
+           L 590,110 
+           L 10,110 
+           Z" 
+        fill="none" stroke="#3A3A3A" stroke-width="8" stroke-linejoin="miter" />
+        
+  <!-- Sottile riflesso interno per dare l'effetto metallico ai bordi -->
+  <path d="M 10,10 
+           L 1010,10 
+           L 980,70 
+           L 610,70 
+           L 590,110 
+           L 10,110 
+           Z" 
+        fill="none" stroke="#7A7A7A" stroke-width="2" stroke-linejoin="miter" />
+</svg>

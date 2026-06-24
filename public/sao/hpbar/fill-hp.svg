@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" width="100%" height="100%">
+  
+  <!-- Base della barra verde -->
+  <path d="M 0,0 
+           L 1000,0 
+           L 970,60 
+           L 600,60 
+           L 580,100 
+           L 0,100 
+           Z" 
+        fill="#7FC522" />
+        
+  <!-- Riflesso verde chiaro sulla parte destra -->
+  <path d="M 950,0 
+           L 1000,0 
+           L 970,60 
+           L 920,60 
+           Z" 
+        fill="#AEDB5E" />
+        
+</svg>

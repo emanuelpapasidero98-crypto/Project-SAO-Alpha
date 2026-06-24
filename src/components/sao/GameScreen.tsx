@@ -1,10 +1,13 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
 import SaoHUD, { type BarValue } from './SaoHUD';
-import SaoMenu from './SaoMenu';
+import SaoMainMenu from './SaoMainMenu';
+import SaoNotificationWindow, {
+  type SaoNotificationData,
+} from './SaoNotificationWindow';
 
 interface GameScreenProps {
   playerName: string;
@@ -12,146 +15,174 @@ interface GameScreenProps {
 }
 
 /**
- * SAO Game Screen — the actual in-game UI.
+ * SAO Game Screen — the in-game UI.
  *
  * Layout:
- *   - Full-screen background = Aincrad.png (the floating iron city)
- *   - Top-left: SaoHUD (HP / MP / Energy bars + LV badge)
- *   - Top-right: SaoMenu (4 circular icons)
- *   - Bottom-left: party member indicator (small)
- *   - Bottom-center: notification window (transient SAO-style message)
- *   - Bottom-right: equipment/skill quick-slot row (placeholder for next phase)
- *
- * All visual assets come from the asset-gioco-di-SAO repo:
  *   - Background: Aincrad.png
- *   - HUD bars: rebuilt from "Pezzi barra HP, Mana e Energia" SVGs
- *   - Menu icons: 1_Menu-1/*.svg
- *   - Notification window: built referencing "Finestra notifiche SAO" SVGs
+ *   - Top-left: SaoHUD (HP / MP / Energy + LV badge)
+ *   - Top-right: SaoMainMenu (single icon → cascading menu)
+ *   - Bottom-right: skill quick-slot row
+ *   - Center: SaoNotificationWindow (modal-style, using the canonical
+ *     3-layer SVG window from "Finestra notifiche SAO")
  *
- * Audio: ambient sounds triggered on mount, click feedback on every
- * interaction, alert sound when notification appears.
+ * All visual assets come EXCLUSIVELY from the asset-gioco-di-SAO repo.
+ * No graphics are invented — only existing SVG/PNG assets are stacked.
+ *
+ * Audio: ambient sounds on mount, click feedback on every interaction.
+ *
+ * NOTE: bars do NOT auto-drain anymore. They only change via user actions
+ * (menu clicks, etc.) or future combat events.
  */
-
-interface GameNotification {
-  id: number;
-  title: string;
-  body: string;
-  kind: 'system' | 'message' | 'alert' | 'present';
-}
-
-const NOTIF_KIND_COLORS: Record<GameNotification['kind'], string> = {
-  system: '#2B73B3',
-  message: '#5CC4F0',
-  alert: '#BE2156',
-  present: '#EBA601',
-};
-
-const NOTIF_KIND_SOUND = {
-  system: 'system' as const,
-  message: 'message' as const,
-  alert: 'alert' as const,
-  present: 'present' as const,
-};
 
 export default function GameScreen({ playerName, onExit }: GameScreenProps) {
   const { play } = useSaoSound();
-  const [hp, setHp] = useState<BarValue>({ current: 240, max: 300 });
-  const [mp, setMp] = useState<BarValue>({ current: 80, max: 120 });
-  const [energy, setEnergy] = useState<BarValue>({ current: 180, max: 200 });
-  const [notifications, setNotifications] = useState<GameNotification[]>([]);
+  const [hp] = useState<BarValue>({ current: 300, max: 300 });
+  const [mp] = useState<BarValue>({ current: 120, max: 120 });
+  const [energy] = useState<BarValue>({ current: 200, max: 200 });
+  const [notification, setNotification] = useState<SaoNotificationData | null>(null);
   const [showWelcome, setShowWelcome] = useState(true);
 
-  // Boot sequence
+  const pushNotification = useCallback(
+    (n: Omit<SaoNotificationData, 'id'>) => {
+      const full: SaoNotificationData = { ...n, id: Date.now() };
+      setNotification(full);
+      // Play the kind-specific alert sound (immediately, before the window
+      // animation sound which fires after 300ms)
+      const soundMap = {
+        system: 'system' as const,
+        message: 'message' as const,
+        alert: 'alert' as const,
+        present: 'present' as const,
+      };
+      play(soundMap[n.kind], 0.4);
+    },
+    [play],
+  );
+
+  // Boot sequence — show a welcome notification
   useEffect(() => {
     play('popupPanel', 0.4);
     const t1 = setTimeout(() => {
       play('welcome', 0.4);
       pushNotification({
-        id: Date.now(),
-        title: 'SISTEMA',
-        body: `Benvenuto ad Aincrad, ${playerName}. Sei al Floor 1.`,
         kind: 'system',
+        title: 'Sistema',
+        body: `Benvenuto ad Aincrad, ${playerName}. Sei al Floor 1.`,
+        confirmLabel: 'OK',
+        autoDismiss: 6000,
       });
-    }, 600);
-    const t2 = setTimeout(() => {
-      pushNotification({
-        id: Date.now() + 1,
-        title: 'TUTORIAL',
-        body: 'Esplora la città di inizi e parla con gli NPC per la tua prima missione.',
-        kind: 'message',
-      });
-    }, 3500);
-    const t3 = setTimeout(() => setShowWelcome(false), 4000);
+    }, 800);
+    const t3 = setTimeout(() => setShowWelcome(false), 3000);
     return () => {
       clearTimeout(t1);
-      clearTimeout(t2);
       clearTimeout(t3);
     };
-  }, []);
-
-  const pushNotification = (n: GameNotification) => {
-    setNotifications((prev) => [...prev, n]);
-    play(NOTIF_KIND_SOUND[n.kind], 0.4);
-    // Auto-dismiss after 5s
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((x) => x.id !== n.id));
-      play('dismissMessage', 0.25);
-    }, 5000);
-  };
+  }, [play, playerName, pushNotification]);
 
   const handleMenuClick = (id: string) => {
-    if (id === 'character') {
-      pushNotification({
-        id: Date.now(),
-        title: 'PERSONAGGIO',
-        body: `${playerName} — Lv.1  HP ${hp.current}/${hp.max}  MP ${mp.current}/${mp.max}`,
-        kind: 'system',
-      });
-    } else if (id === 'map') {
-      pushNotification({
-        id: Date.now(),
-        title: 'MAPPA',
-        body: 'Aincrad — Floor 1: Città degli Inizi',
-        kind: 'message',
-      });
-    } else if (id === 'message') {
-      pushNotification({
-        id: Date.now(),
-        title: 'MESSAGGI',
-        body: 'Nessun nuovo messaggio.',
-        kind: 'message',
-      });
-    } else if (id === 'config') {
-      pushNotification({
-        id: Date.now(),
-        title: 'IMPOSTAZIONI',
-        body: 'Sistema NerveGear v1.100 — funzionamento ottimale.',
-        kind: 'present',
-      });
+    switch (id) {
+      case 'character':
+        pushNotification({
+          kind: 'system',
+          title: 'Personaggio',
+          body: `${playerName} — Lv.1  HP ${hp.current}/${hp.max}  MP ${mp.current}/${mp.max}`,
+          confirmLabel: 'Chiudi',
+          autoDismiss: 6000,
+        });
+        break;
+      case 'wallet':
+        pushNotification({
+          kind: 'present',
+          title: 'Borsa',
+          body: 'Col: 0  —  Valuta iniziale. Esplora Aincrad per guadagnare.',
+          confirmLabel: 'OK',
+          autoDismiss: 6000,
+        });
+        break;
+      case 'inventory':
+        pushNotification({
+          kind: 'message',
+          title: 'Inventario',
+          body: 'Lo zaino è vuoto. Raccogli oggetti durante le tue avventure.',
+          confirmLabel: 'OK',
+          autoDismiss: 6000,
+        });
+        break;
+      case 'quest':
+        pushNotification({
+          kind: 'message',
+          title: 'Quest',
+          body: 'Nessuna quest attiva. Visita la città di inizi per ricevere missioni.',
+          confirmLabel: 'OK',
+          autoDismiss: 6000,
+        });
+        break;
+      case 'floor':
+        pushNotification({
+          kind: 'system',
+          title: 'Piano',
+          body: 'Aincrad — Floor 1: Città degli Inizi.',
+          confirmLabel: 'OK',
+          autoDismiss: 6000,
+        });
+        break;
+      case 'party':
+        pushNotification({
+          kind: 'message',
+          title: 'Party',
+          body: 'Non sei in un party. Invita altri giocatori per formarlo.',
+          confirmLabel: 'OK',
+          autoDismiss: 6000,
+        });
+        break;
+      case 'options':
+        pushNotification({
+          kind: 'present',
+          title: 'Opzioni',
+          body: 'Sistema NerveGear v1.100 — funzionamento ottimale.',
+          confirmLabel: 'OK',
+          autoDismiss: 6000,
+        });
+        break;
+      case 'messages':
+        pushNotification({
+          kind: 'message',
+          title: 'Messaggi',
+          body: 'Nessun nuovo messaggio.',
+          confirmLabel: 'OK',
+          autoDismiss: 6000,
+        });
+        break;
+      default:
+        break;
     }
   };
 
-  // Demo: simulate HP drain / regen cycle to showcase the bar animations
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHp((prev) => {
-        const next = prev.current - 5;
-        if (next <= 30) {
-          return { ...prev, current: prev.max }; // reset on low
-        }
-        return { ...prev, current: next };
-      });
-      setMp((prev) => ({
-        ...prev,
-        current: Math.min(prev.max, prev.current + 3),
-      }));
-      setEnergy((prev) => ({
-        ...prev,
-        current: Math.max(0, prev.current - 1),
-      }));
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
+  const handleLogout = () => {
+    pushNotification({
+      kind: 'alert',
+      title: 'Log Out',
+      body: 'Vuoi davvero scollegarti da Aincrad? Verrai riportato alla schermata di login.',
+      confirmLabel: 'Sì',
+      cancelLabel: 'No',
+      autoDismiss: 0,
+    });
+    // After confirm, the onConfirm handler will trigger onExit
+  };
+
+  const handleConfirm = (_id: number) => {
+    if (notification?.title === 'Log Out') {
+      // Logout confirmed
+      play('dismissLauncher', 0.4);
+      setTimeout(() => onExit?.(), 200);
+      return;
+    }
+    setNotification(null);
+  };
+
+  const handleCancel = (_id: number) => {
+    setNotification(null);
+  };
 
   return (
     <motion.div
@@ -167,10 +198,9 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           src="/sao/backgrounds/Aincrad.png"
           alt="Aincrad"
           className="w-full h-full object-cover"
-          style={{ filter: 'brightness(0.6) saturate(1.1)' }}
+          style={{ filter: 'brightness(0.65) saturate(1.1)' }}
           draggable={false}
         />
-        {/* Dark gradient overlay for readability */}
         <div
           className="absolute inset-0"
           style={{
@@ -180,21 +210,13 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
         />
       </div>
 
-      {/* VR overlays (scanlines, vignette) inherited from parent page */}
-
       {/* ===== HUD (top-left) ===== */}
-      <SaoHUD
-        hp={hp}
-        mp={mp}
-        energy={energy}
-        level={1}
-        playerName={playerName}
-      />
+      <SaoHUD hp={hp} mp={mp} energy={energy} level={1} playerName={playerName} />
 
-      {/* ===== Menu (top-right) ===== */}
-      <SaoMenu onItemClick={handleMenuClick} />
+      {/* ===== Main Menu (top-right, single icon → cascading menu) ===== */}
+      <SaoMainMenu onItemClick={handleMenuClick} onLogout={handleLogout} />
 
-      {/* ===== Welcome splash (brief) ===== */}
+      {/* ===== Welcome splash (brief, fades out) ===== */}
       <AnimatePresence>
         {showWelcome && (
           <motion.div
@@ -244,16 +266,7 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
         )}
       </AnimatePresence>
 
-      {/* ===== Notifications (bottom-left, stacked) ===== */}
-      <div className="fixed bottom-4 left-4 z-30 flex flex-col gap-2 max-w-[340px]">
-        <AnimatePresence>
-          {notifications.map((n) => (
-            <NotificationCard key={n.id} notification={n} />
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* ===== Bottom-right: equipment quick-slot (placeholder for next phase) ===== */}
+      {/* ===== Skill quick-slot (bottom-right) ===== */}
       <motion.div
         className="fixed bottom-4 right-4 z-30 flex items-center gap-2 px-3 py-2"
         initial={{ opacity: 0, y: 20 }}
@@ -307,7 +320,7 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
         ))}
       </motion.div>
 
-      {/* ===== Bottom-center: crosshair (VR interaction hint) ===== */}
+      {/* ===== Crosshair (bottom-center, VR hint) ===== */}
       <motion.div
         className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
         initial={{ opacity: 0 }}
@@ -320,101 +333,11 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
         />
       </motion.div>
 
-      {/* ===== Exit button (top-center, small) ===== */}
-      <motion.button
-        onClick={() => {
-          play('dismissLauncher', 0.4);
-          onExit?.();
-        }}
-        onMouseEnter={() => play('click', 0.2)}
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 text-[0.65rem] tracking-[0.3em]"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        style={{
-          color: 'rgba(251, 251, 251, 0.6)',
-          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-          fontWeight: 400,
-          background: 'rgba(8, 12, 20, 0.55)',
-          border: '1px solid rgba(251, 251, 251, 0.2)',
-          clipPath:
-            'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
-        }}
-      >
-        ESCI
-      </motion.button>
-    </motion.div>
-  );
-}
-
-/* ---------- Sub-component: notification card ---------- */
-
-function NotificationCard({ notification }: { notification: GameNotification }) {
-  const color = NOTIF_KIND_COLORS[notification.kind];
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, x: -40, scale: 0.9 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: -40, scale: 0.9 }}
-      transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="relative overflow-hidden"
-      style={{
-        background: 'rgba(251, 251, 251, 0.95)',
-        clipPath:
-          'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
-        boxShadow: `0 0 20px ${color}55, 0 4px 12px rgba(0,0,0,0.4)`,
-      }}
-    >
-      {/* Top accent bar */}
-      <div
-        className="h-1 w-full"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${color} 30%, ${color} 70%, transparent)`,
-        }}
-      />
-
-      <div className="px-4 py-2.5">
-        <div className="flex items-center gap-2 mb-1">
-          {/* Small square indicator */}
-          <div
-            className="w-2 h-2"
-            style={{
-              background: color,
-              boxShadow: `0 0 8px ${color}`,
-              clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
-            }}
-          />
-          <span
-            className="text-[0.65rem] tracking-[0.3em]"
-            style={{
-              color,
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-            }}
-          >
-            {notification.title}
-          </span>
-        </div>
-        <p
-          className="text-xs leading-relaxed"
-          style={{
-            color: '#1a2a3a',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-          }}
-        >
-          {notification.body}
-        </p>
-      </div>
-
-      {/* Bottom accent bar */}
-      <div
-        className="h-0.5 w-full"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${color}66 50%, transparent)`,
-        }}
+      {/* ===== Canonical SAO notification window (modal overlay) ===== */}
+      <SaoNotificationWindow
+        notification={notification}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
       />
     </motion.div>
   );
