@@ -52,3 +52,12 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Local asset repos (cloned from GitHub, not part of this project)
+/sao-assets/
+/upload/
+/scripts/analyze_*.py
+/scripts/find_*.py
+/scripts/zoom_*.py
+/scripts/visualize_*.py
+/scripts/gen_code_docx.py
+/download/
