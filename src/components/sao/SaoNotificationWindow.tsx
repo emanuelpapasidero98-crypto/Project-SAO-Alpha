@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
 
 /**
@@ -277,53 +277,115 @@ function SaoWindow({
               center_x = 330/1200 = 27.5% (of window width)
               center_y = 61.6% + (165/330)*38.4% = 61.6% + 19.2% = 80.8% (of window height)
             The circle has r=95 → diameter 190, which is 190/1200 = 15.8% of width.
-            But we make the hit-area slightly larger for better clickability. */}
-        <motion.button
-          type="button"
+            We add a glow overlay on hover for interactivity feedback. */}
+        <HoverButton
+          side="confirm"
           onClick={handleConfirm}
-          onMouseEnter={() => play('click', 0.2)}
-          className="absolute"
-          style={{
-            // Center at (27.5%, 80.8%). Width = 16%, height = 16% * (1200/858) for aspect-correct circle.
-            left: 'calc(27.5% - 9%)',
-            top: 'calc(80.8% - 8%)',
-            width: '18%',
-            height: '16%',
-            cursor: 'pointer',
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            borderRadius: '50%',
-          }}
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.95 }}
-          aria-label="Conferma"
+          onHover={() => play('click', 0.2)}
         />
 
         {/* ===== Cancel button hit-area (red circle, right) =====
             Same logic but at x=870/1200 = 72.5%. This is ALWAYS functional —
-            it dismisses the notification (treated as cancel/dismiss). */}
-        <motion.button
-          type="button"
+            it dismisses the notification (treated as cancel/dismiss).
+            Same hover effects as the confirm button but in red. */}
+        <HoverButton
+          side="cancel"
           onClick={handleCancel}
-          onMouseEnter={() => play('click', 0.2)}
-          className="absolute"
-          style={{
-            left: 'calc(72.5% - 9%)',
-            top: 'calc(80.8% - 8%)',
-            width: '18%',
-            height: '16%',
-            cursor: 'pointer',
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            borderRadius: '50%',
-          }}
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.95 }}
-          aria-label="Annulla"
+          onHover={() => play('click', 0.2)}
         />
       </motion.div>
     </motion.div>
+  );
+}
+
+/* ---------- Hover button with glow + rotating dashed ring ---------- */
+
+function HoverButton({
+  side,
+  onClick,
+  onHover,
+}: {
+  side: 'confirm' | 'cancel';
+  onClick: () => void;
+  onHover: () => void;
+}) {
+  const [isHover, setIsHover] = useState(false);
+  const isConfirm = side === 'confirm';
+  const left = isConfirm ? 'calc(27.5% - 9%)' : 'calc(72.5% - 9%)';
+  // Colors per side
+  const glowColor = isConfirm
+    ? 'rgba(43, 115, 179, 0.95)'
+    : 'rgba(190, 33, 86, 0.95)';
+  const glowColor2 = isConfirm
+    ? 'rgba(92, 196, 240, 0.6)'
+    : 'rgba(255, 100, 150, 0.6)';
+  const innerGlow = isConfirm
+    ? 'rgba(92, 196, 240, 0.4)'
+    : 'rgba(255, 100, 150, 0.4)';
+  const ringColor = isConfirm
+    ? 'rgba(92, 196, 240, 0.9)'
+    : 'rgba(255, 100, 150, 0.9)';
+  const bgRadial = isConfirm
+    ? 'radial-gradient(circle, rgba(92,196,240,0.25) 0%, transparent 70%)'
+    : 'radial-gradient(circle, rgba(190, 33, 86, 0.25) 0%, transparent 70%)';
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => {
+        setIsHover(true);
+        onHover();
+      }}
+      onMouseLeave={() => setIsHover(false)}
+      className="absolute"
+      style={{
+        left,
+        top: 'calc(80.8% - 8%)',
+        width: '18%',
+        height: '16%',
+        cursor: 'pointer',
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        borderRadius: '50%',
+      }}
+      animate={{ scale: isHover ? 1.12 : 1 }}
+      whileTap={{ scale: 0.92 }}
+      transition={{ duration: 0.2 }}
+      aria-label={isConfirm ? 'Conferma' : 'Annulla'}
+    >
+      {/* Glow ring on hover — appears around the circle */}
+      <motion.div
+        className="absolute inset-0 rounded-full pointer-events-none"
+        animate={{ opacity: isHover ? 1 : 0 }}
+        transition={{ duration: 0.25 }}
+        style={{
+          boxShadow: `0 0 20px ${glowColor}, 0 0 40px ${glowColor2}, inset 0 0 12px ${innerGlow}`,
+          background: bgRadial,
+        }}
+        aria-hidden
+      />
+      {/* Rotating dashed ring on hover (VR feel, matching the menu icon) */}
+      <motion.div
+        className="absolute inset-0 rounded-full pointer-events-none border"
+        animate={{
+          opacity: isHover ? 1 : 0,
+          rotate: isHover ? 360 : 0,
+          scale: isHover ? 1.18 : 1,
+        }}
+        transition={{
+          opacity: { duration: 0.25 },
+          rotate: { duration: 3, repeat: Infinity, ease: 'linear' },
+          scale: { duration: 0.25 },
+        }}
+        style={{
+          borderColor: ringColor,
+          borderWidth: '1px',
+          borderStyle: 'dashed',
+        }}
+        aria-hidden
+      />
+    </motion.button>
   );
 }

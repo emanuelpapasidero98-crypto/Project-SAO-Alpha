@@ -7,26 +7,27 @@ import { useSaoSound } from '@/hooks/useSaoSound';
 /**
  * SAO HUD — top-left status bars (HP / MP / Energy).
  *
- * Built EXCLUSIVELY from the 4 SVGs in "Pezzi barra HP, Mana e Energia":
- *   - contenitore Barre.svg  (dark background + white decorative line + outer frame)
- *   - Contenuto barra HP.svg (the green fill shape, recolored for MP/Energy)
- *   - Contorno barre.svg     (outer dark + metallic edge outline)
- *   - pezzi valori barre e lv.svg (LV badge with the canonical SAO aesthetic)
+ * Built EXCLUSIVELY from the canonical "[Blank] 2.png" asset found in the
+ * "Pezzi barra HP, Mana e Energia" folder of the asset repository. This PNG
+ * (1620×258, aspect 6.28:1) is the OFFICIAL rendered template of a single
+ * SAO bar — it already contains:
+ *   - The dark outer border (#373737)
+ *   - The white decorative top line
+ *   - The hexagonal shape (right side cut)
+ *   - The colored fill with gradient (green for HP, recolored to blue for MP
+ *     and yellow for Energy via hue rotation — same PNG, different colors)
  *
- * The 3 bars are stacked. Each bar is rendered by stacking the 3 SVG layers:
- *   1. container.svg  — dark inner background (#2A2A2A) + white top line
- *   2. fill-{type}.svg — colored fill, width animated on mount, clipped to %
- *   3. outline.svg    — outer frame stroke (#3A3A3A) + metallic edge (#7A7A7A)
+ * We render 3 stacked bars (HP / MP / Energy), each using its own blank PNG
+ * as background. The fill level is animated via `clip-path: inset(0 X% 0 0)`
+ * which hides the right portion of the PNG proportionally to the missing
+ * percentage. The hexagonal shape is preserved because the PNG itself has
+ * the cut on the right side, so clipping just reveals less of the bar.
  *
- * The fill SVGs have a hexagonal shape (right side cut) matching the container,
- * so we clip them horizontally via CSS `clip-path: inset(0 X% 0 0)` to show
- * only the filled portion.
+ * The LV badge is built from the "pezzi valori barre e lv.svg" aesthetic:
+ * dark #303030 box, #151515 outer border, #5a5a5a inner border, vertical
+ * divider between the "/" indicator and the "LV:" label.
  *
- * The LV badge uses the "pezzi valori barre e lv.svg" style: dark #303030 box,
- * #151515 outer border, #5a5a5a inner border, with a vertical divider between
- * the "/" indicator and the "LV:" label.
- *
- * No graphics are invented — only the existing SVG assets are used.
+ * No graphics are invented — only the existing canonical PNG assets are used.
  */
 
 export interface BarValue {
@@ -49,10 +50,10 @@ const DEFAULT_LEVEL = 1;
 
 type BarType = 'hp' | 'mp' | 'energy';
 
-const BAR_CONFIG: Record<BarType, { fill: string; label: string; labelColor: string }> = {
-  hp: { fill: '/sao/hpbar/fill-hp.svg', label: 'HP', labelColor: '#7FC522' },
-  mp: { fill: '/sao/hpbar/fill-mp.svg', label: 'MP', labelColor: '#2B73B3' },
-  energy: { fill: '/sao/hpbar/fill-energy.svg', label: 'EN', labelColor: '#EBA601' },
+const BAR_CONFIG: Record<BarType, { png: string; label: string; labelColor: string }> = {
+  hp: { png: '/sao/hpbar/blank-hp.png', label: 'HP', labelColor: '#7FC522' },
+  mp: { png: '/sao/hpbar/blank-mp.png', label: 'MP', labelColor: '#2B73B3' },
+  energy: { png: '/sao/hpbar/blank-energy.png', label: 'EN', labelColor: '#EBA601' },
 };
 
 export default function SaoHUD({
@@ -97,7 +98,7 @@ export default function SaoHUD({
         </div>
       )}
 
-      <div className="relative flex flex-col gap-[3px]">
+      <div className="relative flex flex-col gap-[2px]">
         <SaoBar type="hp" current={hp.current} max={hp.max} mounted={mounted} />
         <SaoBar type="mp" current={mp.current} max={mp.max} mounted={mounted} />
         <SaoBar type="energy" current={energy.current} max={energy.max} mounted={mounted} />
@@ -107,7 +108,7 @@ export default function SaoHUD({
           dark #303030 box, #151515 outer border, #5a5a5a inner border,
           vertical divider between "/" and "LV:" sections */}
       <motion.div
-        className="mt-2 flex items-center"
+        className="mt-1.5 flex items-center"
         initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.6, duration: 0.4 }}
@@ -178,75 +179,44 @@ function SaoBar({
 
   return (
     <div className="relative" style={{ width: 'min(380px, 35vw)' }}>
-      {/* Layer 1: container.svg — dark background + white top line + outer frame.
-          This SVG has viewBox 0 0 1020 120 (aspect ratio 8.5:1) */}
-      <div className="relative" style={{ aspectRatio: '1020 / 120' }}>
-        <img
-          src="/sao/hpbar/container.svg"
+      {/* The bar PNG has aspect ratio 6.28:1 (1620x258). */}
+      <div className="relative" style={{ aspectRatio: '1620 / 258' }}>
+        {/* Layer 1: The canonical "[Blank] 2.png" — used DIRECTLY as the bar
+            background. It already contains:
+              - dark outer border (#373737)
+              - white decorative top line
+              - hexagonal shape (right side cut)
+              - colored fill with gradient (green/blue/yellow depending on type)
+            We animate the fill level by clipping the right portion via
+            clip-path: inset(0 X% 0 0). This reveals less of the bar when
+            the value is low, while preserving the hexagonal right cut. */}
+        <motion.img
+          src={config.png}
           alt=""
           className="absolute inset-0 w-full h-full"
           draggable={false}
-          style={{ zIndex: 1 }}
           aria-hidden
+          initial={{ clipPath: `inset(0 100% 0 0)` }}
+          animate={{
+            clipPath: mounted
+              ? `inset(0 ${hidePct}% 0 0)`
+              : `inset(0 100% 0 0)`,
+          }}
+          transition={{
+            duration: 1.1,
+            ease: 'easeOut',
+            delay: 0.3,
+          }}
+          style={{
+            objectFit: 'fill',
+          }}
         />
 
-        {/* Layer 2: fill-{type}.svg — colored fill, clipped to (1-pct) from right.
-            The fill SVG has viewBox 0 0 1000 100 (aspect 10:1). We overlay it
-            on the container's inner area (which has the same hexagonal shape). */}
-        <motion.div
-          className="absolute inset-0"
-          style={{ zIndex: 2 }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          {/* The fill image is positioned to align with the container's inner
-              hexagonal area. Container viewBox is 1020x120, the inner path
-              starts at (10,10) and ends at (1010,10)→(980,70)→(610,70)→(590,110)→(10,110).
-              Fill viewBox is 1000x100 with path 0,0→1000,0→970,60→600,60→580,100→0,100.
-              They match if we offset fill by (10,10) and scale by ~1.005x on x.
-              For simplicity, we use object-fit and let it fill the container, then
-              clip-path inset hides the right portion. */}
-          <motion.img
-            src={config.fill}
-            alt=""
-            className="absolute inset-0 w-full h-full"
-            draggable={false}
-            aria-hidden
-            initial={{ clipPath: `inset(0 100% 0 0)` }}
-            animate={{
-              clipPath: mounted
-                ? `inset(0 ${hidePct}% 0 0)`
-                : `inset(0 100% 0 0)`,
-            }}
-            transition={{
-              duration: 1.1,
-              ease: 'easeOut',
-              delay: 0.3,
-            }}
-            style={{
-              objectFit: 'fill',
-            }}
-          />
-        </motion.div>
-
-        {/* Layer 3: outline.svg — outer dark + metallic edge stroke.
-            This SVG has viewBox -10 -15 1030 130 (slightly larger than container
-            to allow the stroke to extend outside). */}
-        <img
-          src="/sao/hpbar/outline.svg"
-          alt=""
-          className="absolute -left-[1%] -top-[3%] w-[102%] h-[106%] pointer-events-none"
-          draggable={false}
-          style={{ zIndex: 3 }}
-          aria-hidden
-        />
-
-        {/* Label tag (left side, like the SAO HUD) */}
+        {/* Label tag (left side, like the SAO HUD) — small dark badge with
+            the bar type abbreviation (HP/MP/EN) colored to match the bar */}
         <div
           className="absolute top-1/2 -translate-y-1/2 left-2 px-1.5 py-0.5"
           style={{
-            zIndex: 4,
             background: 'rgba(0, 0, 0, 0.55)',
             border: '1px solid rgba(255,255,255,0.15)',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
@@ -261,11 +231,10 @@ function SaoBar({
           </span>
         </div>
 
-        {/* Numeric value display (top-right, like the SAO HUD) */}
+        {/* Numeric value display (right side, like the SAO HUD) */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 right-[8%] flex items-baseline gap-1"
+          className="absolute top-1/2 -translate-y-1/2 right-[3%] flex items-baseline gap-1"
           style={{
-            zIndex: 4,
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
             textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.7)',
@@ -287,7 +256,6 @@ function SaoBar({
           <motion.div
             className="absolute inset-0 pointer-events-none"
             style={{
-              zIndex: 5,
               background: `linear-gradient(90deg, ${config.labelColor}00, ${config.labelColor}55, ${config.labelColor}00)`,
               mixBlendMode: 'screen',
             }}
