@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ParticleBackground from '@/components/sao/ParticleBackground';
 import LoginScreen from '@/components/sao/LoginScreen';
 import CharacterCreation from '@/components/sao/CharacterCreation';
+import GameScreen from '@/components/sao/GameScreen';
 import { useSaoSound } from '@/hooks/useSaoSound';
+import type { Gender } from '@/lib/sao-data';
 
-type Stage = 'login' | 'linkstart' | 'creation' | 'entering';
+type Stage = 'login' | 'linkstart' | 'creation' | 'entering' | 'game';
 
 interface Spotlight {
   x: number;
@@ -20,6 +22,8 @@ export default function Home() {
   const [stage, setStage] = useState<Stage>('login');
   const [spotlight, setSpotlight] = useState<Spotlight | null>(null);
   const [glowColor, setGlowColor] = useState<string>('#2B73B3');
+  const [playerName, setPlayerName] = useState<string>('');
+  const [gender, setGender] = useState<Gender | null>(null);
 
   const handleLogin = () => {
     setStage('linkstart');
@@ -29,11 +33,20 @@ export default function Home() {
     setStage('creation');
   };
 
-  const handleCreationComplete = () => {
+  const handleCreationComplete = (data: { name: string; gender: Gender }) => {
+    setPlayerName(data.name);
+    setGender(data.gender);
+    setGlowColor(data.gender.glowColor);
     setStage('entering');
     setTimeout(() => {
-      setStage('login');
-    }, 5000);
+      setStage('game');
+    }, 4500);
+  };
+
+  const handleExitGame = () => {
+    setStage('login');
+    setPlayerName('');
+    setGender(null);
   };
 
   const handleCardHover = (coords: { x: number; y: number } | null) => {
@@ -135,7 +148,19 @@ export default function Home() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <EnteringAincrad onDone={() => setStage('login')} />
+            <EnteringAincrad onDone={() => setStage('game')} />
+          </motion.div>
+        )}
+
+        {stage === 'game' && playerName && (
+          <motion.div
+            key="game"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <GameScreen playerName={playerName} onExit={handleExitGame} />
           </motion.div>
         )}
       </AnimatePresence>
