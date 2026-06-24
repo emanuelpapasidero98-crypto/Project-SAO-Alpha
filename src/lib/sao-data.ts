@@ -45,14 +45,14 @@ export const GENDERS: Gender[] = [
   {
     id: 'male',
     label: 'Uomo',
-    svg: 'SAO_Man.svg',
+    svg: 'Avatar_maschio.svg',
     description: 'Avatar maschile — modello standard di Aincrad',
     glowColor: '#2B73B3',
   },
   {
     id: 'female',
     label: 'Donna',
-    svg: 'SAO_Woman.svg',
+    svg: 'Avatar_femmina.svg',
     description: 'Avatar femminile — modello standard di Aincrad',
     glowColor: '#BE2156',
   },

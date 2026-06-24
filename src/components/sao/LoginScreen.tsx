@@ -195,41 +195,56 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           />
         </motion.div>
 
-        {/* NERVEGEAR wordmark — huge, preponderant */}
-        <motion.h1
-          className="mt-2 tracking-[0.45em] font-light text-center"
-          style={{
-            fontSize: 'clamp(2.2rem, 8vw, 5.5rem)',
-            color: '#FBFBFB',
-            textShadow:
-              '0 0 20px rgba(43, 115, 179, 0.9), 0 0 40px rgba(43, 115, 179, 0.6), 0 0 80px rgba(43, 115, 179, 0.3)',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            letterSpacing: '0.45em',
-          }}
+        {/* Title block: SWORD ART ONLINE VRMMORPG + V ALPHA 1.0 inline */}
+        <motion.div
+          className="mt-4 flex flex-col items-center gap-2"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.8 }}
         >
-          NERVEGEAR
-        </motion.h1>
-
-        <motion.p
-          className="tracking-[0.5em] mt-2"
-          style={{
-            fontSize: 'clamp(0.7rem, 2vw, 1.05rem)',
-            color: '#5CC4F0',
-            textShadow: '0 0 12px rgba(92, 196, 240, 0.7)',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-          }}
-        >
-          SWORD ART ONLINE
-        </motion.p>
-        <p
-          className="text-cyan-100/40 tracking-[0.3em] mt-1"
-          style={{
-            fontSize: 'clamp(0.5rem, 1.3vw, 0.7rem)',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-          }}
-        >
-          VRMMORPG SYSTEM — v1.100
-        </p>
+          <div className="flex items-baseline gap-3 flex-wrap justify-center">
+            <motion.p
+              className="tracking-[0.4em]"
+              style={{
+                fontSize: 'clamp(0.95rem, 2.8vw, 1.5rem)',
+                color: '#5CC4F0',
+                textShadow: '0 0 14px rgba(92, 196, 240, 0.8)',
+                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                fontWeight: 400,
+              }}
+            >
+              SWORD ART ONLINE VRMMORPG
+            </motion.p>
+            <span
+              className="tracking-[0.25em]"
+              style={{
+                fontSize: 'clamp(0.7rem, 2vw, 1.05rem)',
+                color: '#FBFBFB',
+                textShadow: '0 0 10px rgba(255, 255, 255, 0.6)',
+                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                fontWeight: 400,
+                padding: '2px 10px',
+                border: '1px solid rgba(92, 196, 240, 0.6)',
+                clipPath:
+                  'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+                background: 'rgba(43, 115, 179, 0.15)',
+              }}
+            >
+              V ALPHA 1.0
+            </span>
+          </div>
+          <p
+            className="tracking-[0.3em]"
+            style={{
+              fontSize: 'clamp(0.5rem, 1.3vw, 0.7rem)',
+              color: 'rgba(92, 196, 240, 0.4)',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+            }}
+          >
+            NERVE GEAR SYSTEM
+          </p>
+        </motion.div>
       </motion.div>
 
       {/* ===== Boot log overlay (fades out when ready) ===== */}
@@ -305,7 +320,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 fontSize: 'clamp(0.75rem, 1.5vw, 1.1rem)',
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 letterSpacing: '0.05em',
-                fontWeight: 600,
+                fontWeight: 400,
                 caretColor: '#0682BE',
               }}
               autoComplete="off"
@@ -334,7 +349,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 fontSize: 'clamp(0.75rem, 1.5vw, 1.1rem)',
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 letterSpacing: '0.05em',
-                fontWeight: 600,
+                fontWeight: 400,
                 caretColor: '#0682BE',
               }}
               autoComplete="off"
@@ -377,11 +392,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               }}
             />
             <span
-              className="relative text-white font-semibold tracking-[0.2em] pointer-events-none"
+              className="relative text-white tracking-[0.2em] pointer-events-none"
               style={{
                 fontSize: 'clamp(0.7rem, 1.4vw, 1rem)',
                 textShadow: '0 0 8px rgba(255,255,255,0.7), 0 0 16px rgba(43,115,179,0.9)',
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                fontWeight: 400,
               }}
             >
               LINK START

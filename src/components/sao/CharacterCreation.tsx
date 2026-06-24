@@ -125,7 +125,7 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                 subtitle="Il tuo corpo ad Aincrad — generato dal sistema NerveGear"
               />
               <div
-                className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10 max-w-4xl mx-auto mt-10"
+                className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8 max-w-3xl mx-auto mt-8"
                 style={{
                   transform: `translate3d(${parallax.x * 10}px, ${parallax.y * 10}px, 0)`,
                 }}
@@ -153,7 +153,7 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
 
               {/* SAO-style info banner under the cards */}
               <motion.div
-                className="max-w-4xl mx-auto mt-10 px-5 py-3"
+                className="max-w-3xl mx-auto mt-8 px-5 py-3"
                 style={{
                   background: 'rgba(43, 115, 179, 0.15)',
                   border: '1px solid rgba(43, 115, 179, 0.5)',
@@ -181,7 +181,7 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -30 }}
               transition={{ duration: 0.4 }}
-              className="w-full max-w-4xl"
+              className="w-full max-w-3xl"
             >
               <StepHeader
                 title="RIEPILOGO PERSONAGGIO"
@@ -196,11 +196,11 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                 selected={false}
                 onClick={() => play('click', 0.2)}
               >
-                <div className="grid md:grid-cols-[260px_1fr] gap-6 p-6 sm:p-8">
+                <div className="grid md:grid-cols-[200px_1fr] gap-5 p-5 sm:p-6">
                   {/* Character preview */}
                   <div className="flex flex-col items-center">
                     <div
-                      className="relative w-full aspect-[137/316] max-w-[220px]"
+                      className="relative w-full aspect-[137/316] max-w-[150px]"
                       style={{
                         filter: 'drop-shadow(0 0 25px rgba(43, 115, 179, 0.5))',
                       }}
@@ -257,7 +257,7 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                           color: '#1a2a3a',
                           border: '1px solid rgba(43, 115, 179, 0.6)',
                           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 600,
+                          fontWeight: 400,
                           letterSpacing: '0.04em',
                           clipPath:
                             'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
@@ -306,7 +306,7 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                 </div>
 
                 {/* Confirm buttons */}
-                <div className="px-6 pb-6 sm:px-8 sm:pb-8 flex justify-end gap-3">
+                <div className="px-5 pb-5 sm:px-6 sm:pb-6 flex justify-end gap-3">
                   <button
                     onClick={handleBack}
                     onMouseEnter={() => play('click', 0.2)}
@@ -498,9 +498,9 @@ function SaoCard({ children, glowColor, onHover, onLeave, selected, onClick }: S
 
 function GenderCardContent({ gender, highlighted }: { gender: Gender; highlighted: boolean }) {
   return (
-    <div className="flex flex-col items-center p-6 sm:p-8 min-h-[360px] justify-center">
+    <div className="flex flex-col items-center p-5 sm:p-6 min-h-[280px] justify-center">
       <div
-        className="relative w-full aspect-[137/316] max-w-[180px] transition-transform duration-300"
+        className="relative w-full aspect-[137/316] max-w-[130px] transition-transform duration-300"
         style={{
           filter: highlighted
             ? `drop-shadow(0 0 25px ${gender.glowColor})`
@@ -586,10 +586,11 @@ function StatsGrid() {
                   {s.id}
                 </span>
                 <span
-                  className="text-sm font-semibold"
+                  className="text-sm"
                   style={{
                     color: '#0682BE',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                    fontWeight: 400,
                   }}
                 >
                   {value}
@@ -630,7 +631,7 @@ function SaoButton({
     <button
       onClick={onClick}
       onMouseEnter={() => hoverSound && play('click', 0.3)}
-      className="relative px-7 py-2.5 text-white font-semibold tracking-[0.25em] text-sm transition-all hover:scale-[1.03]"
+      className="relative px-7 py-2.5 text-white tracking-[0.25em] text-sm transition-all hover:scale-[1.03]"
       style={{
         background: 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)',
         boxShadow: '0 0 25px rgba(43,115,179,0.7), inset 0 0 10px rgba(255,255,255,0.25)',
@@ -638,6 +639,7 @@ function SaoButton({
         clipPath:
           'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+        fontWeight: 400,
       }}
     >
       {children}

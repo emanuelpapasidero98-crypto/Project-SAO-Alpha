@@ -338,30 +338,51 @@ function EnteringAincrad({ onDone }: { onDone: () => void }) {
         </motion.div>
       </motion.div>
 
-      {/* NERVEGEAR wordmark — huge, same as login screen */}
-      <motion.h1
-        className="tracking-[0.45em] font-light"
-        style={{
-          fontSize: 'clamp(2rem, 7vw, 4.5rem)',
-          color: '#FBFBFB',
-          textShadow:
-            '0 0 20px rgba(43, 115, 179, 0.9), 0 0 40px rgba(43, 115, 179, 0.6), 0 0 80px rgba(43, 115, 179, 0.3)',
-          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-          letterSpacing: '0.45em',
-        }}
+      {/* Subtitle: SWORD ART ONLINE VRMMORPG + V ALPHA 1.0 inline */}
+      <motion.div
+        className="flex items-baseline gap-3 flex-wrap justify-center mb-4"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.8 }}
       >
-        NERVEGEAR
-      </motion.h1>
+        <p
+          className="tracking-[0.4em]"
+          style={{
+            fontSize: 'clamp(0.95rem, 2.8vw, 1.5rem)',
+            color: '#5CC4F0',
+            textShadow: '0 0 14px rgba(92, 196, 240, 0.8)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+          }}
+        >
+          SWORD ART ONLINE VRMMORPG
+        </p>
+        <span
+          className="tracking-[0.25em]"
+          style={{
+            fontSize: 'clamp(0.7rem, 2vw, 1.05rem)',
+            color: '#FBFBFB',
+            textShadow: '0 0 10px rgba(255, 255, 255, 0.6)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            padding: '2px 10px',
+            border: '1px solid rgba(92, 196, 240, 0.6)',
+            clipPath:
+              'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+            background: 'rgba(43, 115, 179, 0.15)',
+          }}
+        >
+          V ALPHA 1.0
+        </span>
+      </motion.div>
 
       <motion.p
-        className="tracking-[0.4em] mt-4 text-sm"
+        className="tracking-[0.4em] mt-2 text-sm"
         style={{
           color: '#5CC4F0',
           textShadow: '0 0 12px rgba(92, 196, 240, 0.7)',
           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          fontWeight: 400,
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
