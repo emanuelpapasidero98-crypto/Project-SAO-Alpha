@@ -10,29 +10,33 @@ import { useSaoSound } from '@/hooks/useSaoSound';
  * Built EXCLUSIVELY from canonical assets in "Pezzi barra HP, Mana e Energia":
  *
  *   1. Bar background = "[Blank] 2.png" (1620×258, aspect 6.28:1) — the
- *      OFFICIAL rendered template of a single SAO bar (dark border, white
- *      decorative top line, hexagonal right cut, colored gradient fill).
- *      Recolored to blue (MP) and yellow (Energy) via hue rotation of the
- *      original green pixels.
+ *      OFFICIAL rendered template of a single SAO bar. It contains only the
+ *      dark border (#373737) + white decorative top line + hexagonal right
+ *      cut + colored gradient fill. It does NOT contain the value box.
  *
- *   2. Values box = "pezzi valori barre e lv.svg" (viewBox 110×30) — a dark
+ *   2. Value box = "pezzi valori barre e lv.svg" (viewBox 110×30) — a dark
  *      #303030 rectangular box with:
- *        - Left section (0-35px): contains "/" — this is where current/max
- *          values are placed (e.g. "300/300")
- *        - Right section (35-110px): contains "LV:" — this is where the
- *          level number is placed
+ *        - Left section (0-35px): contains "/" — where current/max values go
+ *        - Right section (35-110px): contains "LV:" — where the level goes
  *      A vertical #151515 separator line divides the two sections.
  *
- * Per the SAO canon:
- *   - HP and MP bars show ONLY the values box (left section, no LV)
- *   - Energy bar (the last one) shows the FULL values box (values + LV)
- *   - The standalone LV badge below the bars is REMOVED
+ * Layout per the user's request:
+ *   - The value box is placed INSIDE each bar (overlaid on the fill), in the
+ *     right portion of the bar (semi-transparent so the bar color shows through).
+ *   - HP bar: only the LEFT section of the box (values "300/300"), NO LV box.
+ *   - MP bar: same as HP — only values, NO LV box.
+ *   - Energy bar: the FULL box (values + LV) inside the bar.
+ *   - All standalone LV boxes/badges are ELIMINATED — only the one inside the
+ *     Energy bar remains.
  *
- * The bar type label (HP/MP/EN) is placed ABOVE each bar (small, top-left),
- * so it doesn't intersect with the colored fill or the values box.
+ * The bar type label (HP/MP/EN) is placed ABOVE each bar (small, top-left)
+ * so it doesn't intersect with the fill or the value box.
+ *
+ * The player name is placed ABOVE the HP bar, taking most of the HP bar's
+ * width, and positioned so it doesn't intersect with the "HP" label.
  *
  * Player name uses the "bianco SAO" card style: #FBFBFB background with
- * #1a2a3a dark text and angular clip-path (matching the gender cards).
+ * #1a2a3a dark text and angular clip-path.
  *
  * No graphics are invented — only the existing canonical assets are used.
  */
@@ -87,30 +91,32 @@ export default function SaoHUD({
       transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
       onMouseEnter={() => play('click', 0.12)}
     >
-      {/* Player name — "bianco SAO" style matching the gender cards:
-          #FBFBFB background with #1a2a3a dark text, angular clip-path,
-          subtle blue border accent. */}
-      {playerName && (
-        <div
-          className="mb-1.5 inline-block px-2.5 py-0.5 text-[0.65rem] tracking-[0.25em]"
-          style={{
-            color: '#1a2a3a',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            background: '#FBFBFB',
-            border: '1px solid rgba(43, 115, 179, 0.5)',
-            clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
-            boxShadow: '0 0 8px rgba(43, 115, 179, 0.3)',
-          }}
-        >
-          {playerName.toUpperCase()}
-        </div>
-      )}
-
       <div className="relative flex flex-col gap-[2px]">
-        <SaoBar type="hp" current={hp.current} max={hp.max} mounted={mounted} showLevel={false} level={level} />
-        <SaoBar type="mp" current={mp.current} max={mp.max} mounted={mounted} showLevel={false} level={level} />
-        <SaoBar type="energy" current={energy.current} max={energy.max} mounted={mounted} showLevel={true} level={level} />
+        <SaoBar
+          type="hp"
+          current={hp.current}
+          max={hp.max}
+          mounted={mounted}
+          showLevel={false}
+          level={level}
+          playerName={playerName}
+        />
+        <SaoBar
+          type="mp"
+          current={mp.current}
+          max={mp.max}
+          mounted={mounted}
+          showLevel={false}
+          level={level}
+        />
+        <SaoBar
+          type="energy"
+          current={energy.current}
+          max={energy.max}
+          mounted={mounted}
+          showLevel={true}
+          level={level}
+        />
       </div>
     </motion.div>
   );
@@ -125,6 +131,7 @@ function SaoBar({
   mounted,
   showLevel,
   level,
+  playerName,
 }: {
   type: BarType;
   current: number;
@@ -132,6 +139,7 @@ function SaoBar({
   mounted: boolean;
   showLevel: boolean;
   level: number;
+  playerName?: string;
 }) {
   const config = BAR_CONFIG[type];
   const pct = Math.max(0, Math.min(1, current / max));
@@ -142,9 +150,29 @@ function SaoBar({
   const displayMax = String(max).padStart(3, '0');
 
   return (
-    <div className="relative flex items-stretch gap-1.5" style={{ width: 'min(420px, 40vw)' }}>
-      {/* ===== Bar (using [Blank] 2.png as background) ===== */}
-      <div className="relative flex-1" style={{ aspectRatio: '1620 / 258' }}>
+    <div className="relative" style={{ width: 'min(420px, 40vw)' }}>
+      {/* Player name — placed ABOVE the HP bar, taking most of its width.
+          Positioned to the RIGHT of the "HP" label so they don't intersect. */}
+      {playerName && type === 'hp' && (
+        <div
+          className="absolute -top-5 left-8 right-1 px-2 py-0.5 text-[0.6rem] tracking-[0.25em] truncate"
+          style={{
+            color: '#1a2a3a',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            background: '#FBFBFB',
+            border: '1px solid rgba(43, 115, 179, 0.5)',
+            clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
+            boxShadow: '0 0 6px rgba(43, 115, 179, 0.3)',
+            textAlign: 'center',
+          }}
+        >
+          {playerName.toUpperCase()}
+        </div>
+      )}
+
+      {/* Bar (using [Blank] 2.png as background) */}
+      <div className="relative" style={{ aspectRatio: '1620 / 258' }}>
         {/* Bar PNG — animated fill via clip-path */}
         <motion.img
           src={config.png}
@@ -169,7 +197,7 @@ function SaoBar({
         />
 
         {/* Bar type label (HP/MP/EN) — placed ABOVE the bar (small, top-left),
-            so it doesn't intersect with the colored fill or values box. */}
+            so it doesn't intersect with the colored fill or the value box. */}
         <div
           className="absolute -top-3 left-1 px-1"
           style={{
@@ -186,6 +214,89 @@ function SaoBar({
           {config.label}
         </div>
 
+        {/* ===== Value box INSIDE the bar (using pezzi valori barre e lv.svg) =====
+            The SVG (110×30) is placed inside the right portion of the bar,
+            semi-transparent so the bar color shows through.
+            - HP/MP: show only the LEFT section of the box (values "300/300"), NO LV.
+              We clip the SVG to show only 0-35px of the 110px width (31.8%).
+            - Energy: show the FULL box (values + LV) inside the bar.
+
+            The box is positioned in the right portion of the bar, vertically centered.
+            Per the SAO canon, the box sits at roughly 60-95% of the bar width. */}
+        <div
+          className="absolute overflow-hidden"
+          style={{
+            // Position in the right portion of the bar
+            right: '3%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            // Width: small box for HP/MP (only values section), larger for Energy (values+LV)
+            // The SVG aspect ratio is 110/30 = 3.67:1
+            // For HP/MP we show 35/110 = 31.8% of the SVG width
+            // For Energy we show 100% of the SVG width
+            width: showLevel ? '22%' : '7%',
+            height: '50%',
+            // Semi-transparent overlay so the bar color shows through
+            opacity: 0.92,
+          }}
+        >
+          {/* The values SVG.
+              For HP/MP: render at 314% width (110/35) to show only the left section
+              For Energy: render at 100% width to show full SVG */}
+          <img
+            src="/sao/hpbar/pezzi valori barre e lv.svg"
+            alt=""
+            className="absolute inset-0 h-full"
+            draggable={false}
+            aria-hidden
+            style={{
+              width: showLevel ? '100%' : '314%',
+              maxWidth: 'none',
+              objectFit: 'fill',
+            }}
+          />
+
+          {/* Values text overlay (current/max) — positioned in the left section.
+              For HP/MP: full width of the (clipped) box.
+              For Energy: only the left 31.8% of the box. */}
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{
+              color: '#FBFBFB',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: 'clamp(0.45rem, 0.9vw, 0.65rem)',
+              letterSpacing: '0.05em',
+              textShadow: '0 1px 1px rgba(0,0,0,0.9)',
+              width: showLevel ? '31.8%' : '100%',
+            }}
+          >
+            <span className="opacity-90">{displayCurrent}</span>
+            <span className="opacity-50 mx-0.5">/</span>
+            <span className="opacity-75">{displayMax}</span>
+          </div>
+
+          {/* Level number overlay — only for Energy bar.
+              Positioned in the right section (35-110 of 110 = 31.8%-100%). */}
+          {showLevel && (
+            <div
+              className="absolute top-0 bottom-0 flex items-center justify-center"
+              style={{
+                left: '31.8%',
+                right: '0',
+                color: '#EBA601',
+                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                fontWeight: 400,
+                fontSize: 'clamp(0.45rem, 0.9vw, 0.65rem)',
+                letterSpacing: '0.05em',
+                textShadow: '0 0 6px rgba(235, 166, 1, 0.6)',
+              }}
+            >
+              {String(level).padStart(2, '0')}
+            </div>
+          )}
+        </div>
+
         {/* Pulse glow when low (<25%) — warning state */}
         {pct < 0.25 && pct > 0 && (
           <motion.div
@@ -198,78 +309,6 @@ function SaoBar({
             transition={{ duration: 1.2, repeat: Infinity }}
             aria-hidden
           />
-        )}
-      </div>
-
-      {/* ===== Values box (pezzi valori barre e lv.svg) =====
-          The SVG has viewBox 110×30. Left section (0-35) holds the values
-          with "/", right section (35-110) holds "LV:".
-          - For HP/MP: show only the left section (clip to 0-31.8%)
-          - For Energy: show the full box (values + LV) */}
-      <div
-        className="relative flex-shrink-0 overflow-hidden"
-        style={{
-          width: showLevel ? '24%' : '11%',
-          aspectRatio: showLevel ? '110 / 30' : '35 / 30',
-          alignSelf: 'center',
-          height: '60%',
-        }}
-      >
-        {/* The values SVG — for HP/MP (no level), we show only the left section
-            by making the image wider (314%) and clipping via overflow:hidden
-            on the parent. For Energy, we show the full SVG at 100% width. */}
-        <img
-          src="/sao/hpbar/pezzi valori barre e lv.svg"
-          alt=""
-          className="absolute inset-0 h-full"
-          draggable={false}
-          aria-hidden
-          style={{
-            width: showLevel ? '100%' : '314%', // 110/35 ≈ 3.14x to show only left part
-            maxWidth: 'none',
-            objectFit: 'fill',
-          }}
-        />
-
-        {/* Values text overlay (current/max) — positioned in the left section.
-            For HP/MP: full width of the (clipped) box.
-            For Energy: only the left 31.8% of the box. */}
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{
-            color: '#FBFBFB',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: 'clamp(0.5rem, 1vw, 0.7rem)',
-            letterSpacing: '0.05em',
-            textShadow: '0 1px 1px rgba(0,0,0,0.9)',
-            // For Energy, restrict to left section (31.8% of width)
-            width: showLevel ? '31.8%' : '100%',
-          }}
-        >
-          <span className="opacity-90">{displayCurrent}</span>
-          <span className="opacity-50 mx-0.5">/</span>
-          <span className="opacity-75">{displayMax}</span>
-        </div>
-
-        {/* Level number overlay — only for Energy bar.
-            Positioned in the right section (35-110 of 110 = 31.8%-100%). */}
-        {showLevel && (
-          <div
-            className="absolute top-0 bottom-0 flex items-center justify-center"
-            style={{
-              left: '31.8%',
-              right: '0',
-              color: '#EBA601',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-              fontSize: 'clamp(0.5rem, 1vw, 0.7rem)',
-              letterSpacing: '0.05em',
-              textShadow: '0 0 6px rgba(235, 166, 1, 0.6)',
-            }}
-          >
-            {String(level).padStart(2, '0')}
-          </div>
         )}
       </div>
     </div>
