@@ -5,23 +5,22 @@ import { useEffect } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
 
 /**
- * SAO Notification Window — built using the canonical SVG
- * "SAO_UI-Window_blank.svg" from the "Finestra notifiche SAO" folder.
+ * SAO Notification Window — built using the 3 canonical SVG pieces from the
+ * "Finestra notifiche SAO" folder, stacked vertically:
  *
- * That single SVG (viewBox 0 0 1200 550) contains the COMPLETE canonical
- * SAO notification window:
- *   - White base rect (full 1200x550)
- *   - Top gradient strip (0→220, #EFEFEF→#DFDFDF)
- *   - Gray separator (220→228, #A8A8A8)
- *   - White body (228→550) where text is placed
- *   - Left blue button circle at translate(330, 390), r=95 (stroke 6 + ring stroke 26 + center r=20)
- *     → this is the canonical "OK" / confirm button
- *   - Right red button circle at translate(870, 390), r=95 (stroke 6 + filled r=75 + white X)
- *     → this is the canonical "cancel" / close button
+ *   1. Pezzo superiore finestra.svg  (1200×228) — header: gradient #EFEFEF→#DFDFDF
+ *      + 8px gray #A8A8A8 separator at the bottom. The TITLE text is placed here.
  *
- * We render this SVG as the window's background and overlay:
- *   - Title + body text in the body area (y 228→340, before the buttons)
- *   - Clickable hit-areas over each circle (no custom button graphics)
+ *   2. Parte interna finestra.svg    (1200×300) — middle: #D6D6D6 background with
+ *      subtle top/bottom shadow gradients. The BODY text is placed here.
+ *
+ *   3. Parete sotto della finestra.svg (1200×330) — footer: white background with
+ *      two circular buttons at translate(330, 165) (blue OK ring) and
+ *      translate(870, 165) (red X disc). The CLICK HANDLERS are placed here,
+ *      without any text labels — the canonical SAO buttons are self-explanatory
+ *      (blue ring = confirm, red X = cancel/close).
+ *
+ * Total height = 228 + 300 + 330 = 858, aspect ratio 1200/858.
  *
  * Animation (from Progetto-SAO/qml/MenuView.qml — aniFadeIn / aniFadeOut):
  *   OPEN (ParallelAnimation):
@@ -32,8 +31,13 @@ import { useSaoSound } from '@/hooks/useSaoSound';
  *     - opacity: 1 → 0 over 400ms
  *     - y: 0 → -height over 300ms with easing InQuad
  *
- * No graphics are invented — only the existing canonical SVG is used as
- * the window chrome, and text is overlaid on top.
+ * The window is sized down (max ~520px wide instead of 900px) to feel less bulky.
+ *
+ * Both buttons are functional:
+ *   - Blue circle (left, x=330/1200=27.5%)  → onConfirm
+ *   - Red circle   (right, x=870/1200=72.5%) → onCancel (always available)
+ *
+ * No graphics are invented — only the existing canonical SVGs are stacked.
  */
 
 export type NotificationKind = 'system' | 'message' | 'alert' | 'present';
@@ -43,10 +47,6 @@ export interface SaoNotificationData {
   kind: NotificationKind;
   title: string;
   body: string;
-  /** Optional confirm button label (defaults to "OK") */
-  confirmLabel?: string;
-  /** Optional cancel button label (if absent, only confirm button is shown) */
-  cancelLabel?: string;
   /** Auto-dismiss after ms (0 = manual) */
   autoDismiss?: number;
 }
@@ -129,6 +129,16 @@ function SaoWindow({
     onCancel?.(notification.id);
   };
 
+  // Layout proportions (matching the 3 SVGs):
+  //   TOP    = 228 / 858 = 26.6%   (title area)
+  //   MIDDLE = 300 / 858 = 35.0%   (body text area)
+  //   BOTTOM = 330 / 858 = 38.4%   (buttons area)
+  // Inside BOTTOM (1200×330), buttons are at y=165 (50% of bottom).
+  //   - Blue circle center: x=330/1200=27.5%, y=165/330=50% of bottom
+  //   - Red circle center:  x=870/1200=72.5%, y=165/330=50% of bottom
+  //   - Each circle has r=95 → diameter 190. So button hit-areas are 190px wide,
+  //     which is 190/1200 = 15.8% of width.
+
   return (
     <motion.div
       className="fixed inset-0 z-40 flex items-center justify-center px-4"
@@ -143,17 +153,16 @@ function SaoWindow({
     >
       {/* Window container — animation from MenuView.qml aniFadeIn:
           opacity 0→1 (400ms) + y -height→0 (600ms, OutQuart).
-          The window uses the canonical SAO_UI-Window_blank.svg as background.
-          SVG viewBox is 1200x550 (aspect ratio ~2.18:1). */}
+          Sized down to ~520px max-width (was 900px) to feel less bulky. */}
       <motion.div
         className="relative"
         style={{
-          width: 'min(900px, 95vw)',
-          aspectRatio: '1200 / 550',
+          width: 'min(520px, 92vw)',
+          aspectRatio: '1200 / 858',
         }}
-        initial={{ opacity: 0, y: -350 }}
+        initial={{ opacity: 0, y: -250 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -250 }}
+        exit={{ opacity: 0, y: -200 }}
         transition={{
           opacity: { duration: 0.4, ease: 'easeOut' },
           y: {
@@ -166,37 +175,56 @@ function SaoWindow({
           setTimeout(() => play('popupMessage', 0.4), 300);
         }}
       >
-        {/* ===== Canonical window background SVG (single image) ===== */}
+        {/* ===== Layer 1: TOP — Pezzo superiore finestra (header + gray separator) =====
+            Takes up 26.6% of total height (228/858). */}
         <img
-          src="/sao/window/SAO_UI-Window_blank.svg"
+          src="/sao/window/Pezzo superiore finestra.svg"
           alt=""
-          className="absolute inset-0 w-full h-full"
-          style={{
-            filter: 'drop-shadow(0 8px 20px rgba(0, 0, 0, 0.45))',
-          }}
+          className="absolute top-0 left-0 w-full"
+          style={{ height: '26.6%' }}
           draggable={false}
           aria-hidden
         />
 
-        {/* ===== Content overlay (title + body text) =====
-            The SVG body area is from y=228 to y=340 (above the buttons at y=390).
-            In viewBox coords (1200x550), that's:
-              - title at y ≈ 270 (centered in upper body)
-              - body text at y ≈ 320 (below title)
-            Converting to percentages: 270/550 ≈ 49%, 320/550 ≈ 58% */}
+        {/* ===== Layer 2: MIDDLE — Parte interna finestra (#D6D6D6 body) =====
+            Takes up 35.0% of total height (300/858). */}
+        <img
+          src="/sao/window/Parte interna finestra.svg"
+          alt=""
+          className="absolute left-0 w-full"
+          style={{ top: '26.6%', height: '35.0%' }}
+          draggable={false}
+          aria-hidden
+        />
+
+        {/* ===== Layer 3: BOTTOM — Parete sotto della finestra (white footer + 2 buttons) =====
+            Takes up 38.4% of total height (330/858). */}
+        <img
+          src="/sao/window/Parete sotto della finestra.svg"
+          alt=""
+          className="absolute left-0 w-full"
+          style={{ top: '61.6%', height: '38.4%' }}
+          draggable={false}
+          aria-hidden
+        />
+
+        {/* ===== TITLE text overlay (in the TOP layer) =====
+            Centered vertically in the top header area. The top layer is
+            26.6% tall, with the gradient taking up to y=220/228 ≈ 96.4% of it.
+            We center the title at ~13% (half of 26.6%) so it sits in the
+            middle of the gradient header. */}
         <div
-          className="absolute left-0 w-full flex flex-col items-center justify-center text-center px-[12%]"
+          className="absolute left-0 w-full flex items-center justify-center text-center px-[12%]"
           style={{
-            top: '42%',
-            height: '18%',
+            top: '4%',
+            height: '22.6%',
           }}
         >
-          {/* Title row with kind indicator */}
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3">
             <img
               src={icon}
               alt=""
-              className="w-6 h-6"
+              className="w-5 h-5 sm:w-6 sm:h-6"
               style={{
                 filter: `drop-shadow(0 0 6px ${color})`,
               }}
@@ -208,45 +236,59 @@ function SaoWindow({
                 color: '#1a2a3a',
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 fontWeight: 400,
-                fontSize: 'clamp(0.9rem, 2vw, 1.4rem)',
+                fontSize: 'clamp(0.75rem, 1.8vw, 1.1rem)',
                 textShadow: '0 1px 2px rgba(255,255,255,0.5)',
               }}
             >
               {notification.title.toUpperCase()}
             </h3>
           </div>
+        </div>
 
-          {/* Body text */}
+        {/* ===== BODY text overlay (in the MIDDLE layer) =====
+            The middle layer spans 26.6% → 61.6%. We center the text in this
+            area with vertical padding to leave room for the gradient shadows
+            at top/bottom of the middle layer. */}
+        <div
+          className="absolute left-0 w-full flex items-center justify-center text-center px-[15%]"
+          style={{
+            top: '30%',
+            height: '28%',
+          }}
+        >
           <p
             className="leading-relaxed"
             style={{
               color: '#1a2a3a',
               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
               fontWeight: 400,
-              fontSize: 'clamp(0.78rem, 1.5vw, 1rem)',
-              maxWidth: '75%',
+              fontSize: 'clamp(0.7rem, 1.4vw, 0.95rem)',
+              maxWidth: '90%',
             }}
           >
             {notification.body}
           </p>
         </div>
 
-        {/* ===== Confirm button hit-area (left, blue circle at x=330/1200, y=390/550)
-            The circle has r=95, so the hit area is a square of ~190x190 centered
-            at (330, 390) in viewBox coords. Converting to %:
-              center x = 330/1200 = 27.5%
-              center y = 390/550 = 70.9%
-              size = 190/1200 = 15.8% (width), 190/550 = 34.5% (height) ===== */}
+        {/* ===== Confirm button hit-area (blue circle, left) =====
+            The bottom layer is from 61.6% to 100% of the window height.
+            Inside the bottom SVG (1200×330), the blue circle is at (330, 165).
+            Converting to window coordinates:
+              center_x = 330/1200 = 27.5% (of window width)
+              center_y = 61.6% + (165/330)*38.4% = 61.6% + 19.2% = 80.8% (of window height)
+            The circle has r=95 → diameter 190, which is 190/1200 = 15.8% of width.
+            But we make the hit-area slightly larger for better clickability. */}
         <motion.button
           type="button"
           onClick={handleConfirm}
           onMouseEnter={() => play('click', 0.2)}
-          className="absolute flex items-center justify-center"
+          className="absolute"
           style={{
-            left: 'calc(27.5% - 8%)',
-            top: 'calc(70.9% - 17%)',
-            width: '16%',
-            height: '34%',
+            // Center at (27.5%, 80.8%). Width = 16%, height = 16% * (1200/858) for aspect-correct circle.
+            left: 'calc(27.5% - 9%)',
+            top: 'calc(80.8% - 8%)',
+            width: '18%',
+            height: '16%',
             cursor: 'pointer',
             background: 'transparent',
             border: 'none',
@@ -255,58 +297,32 @@ function SaoWindow({
           }}
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.95 }}
-          aria-label={notification.confirmLabel ?? 'OK'}
-        >
-          {/* Label overlay on the blue circle (the SVG already draws the circle) */}
-          <span
-            className="absolute text-white tracking-[0.15em] pointer-events-none"
-            style={{
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-              fontSize: 'clamp(0.55rem, 1.2vw, 0.85rem)',
-              textShadow: '0 1px 2px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.5)',
-            }}
-          >
-            {notification.confirmLabel?.toUpperCase() ?? 'OK'}
-          </span>
-        </motion.button>
+          aria-label="Conferma"
+        />
 
-        {/* ===== Cancel button hit-area (right, red circle at x=870/1200, y=390/550)
-            Only shown if cancelLabel is provided. ===== */}
-        {notification.cancelLabel !== undefined && (
-          <motion.button
-            type="button"
-            onClick={handleCancel}
-            onMouseEnter={() => play('click', 0.2)}
-            className="absolute flex items-center justify-center"
-            style={{
-              left: 'calc(72.5% - 8%)',
-              top: 'calc(70.9% - 17%)',
-              width: '16%',
-              height: '34%',
-              cursor: 'pointer',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              borderRadius: '50%',
-            }}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.95 }}
-            aria-label={notification.cancelLabel}
-          >
-            <span
-              className="absolute text-white tracking-[0.15em] pointer-events-none"
-              style={{
-                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                fontWeight: 400,
-                fontSize: 'clamp(0.55rem, 1.2vw, 0.85rem)',
-                textShadow: '0 1px 2px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.5)',
-              }}
-            >
-              {notification.cancelLabel.toUpperCase()}
-            </span>
-          </motion.button>
-        )}
+        {/* ===== Cancel button hit-area (red circle, right) =====
+            Same logic but at x=870/1200 = 72.5%. This is ALWAYS functional —
+            it dismisses the notification (treated as cancel/dismiss). */}
+        <motion.button
+          type="button"
+          onClick={handleCancel}
+          onMouseEnter={() => play('click', 0.2)}
+          className="absolute"
+          style={{
+            left: 'calc(72.5% - 9%)',
+            top: 'calc(80.8% - 8%)',
+            width: '18%',
+            height: '16%',
+            cursor: 'pointer',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            borderRadius: '50%',
+          }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.95 }}
+          aria-label="Annulla"
+        />
       </motion.div>
     </motion.div>
   );

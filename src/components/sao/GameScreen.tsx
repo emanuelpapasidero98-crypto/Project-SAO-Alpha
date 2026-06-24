@@ -68,7 +68,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
         kind: 'system',
         title: 'Sistema',
         body: `Benvenuto ad Aincrad, ${playerName}. Sei al Floor 1.`,
-        confirmLabel: 'OK',
         autoDismiss: 6000,
       });
     }, 800);
@@ -86,7 +85,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           kind: 'system',
           title: 'Personaggio',
           body: `${playerName} — Lv.1  HP ${hp.current}/${hp.max}  MP ${mp.current}/${mp.max}`,
-          confirmLabel: 'Chiudi',
           autoDismiss: 6000,
         });
         break;
@@ -95,7 +93,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           kind: 'present',
           title: 'Borsa',
           body: 'Col: 0  —  Valuta iniziale. Esplora Aincrad per guadagnare.',
-          confirmLabel: 'OK',
           autoDismiss: 6000,
         });
         break;
@@ -104,7 +101,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           kind: 'message',
           title: 'Inventario',
           body: 'Lo zaino è vuoto. Raccogli oggetti durante le tue avventure.',
-          confirmLabel: 'OK',
           autoDismiss: 6000,
         });
         break;
@@ -113,7 +109,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           kind: 'message',
           title: 'Quest',
           body: 'Nessuna quest attiva. Visita la città di inizi per ricevere missioni.',
-          confirmLabel: 'OK',
           autoDismiss: 6000,
         });
         break;
@@ -122,7 +117,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           kind: 'system',
           title: 'Piano',
           body: 'Aincrad — Floor 1: Città degli Inizi.',
-          confirmLabel: 'OK',
           autoDismiss: 6000,
         });
         break;
@@ -131,7 +125,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           kind: 'message',
           title: 'Party',
           body: 'Non sei in un party. Invita altri giocatori per formarlo.',
-          confirmLabel: 'OK',
           autoDismiss: 6000,
         });
         break;
@@ -140,7 +133,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           kind: 'present',
           title: 'Opzioni',
           body: 'Sistema NerveGear v1.100 — funzionamento ottimale.',
-          confirmLabel: 'OK',
           autoDismiss: 6000,
         });
         break;
@@ -149,7 +141,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           kind: 'message',
           title: 'Messaggi',
           body: 'Nessun nuovo messaggio.',
-          confirmLabel: 'OK',
           autoDismiss: 6000,
         });
         break;
@@ -163,9 +154,7 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
       kind: 'alert',
       title: 'Log Out',
       body: 'Vuoi davvero scollegarti da Aincrad? Verrai riportato alla schermata di login.',
-      confirmLabel: 'Sì',
-      cancelLabel: 'No',
-      autoDismiss: 0,
+      autoDismiss: 0, // manual dismissal only
     });
     // After confirm, the onConfirm handler will trigger onExit
   };
@@ -181,6 +170,8 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
   };
 
   const handleCancel = (_id: number) => {
+    // Cancel button (red X) just dismisses the window.
+    // For Log Out, this means "no, don't logout" — just close.
     setNotification(null);
   };
 
@@ -265,60 +256,6 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ===== Skill quick-slot (bottom-right) ===== */}
-      <motion.div
-        className="fixed bottom-4 right-4 z-30 flex items-center gap-2 px-3 py-2"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 0.5 }}
-        style={{
-          background: 'rgba(8, 12, 20, 0.6)',
-          border: '1px solid rgba(43, 115, 179, 0.5)',
-          clipPath:
-            'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
-          backdropFilter: 'blur(8px)',
-        }}
-      >
-        <span
-          className="text-[0.65rem] tracking-[0.25em] mr-2 pr-2"
-          style={{
-            color: '#5CC4F0',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            borderRight: '1px solid rgba(43, 115, 179, 0.4)',
-          }}
-        >
-          SKILL
-        </span>
-        {[1, 2, 3, 4].map((i) => (
-          <motion.div
-            key={i}
-            className="w-8 h-8 flex items-center justify-center"
-            style={{
-              background: 'rgba(43, 115, 179, 0.15)',
-              border: '1px solid rgba(43, 115, 179, 0.4)',
-              clipPath:
-                'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-            }}
-            whileHover={{
-              scale: 1.1,
-              boxShadow: '0 0 12px rgba(92, 196, 240, 0.7)',
-            }}
-          >
-            <span
-              className="text-[0.65rem]"
-              style={{
-                color: 'rgba(92, 196, 240, 0.6)',
-                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                fontWeight: 400,
-              }}
-            >
-              {i}
-            </span>
-          </motion.div>
-        ))}
-      </motion.div>
 
       {/* ===== Crosshair (bottom-center, VR hint) ===== */}
       <motion.div

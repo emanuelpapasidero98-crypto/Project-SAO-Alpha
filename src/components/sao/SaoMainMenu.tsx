@@ -186,31 +186,6 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
               draggable={false}
             />
           </motion.div>
-
-          {/* Tooltip when closed */}
-          <motion.div
-            className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2.5 py-1 pointer-events-none whitespace-nowrap"
-            initial={{ opacity: 0, x: 8 }}
-            animate={{
-              opacity: isOpen ? 0 : 1,
-              x: isOpen ? 8 : 0,
-            }}
-            transition={{ duration: 0.2 }}
-            style={{
-              background: 'rgba(8, 12, 20, 0.85)',
-              border: '1px solid rgba(43, 115, 179, 0.6)',
-              clipPath:
-                'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-              color: '#5CC4F0',
-              fontSize: '0.7rem',
-              letterSpacing: '0.2em',
-              textShadow: '0 0 8px rgba(92, 196, 240, 0.6)',
-            }}
-          >
-            MENU
-          </motion.div>
         </motion.button>
       </motion.div>
 
