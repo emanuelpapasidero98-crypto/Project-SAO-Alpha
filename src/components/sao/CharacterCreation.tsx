@@ -100,25 +100,11 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
           onClick={handleBack}
           onMouseEnter={() => play('click', 0.2)}
           className="text-cyan-200/70 hover:text-cyan-100 text-sm tracking-[0.2em] transition-colors flex items-center gap-2"
+          style={{ fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif" }}
         >
           ◀ INDIETRO
         </button>
-        <div className="text-center">
-          <h2
-            className="tracking-[0.3em] font-light"
-            style={{
-              fontSize: 'clamp(0.9rem, 2vw, 1.3rem)',
-              color: '#FBFBFB',
-              textShadow: '0 0 18px rgba(43, 115, 179, 0.6)',
-            }}
-          >
-            CREAZIONE PERSONAGGIO
-          </h2>
-          <p className="text-cyan-100/40 text-[0.65rem] tracking-[0.4em] mt-1">
-            FLOOR 1 — CITY OF BEGINNINGS
-          </p>
-        </div>
-        <div className="text-cyan-200/70 text-xs tracking-[0.2em]">
+        <div className="text-cyan-200/70 text-xs tracking-[0.2em]" style={{ fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif" }}>
           STEP {step === 'gender' ? '1' : '2'} / 2
         </div>
       </motion.div>
@@ -178,8 +164,11 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <p className="text-cyan-100/80 text-xs sm:text-sm tracking-[0.15em] text-center">
-                  ⚠ IN SAO OGNI AVATAR NASCE UGUALE — LE ABILITÀ SI SVILUPPANO GIOCANDO
+                <p
+                  className="text-cyan-100/80 text-xs sm:text-sm tracking-[0.15em] text-center"
+                  style={{ fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif" }}
+                >
+                  IN SAO OGNI AVATAR NASCE UGUALE — LE ABILITÀ SI SVILUPPANO GIOCANDO
                 </p>
               </motion.div>
             </motion.div>
@@ -199,29 +188,14 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                 subtitle="Conferma i dettagli del tuo avatar prima di entrare ad Aincrad"
               />
 
-              <motion.div
-                className="relative mt-10 overflow-hidden"
-                style={{
-                  background: 'rgba(8, 22, 40, 0.7)',
-                  border: '1px solid rgba(43, 115, 179, 0.5)',
-                  boxShadow:
-                    '0 0 50px rgba(43, 115, 179, 0.25), inset 0 0 30px rgba(43, 115, 179, 0.08)',
-                  // SAO angular shape: top-left + bottom-right corners cut
-                  clipPath:
-                    'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
-                }}
-                initial={{ scale: 0.96, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.15 }}
+              {/* SAO-style summary card with VR hover effect (same as gender cards) */}
+              <SaoCard
+                glowColor={gender.glowColor}
+                onHover={(coords) => onCardHover?.(coords)}
+                onLeave={() => onCardHover?.(null)}
+                selected={false}
+                onClick={() => play('click', 0.2)}
               >
-                {/* SAO-style top divider bar (like the #A8A8A8 in the window SVG) */}
-                <div
-                  className="h-1.5 w-full"
-                  style={{
-                    background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)',
-                  }}
-                />
-
                 <div className="grid md:grid-cols-[260px_1fr] gap-6 p-6 sm:p-8">
                   {/* Character preview */}
                   <div className="flex flex-col items-center">
@@ -239,7 +213,10 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                     </div>
                     <p
                       className="mt-4 tracking-[0.3em] text-sm"
-                      style={{ color: '#FBFBFB' }}
+                      style={{
+                        color: '#1a2a3a',
+                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                      }}
                     >
                       {gender.label.toUpperCase()}
                     </p>
@@ -258,7 +235,11 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                     <div>
                       <label
                         htmlFor="char-name"
-                        className="block text-cyan-200/70 text-xs tracking-[0.3em] mb-2"
+                        className="block text-[0.65rem] tracking-[0.3em] mb-2"
+                        style={{
+                          color: 'rgba(26, 42, 58, 0.7)',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                        }}
                       >
                         NOME PERSONAGGIO
                       </label>
@@ -272,10 +253,10 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                         placeholder="es. Kirito, Asuna, Klein..."
                         className="w-full px-3 py-2 outline-none transition"
                         style={{
-                          background: 'rgba(251, 251, 251, 0.95)',
+                          background: 'rgba(255, 255, 255, 0.95)',
                           color: '#1a2a3a',
                           border: '1px solid rgba(43, 115, 179, 0.6)',
-                          fontFamily: 'var(--font-sao, "Trebuchet MS", sans-serif)',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                           fontWeight: 600,
                           letterSpacing: '0.04em',
                           clipPath:
@@ -286,18 +267,37 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                     </div>
 
                     <div>
-                      <p className="text-cyan-200/70 text-xs tracking-[0.3em] mb-2">GENERE</p>
-                      <p className="text-sm" style={{ color: '#FBFBFB' }}>
+                      <p
+                        className="text-[0.65rem] tracking-[0.3em] mb-2"
+                        style={{
+                          color: 'rgba(26, 42, 58, 0.7)',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                        }}
+                      >
+                        GENERE
+                      </p>
+                      <p className="text-sm" style={{ color: '#1a2a3a' }}>
                         {gender.label}{' '}
-                        <span className="text-cyan-200/50 text-xs">— {gender.description}</span>
+                        <span style={{ color: 'rgba(26, 42, 58, 0.55)', fontSize: '0.7rem' }}>
+                          — {gender.description}
+                        </span>
                       </p>
                     </div>
 
                     <div>
-                      <p className="text-cyan-200/70 text-xs tracking-[0.3em] mb-1">
+                      <p
+                        className="text-[0.65rem] tracking-[0.3em] mb-1"
+                        style={{
+                          color: 'rgba(26, 42, 58, 0.7)',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                        }}
+                      >
                         STATISTICHE INIZIALI
                       </p>
-                      <p className="text-cyan-100/50 text-[0.65rem] tracking-wider mb-3">
+                      <p
+                        className="text-[0.6rem] tracking-wider mb-3"
+                        style={{ color: 'rgba(26, 42, 58, 0.5)' }}
+                      >
                         Tutti gli avatar iniziano con le stesse statistiche base
                       </p>
                       <StatsGrid />
@@ -305,20 +305,16 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                   </div>
                 </div>
 
-                {/* SAO-style bottom divider bar */}
-                <div
-                  className="h-1.5 w-full"
-                  style={{
-                    background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)',
-                  }}
-                />
-
                 {/* Confirm buttons */}
-                <div className="p-4 sm:p-6 flex justify-end gap-3">
+                <div className="px-6 pb-6 sm:px-8 sm:pb-8 flex justify-end gap-3">
                   <button
                     onClick={handleBack}
                     onMouseEnter={() => play('click', 0.2)}
-                    className="px-5 py-2 text-cyan-200/70 hover:text-cyan-100 text-sm tracking-[0.2em] transition"
+                    className="px-5 py-2 text-sm tracking-[0.2em] transition"
+                    style={{
+                      color: 'rgba(26, 42, 58, 0.7)',
+                      fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                    }}
                   >
                     MODIFICA
                   </button>
@@ -326,7 +322,7 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                     ENTRA AD AINCRAD →
                   </SaoButton>
                 </div>
-              </motion.div>
+              </SaoCard>
             </motion.div>
           )}
         </AnimatePresence>
@@ -346,13 +342,19 @@ function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
           fontSize: 'clamp(1rem, 2.4vw, 1.6rem)',
           color: '#FBFBFB',
           textShadow: '0 0 20px rgba(43, 115, 179, 0.6)',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
         }}
         initial={{ y: -10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
       >
         {title}
       </motion.h3>
-      <p className="text-cyan-100/50 text-xs sm:text-sm tracking-[0.2em] mt-2">{subtitle}</p>
+      <p
+        className="text-cyan-100/50 text-xs sm:text-sm tracking-[0.2em] mt-2"
+        style={{ fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif" }}
+      >
+        {subtitle}
+      </p>
     </div>
   );
 }
@@ -517,13 +519,17 @@ function GenderCardContent({ gender, highlighted }: { gender: Gender; highlighte
         style={{
           fontSize: 'clamp(1rem, 1.8vw, 1.4rem)',
           color: '#1a2a3a',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
         }}
       >
         {gender.label.toUpperCase()}
       </h4>
       <p
         className="text-[0.65rem] tracking-[0.2em] mt-2 text-center"
-        style={{ color: 'rgba(26, 42, 58, 0.55)' }}
+        style={{
+          color: 'rgba(26, 42, 58, 0.55)',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+        }}
       >
         {gender.description}
       </p>
@@ -554,15 +560,15 @@ function StatsGrid() {
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
       {STATS.map((s) => {
         const value = stats[s.id] ?? 0;
-        const max = 14;
+        const max = 10;
         return (
           <div
             key={s.id}
             className="flex items-center gap-2 px-2 py-1.5"
             title={s.description}
             style={{
-              background: 'rgba(43, 115, 179, 0.1)',
-              border: '1px solid rgba(43, 115, 179, 0.3)',
+              background: 'rgba(43, 115, 179, 0.08)',
+              border: '1px solid rgba(43, 115, 179, 0.35)',
               clipPath:
                 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
             }}
@@ -570,18 +576,32 @@ function StatsGrid() {
             <img src={`/sao/stats/${s.icon}`} alt={s.name} className="w-5 h-5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline justify-between">
-                <span className="text-cyan-200/70 text-[0.6rem] tracking-wider">{s.id}</span>
-                <span className="text-sm font-semibold" style={{ color: '#FBFBFB' }}>
+                <span
+                  className="text-[0.6rem] tracking-wider"
+                  style={{
+                    color: 'rgba(26, 42, 58, 0.7)',
+                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                  }}
+                >
+                  {s.id}
+                </span>
+                <span
+                  className="text-sm font-semibold"
+                  style={{
+                    color: '#0682BE',
+                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                  }}
+                >
                   {value}
                 </span>
               </div>
-              <div className="h-1 bg-slate-800 overflow-hidden mt-0.5">
+              <div className="h-1 overflow-hidden mt-0.5" style={{ background: 'rgba(26, 42, 58, 0.15)' }}>
                 <div
                   className="h-full"
                   style={{
                     width: `${(value / max) * 100}%`,
                     background: 'linear-gradient(90deg, #2B73B3, #5CC4F0)',
-                    boxShadow: '0 0 6px rgba(92, 196, 240, 0.6)',
+                    boxShadow: '0 0 6px rgba(43, 115, 179, 0.7)',
                   }}
                 />
               </div>
@@ -617,6 +637,7 @@ function SaoButton({
         border: '1px solid rgba(255,255,255,0.6)',
         clipPath:
           'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
+        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
       }}
     >
       {children}

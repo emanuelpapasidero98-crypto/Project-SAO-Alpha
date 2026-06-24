@@ -47,6 +47,7 @@ export default function RootLayout({
     <html lang="it" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground overflow-x-hidden`}
+        style={{ fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif" }}
       >
         {children}
         <Toaster />

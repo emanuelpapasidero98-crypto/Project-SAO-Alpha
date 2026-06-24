@@ -243,6 +243,7 @@ function LinkStartTransition({ onDone }: { onDone: () => void }) {
             fontSize: 'clamp(1.5rem, 5vw, 3.5rem)',
             textShadow:
               '0 0 30px rgba(255,255,255,0.9), 0 0 60px rgba(43,115,179,0.9)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
           }}
           animate={{ opacity: [1, 0.4, 1] }}
           transition={{ duration: 0.8, repeat: Infinity }}
@@ -251,7 +252,10 @@ function LinkStartTransition({ onDone }: { onDone: () => void }) {
         </motion.h1>
         <motion.p
           className="tracking-[0.4em] mt-3 text-sm"
-          style={{ color: '#5CC4F0' }}
+          style={{
+            color: '#5CC4F0',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
@@ -273,6 +277,7 @@ function LinkStartTransition({ onDone }: { onDone: () => void }) {
 
 /**
  * Brief "Entering Aincrad" splash shown after character creation completes.
+ * HUGE NerveGear (preponderant), SAO font, no extra subtitle line.
  */
 function EnteringAincrad({ onDone }: { onDone: () => void }) {
   useEffect(() => {
@@ -282,43 +287,89 @@ function EnteringAincrad({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center text-center px-6">
+      {/* Pulsing concentric rings around NerveGear */}
+      {[0, 0.5, 1].map((delay, i) => (
+        <motion.div
+          key={`ring-${i}`}
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            width: 'min(50vmin, 460px)',
+            height: 'min(50vmin, 460px)',
+            border: '1px solid rgba(43, 115, 179, 0.45)',
+          }}
+          animate={{
+            scale: [1, 1.7, 1.7],
+            opacity: [0.7, 0, 0],
+          }}
+          transition={{
+            duration: 4,
+            repeat: Infinity,
+            delay,
+            ease: 'easeOut',
+          }}
+          aria-hidden
+        />
+      ))}
+
+      {/* HUGE NerveGear (preponderant) */}
       <motion.div
-        initial={{ scale: 0.85, opacity: 0 }}
+        initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        className="mb-8"
+        transition={{ duration: 1, ease: 'easeOut' }}
+        className="mb-6"
       >
-        <div className="relative w-32 h-32 mx-auto">
+        <motion.div
+          className="relative mx-auto"
+          animate={{
+            filter: [
+              'drop-shadow(0 0 25px rgba(43, 115, 179, 0.7))',
+              'drop-shadow(0 0 60px rgba(43, 115, 179, 1))',
+              'drop-shadow(0 0 25px rgba(43, 115, 179, 0.7))',
+            ],
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        >
           <img
             src="/sao/login/SAO_Nervegear.svg"
             alt="NerveGear"
-            className="w-full h-full"
-            style={{ filter: 'drop-shadow(0 0 30px rgba(43, 115, 179, 0.85))' }}
+            className="w-[260px] sm:w-[400px] md:w-[500px] h-auto"
+            style={{ maxWidth: '60vw' }}
           />
-        </div>
+        </motion.div>
       </motion.div>
-      <motion.h2
-        className="tracking-[0.4em] font-light"
+
+      {/* NERVEGEAR wordmark — huge, same as login screen */}
+      <motion.h1
+        className="tracking-[0.45em] font-light"
         style={{
-          fontSize: 'clamp(1.2rem, 3vw, 2rem)',
+          fontSize: 'clamp(2rem, 7vw, 4.5rem)',
           color: '#FBFBFB',
-          textShadow: '0 0 25px rgba(43, 115, 179, 0.7)',
+          textShadow:
+            '0 0 20px rgba(43, 115, 179, 0.9), 0 0 40px rgba(43, 115, 179, 0.6), 0 0 80px rgba(43, 115, 179, 0.3)',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          letterSpacing: '0.45em',
         }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
+        transition={{ delay: 0.4, duration: 0.8 }}
       >
-        BENVENUTO AD AINCRAD
-      </motion.h2>
+        NERVEGEAR
+      </motion.h1>
+
       <motion.p
-        className="tracking-[0.3em] mt-4 text-xs sm:text-sm"
-        style={{ color: 'rgba(92, 196, 240, 0.6)' }}
+        className="tracking-[0.4em] mt-4 text-sm"
+        style={{
+          color: '#5CC4F0',
+          textShadow: '0 0 12px rgba(92, 196, 240, 0.7)',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1 }}
+        transition={{ delay: 0.9 }}
       >
-        IL MONDO DI SPADA E MAGIA TI ATTENDE
+        BENVENUTO AD AINCRAD
       </motion.p>
+
       <motion.div
         className="mt-10 flex gap-2"
         initial={{ opacity: 0 }}

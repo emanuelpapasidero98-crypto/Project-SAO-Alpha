@@ -60,9 +60,10 @@ export const GENDERS: Gender[] = [
 
 /**
  * Starting stats for a fresh SAO avatar.
- * In SAO every player begins with the same balanced profile; growth happens
- * through play. We use the canonical "Lv.1" baseline.
+ * In SAO every player begins with the same minimal baseline (all stats at 1)
+ * and grows them through play. There are NO classes — growth is purely
+ * skill-based.
  */
 export function getStartingStats(): Record<string, number> {
-  return { STR: 8, VIT: 8, AGI: 8, DEX: 8, INT: 8, MEN: 8, RES: 8 };
+  return { STR: 1, VIT: 1, AGI: 1, DEX: 1, INT: 1, MEN: 1, RES: 1 };
 }

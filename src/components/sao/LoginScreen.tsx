@@ -203,7 +203,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             color: '#FBFBFB',
             textShadow:
               '0 0 20px rgba(43, 115, 179, 0.9), 0 0 40px rgba(43, 115, 179, 0.6), 0 0 80px rgba(43, 115, 179, 0.3)',
-            fontFamily: 'var(--font-sao, "Trebuchet MS", sans-serif)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             letterSpacing: '0.45em',
           }}
         >
@@ -216,13 +216,17 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             fontSize: 'clamp(0.7rem, 2vw, 1.05rem)',
             color: '#5CC4F0',
             textShadow: '0 0 12px rgba(92, 196, 240, 0.7)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
           }}
         >
           SWORD ART ONLINE
         </motion.p>
         <p
           className="text-cyan-100/40 tracking-[0.3em] mt-1"
-          style={{ fontSize: 'clamp(0.5rem, 1.3vw, 0.7rem)' }}
+          style={{
+            fontSize: 'clamp(0.5rem, 1.3vw, 0.7rem)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          }}
         >
           VRMMORPG SYSTEM — v1.100
         </p>
@@ -299,7 +303,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               style={{
                 color: '#1a2a3a',
                 fontSize: 'clamp(0.75rem, 1.5vw, 1.1rem)',
-                fontFamily: 'var(--font-sao, "Trebuchet MS", sans-serif)',
+                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 letterSpacing: '0.05em',
                 fontWeight: 600,
                 caretColor: '#0682BE',
@@ -328,7 +332,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               style={{
                 color: '#1a2a3a',
                 fontSize: 'clamp(0.75rem, 1.5vw, 1.1rem)',
-                fontFamily: 'var(--font-sao, "Trebuchet MS", sans-serif)',
+                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 letterSpacing: '0.05em',
                 fontWeight: 600,
                 caretColor: '#0682BE',
@@ -377,6 +381,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               style={{
                 fontSize: 'clamp(0.7rem, 1.4vw, 1rem)',
                 textShadow: '0 0 8px rgba(255,255,255,0.7), 0 0 16px rgba(43,115,179,0.9)',
+                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
               }}
             >
               LINK START
@@ -399,8 +404,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
               }}
             >
-              <p className="text-white text-sm tracking-wider">
-                ⚠ CREDENZIALI MANCANTI — INSERIRE LOGIN E PASSWORD
+              <p
+                className="text-white text-sm tracking-wider"
+                style={{ fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif" }}
+              >
+                CREDENZIALI MANCANTI — INSERIRE LOGIN E PASSWORD
               </p>
             </motion.div>
           )}
@@ -410,6 +418,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       {/* Bottom hint */}
       <motion.p
         className="text-center text-cyan-100/40 mt-8 tracking-[0.3em] text-xs z-10"
+        style={{ fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: booting ? 0 : 1 }}
         transition={{ delay: booting ? 0 : 1.6, duration: 1 }}
