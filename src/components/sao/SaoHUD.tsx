@@ -207,32 +207,35 @@ function SaoBar({
           {config.label}
         </div>
 
-        {/* ===== Numeric values INSIDE the bar's existing [ / ] slot =====
-            The [Blank] 2.png bar PNG ALREADY contains a semi-transparent dark
-            slot on the RIGHT side, BELOW the narrow part of the bar.
-            The slot is at:
-              X: 86.48% - 89.75% (center X = 88.12%)
-              Y: 68.22% - 84.50% (center Y = 76.36%)
-              Width: 3.27%, Height: 16.28%
-            We place the numbers DIRECTLY in this existing slot — NO separate
-            box, NO SVG, NO overlay rectangle, just text positioned over the
-            slot that's already part of the bar PNG.
-            - HP/MP: just the values "300/300" / "120/120" centered in the slot
-            - Energy: values "200/200" + LV "01" — slightly wider to fit both */}
+        {/* ===== Numeric values INSIDE the bar's existing LARGE [ / ] slot =====
+            The [Blank] 2.png bar PNG contains a LARGE semi-transparent slot
+            on the RIGHT side, BELOW the narrow part of the bar. This is the
+            slot with the "/" separator (where current/max values go).
+
+            Exact coordinates (from pixel analysis):
+              - Box 1 (LARGE, with /): x=1401-1431 (86.48%-88.33%)
+                Center X = 87.53%, spans y=176-218 (68.22%-84.50%)
+                Center Y = 76.36%
+                The "/" separator is at x=1422-1426 (87.78%-88.02%)
+
+            We place "current" to the LEFT of the separator and "max" to the RIGHT.
+            - HP/MP: only values "300/300" / "120/120" in the large slot
+            - Energy: values "200/200" in the large slot + LV "01" in the
+              SMALL slot next to it (x=1432-1440) */}
         <div
-          className="absolute flex items-center justify-center"
+          className="absolute flex items-center"
           style={{
-            // Position EXACTLY at the existing slot center in the PNG
-            // Slot center: X=88.12%, Y=76.36%
-            left: '88.12%',
+            // Position over the LARGE slot center
+            // Slot: x=86.48%-88.33%, y=68.22%-84.50%
+            // Center: X=87.40%, Y=76.36%
+            left: '87.40%',
             top: '76.36%',
             transform: 'translate(-50%, -50%)',
-            // No background — just text over the PNG's existing slot
             background: 'transparent',
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
-            fontSize: 'clamp(0.4rem, 0.7vw, 0.55rem)',
+            fontSize: 'clamp(0.35rem, 0.65vw, 0.5rem)',
             letterSpacing: '0.02em',
             textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)',
             whiteSpace: 'nowrap',
@@ -242,21 +245,32 @@ function SaoBar({
           <span className="opacity-95">{displayCurrent}</span>
           <span className="opacity-60 mx-0.5">/</span>
           <span className="opacity-80">{displayMax}</span>
-          {showLevel && (
-            <>
-              <span className="opacity-40 mx-1">|</span>
-              <span className="opacity-70 mr-1">LV</span>
-              <span
-                style={{
-                  color: '#EBA601',
-                  textShadow: '0 0 6px rgba(235, 166, 1, 0.8)',
-                }}
-              >
-                {String(level).padStart(2, '0')}
-              </span>
-            </>
-          )}
         </div>
+
+        {/* LV number — only for the Energy bar.
+            Placed in the SMALL slot next to the large one (x=1432-1440). */}
+        {showLevel && (
+          <div
+            className="absolute flex items-center justify-center"
+            style={{
+              // Small slot center: x≈88.65%, y=76.36%
+              left: '88.65%',
+              top: '76.36%',
+              transform: 'translate(-50%, -50%)',
+              background: 'transparent',
+              color: '#EBA601',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: 'clamp(0.35rem, 0.65vw, 0.5rem)',
+              letterSpacing: '0.02em',
+              textShadow: '0 0 6px rgba(235, 166, 1, 0.8)',
+              whiteSpace: 'nowrap',
+              pointerEvents: 'none',
+            }}
+          >
+            {String(level).padStart(2, '0')}
+          </div>
+        )}
 
         {/* Pulse glow when low (<25%) — warning state */}
         {pct < 0.25 && pct > 0 && (
