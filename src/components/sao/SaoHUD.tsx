@@ -207,83 +207,54 @@ function SaoBar({
           {config.label}
         </div>
 
-        {/* ===== Value box ATTACHED to the bar's narrow right part =====
-            The [Blank] 2.png bar has a hexagonal shape:
-              - Top part (y=23%-38%): wide, extends to x=93%
-              - Bottom part (y=38%-51%): NARROW, extends only to x=58%
-              - Below y=51%: empty space
-
-            The canonical SAO value box (pezzi valori barre e lv.svg) attaches
-            to the bar UNDER the narrow right part, on the right side.
-            We use the SVG directly (no recreation) and position it attached
-            to where the narrow part ends.
-            - HP/MP: use values-only.svg (only "/" section)
-            - Energy: use values-with-lv.svg (full box with "/") */}
+        {/* ===== Numeric values INSIDE the bar's existing [ / ] slot =====
+            The [Blank] 2.png bar PNG ALREADY contains a semi-transparent dark
+            slot on the RIGHT side, BELOW the narrow part of the bar.
+            The slot is at:
+              X: 86.48% - 89.75% (center X = 88.12%)
+              Y: 68.22% - 84.50% (center Y = 76.36%)
+              Width: 3.27%, Height: 16.28%
+            We place the numbers DIRECTLY in this existing slot — NO separate
+            box, NO SVG, NO overlay rectangle, just text positioned over the
+            slot that's already part of the bar PNG.
+            - HP/MP: just the values "300/300" / "120/120" centered in the slot
+            - Energy: values "200/200" + LV "01" — slightly wider to fit both */}
         <div
-          className="absolute"
+          className="absolute flex items-center justify-center"
           style={{
-            // Attach to the right of the narrow part (x=58%)
-            // and below the bar (y=51%)
-            left: '58%',
-            top: '51%',
-            transform: 'translate(0, -50%)',
-            // Size to match the bar's narrow part height
-            height: '40%',
-            aspectRatio: showLevel ? '110 / 30' : '35 / 30',
-            // No background/border — the SVG already contains the box styling
+            // Position EXACTLY at the existing slot center in the PNG
+            // Slot center: X=88.12%, Y=76.36%
+            left: '88.12%',
+            top: '76.36%',
+            transform: 'translate(-50%, -50%)',
+            // No background — just text over the PNG's existing slot
+            background: 'transparent',
+            color: '#FBFBFB',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: 'clamp(0.4rem, 0.7vw, 0.55rem)',
+            letterSpacing: '0.02em',
+            textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
           }}
         >
-          {/* The canonical value box SVG (renders the dark #303030 box with
-              "/" and "LV:" placeholders already drawn inside) */}
-          <img
-            src={showLevel ? '/sao/hpbar/values-with-lv.svg' : '/sao/hpbar/values-only.svg'}
-            alt=""
-            className="absolute inset-0 w-full h-full"
-            draggable={false}
-            aria-hidden
-            style={{
-              objectFit: 'fill',
-            }}
-          />
-
-          {/* Numeric values overlay — placed over the "/" placeholder
-              (left section 0-31.8% of the full SVG, or 100% for values-only) */}
-          <div
-            className="absolute top-0 bottom-0 flex items-center justify-center"
-            style={{
-              left: '0',
-              width: showLevel ? '31.8%' : '100%',
-              color: '#FBFBFB',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-              fontSize: 'clamp(0.5rem, 0.9vw, 0.7rem)',
-              letterSpacing: '0.04em',
-              textShadow: '0 1px 1px rgba(0,0,0,0.9)',
-            }}
-          >
-            <span className="opacity-95">{displayCurrent}</span>
-            <span className="opacity-60 mx-0.5">/</span>
-            <span className="opacity-80">{displayMax}</span>
-          </div>
-
-          {/* LV number overlay — only for Energy bar.
-              Placed over the "LV:" placeholder (right section 31.8%-100%) */}
+          <span className="opacity-95">{displayCurrent}</span>
+          <span className="opacity-60 mx-0.5">/</span>
+          <span className="opacity-80">{displayMax}</span>
           {showLevel && (
-            <div
-              className="absolute top-0 bottom-0 flex items-center justify-center"
-              style={{
-                left: '31.8%',
-                right: '0',
-                color: '#EBA601',
-                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                fontWeight: 400,
-                fontSize: 'clamp(0.5rem, 0.9vw, 0.7rem)',
-                letterSpacing: '0.04em',
-                textShadow: '0 0 6px rgba(235, 166, 1, 0.7)',
-              }}
-            >
-              {String(level).padStart(2, '0')}
-            </div>
+            <>
+              <span className="opacity-40 mx-1">|</span>
+              <span className="opacity-70 mr-1">LV</span>
+              <span
+                style={{
+                  color: '#EBA601',
+                  textShadow: '0 0 6px rgba(235, 166, 1, 0.8)',
+                }}
+              >
+                {String(level).padStart(2, '0')}
+              </span>
+            </>
           )}
         </div>
 
