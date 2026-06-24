@@ -207,30 +207,37 @@ function SaoBar({
           {config.label}
         </div>
 
-        {/* ===== Numeric values INSIDE the bar's existing slot =====
-            The [Blank] 2.png bar PNG has a built-in semi-transparent dark slot
-            at exactly x=20.99%-58.33% (center X = 39.66%), y=23.64%-51.16%
-            (center Y = 37.40%). We place the numbers DIRECTLY in this slot —
-            no separate box, no overlay rectangle, just text positioned over
-            the existing slot in the PNG.
-            - HP/MP: just the values "300/300" / "120/120"
-            - Energy: values "200/200" + LV "01" (slightly wider slot) */}
+        {/* ===== Value box [ / ] on the RIGHT side of the bar =====
+            The canonical SAO bar has a semi-transparent dark box on the right
+            side where values (and LV for Energy) are displayed. We create
+            this box as part of the bar (semi-transparent dark, matching the
+            bar's dark border aesthetic) and place the numbers inside.
+            - HP/MP: just the values "300/300" / "120/120" in the box
+            - Energy: values "200/200" + LV "01" in a slightly wider box */}
         <div
           className="absolute flex items-center justify-center gap-1"
           style={{
-            // Position EXACTLY at the slot center in the PNG
-            // Slot center: X=39.66%, Y=37.40%
-            left: '39.66%',
-            top: '37.40%',
-            transform: 'translate(-50%, -50%)',
-            // No background — just text over the PNG's existing slot
-            background: 'transparent',
+            // Position on the RIGHT side of the bar (where the [ / ] box goes)
+            right: '4%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            // Semi-transparent dark background matching the bar's dark border
+            background: 'rgba(48, 48, 48, 0.78)',
+            // Subtle border + metallic inner edge (like the canonical bar outline)
+            boxShadow:
+              'inset 0 0 0 1px rgba(90, 90, 90, 0.5), 0 1px 2px rgba(0,0,0,0.4)',
+            // Angular SAO clip-path (sharp corners, top-left + bottom-right cut)
+            clipPath:
+              'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
+            // Sizing — wide enough for "300/300" (+ LV for Energy)
+            height: '60%',
+            padding: '0 8px',
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
             fontSize: 'clamp(0.5rem, 0.85vw, 0.7rem)',
             letterSpacing: '0.04em',
-            textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 4px rgba(0,0,0,0.7)',
+            textShadow: '0 1px 1px rgba(0,0,0,0.9)',
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
           }}
