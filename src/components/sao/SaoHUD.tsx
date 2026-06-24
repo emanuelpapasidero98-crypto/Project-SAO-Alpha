@@ -137,20 +137,28 @@ function SaoBar({
   return (
     <div className="relative" style={{ width: 'min(420px, 40vw)' }}>
       {/* Player name — placed ABOVE the HP bar only.
-          Styled as a semi-transparent dark box matching the bar slot aesthetic
-          so it visually belongs to the same HUD system. */}
+          Styled as a semi-transparent dark box matching the bar slot aesthetic.
+          Uses the same dark #303030 background as the value slots, with
+          angular clip-path and metallic edge like the canonical SAO bars.
+          More subtle and elegant than the previous version. */}
       {playerName && type === 'hp' && (
         <div
-          className="absolute -top-5 left-8 right-1 px-2 py-0.5 text-[0.6rem] tracking-[0.25em] truncate text-center"
+          className="absolute -top-5 left-8 right-1 px-2.5 py-0.5 text-[0.6rem] tracking-[0.3em] truncate text-center"
           style={{
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
-            background: 'rgba(48, 48, 48, 0.85)',
-            border: '1px solid rgba(21, 21, 21, 0.9)',
+            // Semi-transparent dark background matching the bar value slots
+            background: 'rgba(48, 48, 48, 0.78)',
+            // Subtle border + metallic inner edge (like the canonical bar outline)
             boxShadow:
-              'inset 0 0 0 1px rgba(90, 90, 90, 0.6), 0 1px 2px rgba(0,0,0,0.4)',
-            textShadow: '0 1px 1px rgba(0,0,0,0.9)',
+              'inset 0 0 0 1px rgba(90, 90, 90, 0.5), 0 1px 3px rgba(0,0,0,0.5)',
+            // Angular SAO clip-path (sharp corners, top-left + bottom-right cut)
+            clipPath:
+              'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+            // Subtle text glow for readability
+            textShadow: '0 0 6px rgba(92, 196, 240, 0.4), 0 1px 1px rgba(0,0,0,0.9)',
+            // No backdrop-filter — keep it lightweight and clean
           }}
         >
           {playerName.toUpperCase()}
@@ -201,19 +209,19 @@ function SaoBar({
 
         {/* ===== Numeric values INSIDE the bar's existing slot =====
             The [Blank] 2.png bar PNG has a built-in semi-transparent dark slot
-            at approximately x=57-58%, y=38-51% (the small dark region visible
-            on the right side of the bar). We place the numbers DIRECTLY in
-            this slot — no separate box, no overlay rectangle, just text
-            positioned over the existing slot in the PNG.
+            at exactly x=20.99%-58.33% (center X = 39.66%), y=23.64%-51.16%
+            (center Y = 37.40%). We place the numbers DIRECTLY in this slot —
+            no separate box, no overlay rectangle, just text positioned over
+            the existing slot in the PNG.
             - HP/MP: just the values "300/300" / "120/120"
             - Energy: values "200/200" + LV "01" (slightly wider slot) */}
         <div
           className="absolute flex items-center justify-center gap-1"
           style={{
-            // Position over the existing slot in the PNG
-            // Slot is at x=57-58%, y=38-51% — we center text there
-            left: '50%',
-            top: '50%',
+            // Position EXACTLY at the slot center in the PNG
+            // Slot center: X=39.66%, Y=37.40%
+            left: '39.66%',
+            top: '37.40%',
             transform: 'translate(-50%, -50%)',
             // No background — just text over the PNG's existing slot
             background: 'transparent',
