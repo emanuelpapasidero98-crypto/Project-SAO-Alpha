@@ -137,8 +137,8 @@ function SaoBar({
   const config = BAR_CONFIG[type];
   const pct = Math.max(0, Math.min(1, current / max));
   const hidePct = (1 - pct) * 100;
-  const displayCurrent = String(current).padStart(3, '0');
-  const displayMax = String(max).padStart(3, '0');
+  const displayCurrent = String(current);
+  const displayMax = String(max);
 
   // Shared style for the numeric value text (current / max).
   // Identical look to before — only the POSITION changes.
@@ -160,25 +160,17 @@ function SaoBar({
   return (
     <div className="relative" style={{ width: 'min(420px, 40vw)' }}>
       {/* Player name — placed ABOVE the HP bar only.
-          Styled to match the canonical SAO bar value box aesthetic:
-          dark #303030 background with #151515 outer border and #5a5a5a inner
-          edge, matching the bar PNG's slot style. Larger font for readability. */}
+          No box, just the text styled in SAO UI font with subtle glow. */}
       {playerName && type === 'hp' && (
         <div
-          className="absolute -top-5 left-8 right-1 px-3 py-1 truncate text-center"
+          className="absolute -top-5 left-8 right-1 truncate text-center"
           style={{
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
-            fontSize: '0.75rem',
+            fontSize: '0.8rem',
             letterSpacing: '0.35em',
-            background: 'rgba(48, 48, 48, 0.92)',
-            border: '1px solid rgba(21, 21, 21, 0.9)',
-            boxShadow:
-              'inset 0 0 0 1px rgba(90, 90, 90, 0.6), 0 2px 6px rgba(0,0,0,0.6)',
-            clipPath:
-              'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
-            textShadow: '0 0 8px rgba(92, 196, 240, 0.5), 0 1px 2px rgba(0,0,0,0.9)',
+            textShadow: '0 0 10px rgba(92, 196, 240, 0.7), 0 1px 2px rgba(0,0,0,0.9)',
           }}
         >
           {playerName.toUpperCase()}

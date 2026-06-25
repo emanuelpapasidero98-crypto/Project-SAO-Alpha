@@ -77,14 +77,14 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
 
   const toggleMenu = () => {
     if (isOpen) {
-      // Closing — play dismiss sound
+      // Closing
       play('dismissLauncher', 0.3);
       setIsOpen(false);
       setHoveredItem(null);
     } else {
-      // Opening — sound will play after 300ms delay (per MenuView.qml)
+      // Opening — same sound as closing (per user request)
+      play('dismissLauncher', 0.3);
       setIsOpen(true);
-      setTimeout(() => play('popupMenu', 0.4), 300);
     }
   };
 
@@ -219,7 +219,8 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
                   onClick={() => handleItemClick(item)}
                   onMouseEnter={() => {
                     setHoveredItem(item.id);
-                    if (item.sound) play(item.sound, 0.2);
+                    // Single hover sound for all menu items (popupMenu = Personaggio sound)
+                    play('popupMenu', 0.2);
                   }}
                   onMouseLeave={() => setHoveredItem(null)}
                   className="relative flex items-center gap-3 px-4 py-3 text-left"
