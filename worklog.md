@@ -63,3 +63,24 @@ Stage Summary:
 - Screenshot salvati in /home/z/my-project/download/: sao-login-01/02/03, sao-creation-01/02/03/04/05, sao-login-mobile
 - Tutti gli asset visivi e audio provengono ESCLUSIVAMENTE dai due repo GitHub forniti; nessuna grafica creata da zero
 - Scope rispettato: solo Login → Creazione Personaggio (no combat, no world, no HUD di gioco)
+
+---
+Task ID: SAO-HUD-FIX-VALUES-POSITION
+Agent: main
+Task: Fix posizionamento valori barre HP/MP/Energy in SaoHUD.tsx — i numeri
+      current/max ora sono ai lati del "/" del PNG (66.3% / 78.3%, top 76.4%),
+      il livello a destra del "LV:" (93.2%) solo sulla barra Energy. Rimosso
+      il "/" disegnato dal codice (si usa quello del PNG). Nessuna modifica
+      estetica.
+
+Work Log:
+  - Creato backup nelle 3 posizioni (timestamp BACKUP_20260625_101055)
+  - Sovrascritto src/components/sao/SaoHUD.tsx con coordinate corrette
+  - Eseguito next build → OK
+  - Eseguito tsc --noEmit filtrato → nessun errore nuovo
+  - Verifica visiva: valori centrati nei box, "/" singolo, LV solo su Energy
+
+Stage Summary:
+  - File modificato: src/components/sao/SaoHUD.tsx
+  - Coordinate finali: current 66.3%, max 78.3%, level 93.2%, top 76.4%
+  - Estetica invariata (font, colori, dimensioni, animazioni)

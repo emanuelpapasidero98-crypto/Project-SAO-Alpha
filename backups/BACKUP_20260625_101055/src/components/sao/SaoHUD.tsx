@@ -7,25 +7,24 @@ import { useSaoSound } from '@/hooks/useSaoSound';
 /**
  * SAO HUD — top-left status bars (HP / MP / Energy).
  *
- * Built EXCLUSIVELY from the canonical "[Blank] 2.png" asset (1620×258).
+ * Built EXCLUSIVELY from the canonical "[Blank] 2.png" asset. This PNG
+ * already contains a built-in semi-transparent dark slot for the values
+ * (located in the right portion of the bar at approximately x=57-58%, y=38-51%).
  *
- * The bar PNG already has TWO semi-transparent dark slots BELOW the bar,
- * on the right side, with graphics already drawn inside them:
- *   - LARGE slot with a "/" separator:  X = 60%–84%  (the "/" sits at X≈72.4%)
- *   - SMALL slot with "LV:" label:      X = 84%–97%  ("LV:" ends at X≈89.7%)
- *   - Both slots are vertically centered at Y ≈ 76.4%
+ * The user wants the numeric values (and LV for the Energy bar) to be placed
+ * DIRECTLY inside this existing slot — NO separate value box SVG, NO overlay
+ * box. Just the numbers written where the slot already is.
  *
- * Because the container uses aspectRatio 1620/258 and the <img> uses
- * objectFit:fill, these PNG percentages map 1:1 to left/top here.
+ * Slot location in the bar PNG (1620×258, viewBox):
+ *   - Values slot: x=926-945 (57.2%-58.3% of width), y=99-132 (38.4%-51.2% of height)
+ *   - This is a small semi-transparent dark region inside the bar
  *
- * We DO NOT draw our own "/" — we reuse the PNG's "/" and place:
- *   - current value to the LEFT of the "/"  (X≈66.3%)
- *   - max value to the RIGHT of the "/"     (X≈78.3%)
- * For the Energy bar only, the level number goes to the RIGHT of "LV:" (X≈93.2%).
- * HP/MP: values only (no level). Energy: values + level.
+ * For the Energy bar, the LV goes in the same slot (we make it slightly
+ * wider to accommodate "200/200 LV 01"). For HP/MP, just "300/300" / "120/120".
  *
  * The bar type label (HP/MP/EN) is placed ABOVE each bar.
- * The player name is placed ABOVE the HP bar.
+ * The player name is placed ABOVE the HP bar, styled as a semi-transparent
+ * dark box matching the bar slot aesthetic.
  */
 
 export interface BarValue {
@@ -52,14 +51,6 @@ const BAR_CONFIG: Record<BarType, { png: string; label: string; labelColor: stri
   hp: { png: '/sao/hpbar/blank-hp.png', label: 'HP', labelColor: '#7FC522' },
   mp: { png: '/sao/hpbar/blank-mp.png', label: 'MP', labelColor: '#2B73B3' },
   energy: { png: '/sao/hpbar/blank-energy.png', label: 'EN', labelColor: '#EBA601' },
-};
-
-/* ===== Slot coordinates (measured from the PNG, map 1:1 to left/top) ===== */
-const SLOT = {
-  currentLeft: '66.3%', // current value, LEFT of the PNG "/"
-  maxLeft: '78.3%',     // max value, RIGHT of the PNG "/"
-  levelLeft: '93.2%',   // level number, RIGHT of the PNG "LV:" (Energy only)
-  top: '76.4%',         // vertical center of both slots
 };
 
 export default function SaoHUD({
@@ -118,6 +109,7 @@ export default function SaoHUD({
 }
 
 /* ---------- Sub-component: single bar ---------- */
+
 function SaoBar({
   type,
   current,
@@ -138,29 +130,17 @@ function SaoBar({
   const config = BAR_CONFIG[type];
   const pct = Math.max(0, Math.min(1, current / max));
   const hidePct = (1 - pct) * 100;
+
   const displayCurrent = String(current).padStart(3, '0');
   const displayMax = String(max).padStart(3, '0');
 
-  // Shared style for the numeric value text (current / max).
-  // Identical look to before — only the POSITION changes.
-  const valueTextStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: SLOT.top,
-    transform: 'translate(-50%, -50%)',
-    color: '#FBFBFB',
-    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-    fontWeight: 400,
-    fontSize: 'clamp(0.35rem, 0.65vw, 0.5rem)',
-    letterSpacing: '0.02em',
-    textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)',
-    whiteSpace: 'nowrap',
-    pointerEvents: 'none',
-    lineHeight: 1,
-  };
-
   return (
     <div className="relative" style={{ width: 'min(420px, 40vw)' }}>
-      {/* Player name — placed ABOVE the HP bar only. */}
+      {/* Player name — placed ABOVE the HP bar only.
+          Styled as a semi-transparent dark box matching the bar slot aesthetic.
+          Uses the same dark #303030 background as the value slots, with
+          angular clip-path and metallic edge like the canonical SAO bars.
+          More subtle and elegant than the previous version. */}
       {playerName && type === 'hp' && (
         <div
           className="absolute -top-5 left-8 right-1 px-2.5 py-0.5 text-[0.6rem] tracking-[0.3em] truncate text-center"
@@ -168,12 +148,17 @@ function SaoBar({
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
+            // Semi-transparent dark background matching the bar value slots
             background: 'rgba(48, 48, 48, 0.78)',
+            // Subtle border + metallic inner edge (like the canonical bar outline)
             boxShadow:
               'inset 0 0 0 1px rgba(90, 90, 90, 0.5), 0 1px 3px rgba(0,0,0,0.5)',
+            // Angular SAO clip-path (sharp corners, top-left + bottom-right cut)
             clipPath:
               'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+            // Subtle text glow for readability
             textShadow: '0 0 6px rgba(92, 196, 240, 0.4), 0 1px 1px rgba(0,0,0,0.9)',
+            // No backdrop-filter — keep it lightweight and clean
           }}
         >
           {playerName.toUpperCase()}
@@ -191,10 +176,18 @@ function SaoBar({
           aria-hidden
           initial={{ clipPath: `inset(0 100% 0 0)` }}
           animate={{
-            clipPath: mounted ? `inset(0 ${hidePct}% 0 0)` : `inset(0 100% 0 0)`,
+            clipPath: mounted
+              ? `inset(0 ${hidePct}% 0 0)`
+              : `inset(0 100% 0 0)`,
           }}
-          transition={{ duration: 1.1, ease: 'easeOut', delay: 0.3 }}
-          style={{ objectFit: 'fill' }}
+          transition={{
+            duration: 1.1,
+            ease: 'easeOut',
+            delay: 0.3,
+          }}
+          style={{
+            objectFit: 'fill',
+          }}
         />
 
         {/* Bar type label (HP/MP/EN) — placed ABOVE the bar (small, top-left) */}
@@ -214,28 +207,65 @@ function SaoBar({
           {config.label}
         </div>
 
-        {/* ===== Numeric values around the PNG's existing "/" separator =====
-            The PNG already draws the "/" inside the LARGE slot at X≈72.4%.
-            We place "current" to its LEFT (X≈66.3%) and "max" to its RIGHT
-            (X≈78.3%), both vertically centered at Y≈76.4%.
-            We do NOT draw our own "/" — the PNG provides it. */}
-        <div style={{ ...valueTextStyle, left: SLOT.currentLeft }}>
-          {displayCurrent}
-        </div>
-        <div style={{ ...valueTextStyle, left: SLOT.maxLeft }}>
-          {displayMax}
+        {/* ===== Numeric values INSIDE the bar's existing LARGE [ / ] slot =====
+            The [Blank] 2.png bar PNG contains a LARGE semi-transparent slot
+            on the RIGHT side, BELOW the narrow part of the bar. This is the
+            slot with the "/" separator (where current/max values go).
+
+            Exact coordinates (from pixel analysis):
+              - Box 1 (LARGE, with /): x=1401-1431 (86.48%-88.33%)
+                Center X = 87.53%, spans y=176-218 (68.22%-84.50%)
+                Center Y = 76.36%
+                The "/" separator is at x=1422-1426 (87.78%-88.02%)
+
+            We place "current" to the LEFT of the separator and "max" to the RIGHT.
+            - HP/MP: only values "300/300" / "120/120" in the large slot
+            - Energy: values "200/200" in the large slot + LV "01" in the
+              SMALL slot next to it (x=1432-1440) */}
+        <div
+          className="absolute flex items-center"
+          style={{
+            // Position over the LARGE slot center
+            // Slot: x=86.48%-88.33%, y=68.22%-84.50%
+            // Center: X=87.40%, Y=76.36%
+            left: '87.40%',
+            top: '76.36%',
+            transform: 'translate(-50%, -50%)',
+            background: 'transparent',
+            color: '#FBFBFB',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: 'clamp(0.35rem, 0.65vw, 0.5rem)',
+            letterSpacing: '0.02em',
+            textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          <span className="opacity-95">{displayCurrent}</span>
+          <span className="opacity-60 mx-0.5">/</span>
+          <span className="opacity-80">{displayMax}</span>
         </div>
 
         {/* LV number — only for the Energy bar.
-            The PNG already draws "LV:" (ending at X≈89.7%); we place the
-            level number to its RIGHT at X≈93.2%, same vertical center. */}
+            Placed in the SMALL slot next to the large one (x=1432-1440). */}
         {showLevel && (
           <div
+            className="absolute flex items-center justify-center"
             style={{
-              ...valueTextStyle,
-              left: SLOT.levelLeft,
+              // Small slot center: x≈88.65%, y=76.36%
+              left: '88.65%',
+              top: '76.36%',
+              transform: 'translate(-50%, -50%)',
+              background: 'transparent',
               color: '#EBA601',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: 'clamp(0.35rem, 0.65vw, 0.5rem)',
+              letterSpacing: '0.02em',
               textShadow: '0 0 6px rgba(235, 166, 1, 0.8)',
+              whiteSpace: 'nowrap',
+              pointerEvents: 'none',
             }}
           >
             {String(level).padStart(2, '0')}
