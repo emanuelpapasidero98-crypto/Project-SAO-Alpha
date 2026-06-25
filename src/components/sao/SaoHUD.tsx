@@ -84,7 +84,6 @@ export default function SaoHUD({
       initial={{ opacity: 0, x: -30, y: -10 }}
       animate={{ opacity: 1, x: 0, y: 0 }}
       transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
-      onMouseEnter={() => play('click', 0.12)}
     >
       <div className="relative flex flex-col gap-[2px]">
         <SaoBar
@@ -150,7 +149,7 @@ function SaoBar({
     color: '#FBFBFB',
     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
     fontWeight: 400,
-    fontSize: 'clamp(0.35rem, 0.65vw, 0.5rem)',
+    fontSize: 'clamp(0.55rem, 1vw, 0.75rem)',
     letterSpacing: '0.02em',
     textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)',
     whiteSpace: 'nowrap',
@@ -160,20 +159,26 @@ function SaoBar({
 
   return (
     <div className="relative" style={{ width: 'min(420px, 40vw)' }}>
-      {/* Player name — placed ABOVE the HP bar only. */}
+      {/* Player name — placed ABOVE the HP bar only.
+          Styled to match the canonical SAO bar value box aesthetic:
+          dark #303030 background with #151515 outer border and #5a5a5a inner
+          edge, matching the bar PNG's slot style. Larger font for readability. */}
       {playerName && type === 'hp' && (
         <div
-          className="absolute -top-5 left-8 right-1 px-2.5 py-0.5 text-[0.6rem] tracking-[0.3em] truncate text-center"
+          className="absolute -top-5 left-8 right-1 px-3 py-1 truncate text-center"
           style={{
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
-            background: 'rgba(48, 48, 48, 0.78)',
+            fontSize: '0.75rem',
+            letterSpacing: '0.35em',
+            background: 'rgba(48, 48, 48, 0.92)',
+            border: '1px solid rgba(21, 21, 21, 0.9)',
             boxShadow:
-              'inset 0 0 0 1px rgba(90, 90, 90, 0.5), 0 1px 3px rgba(0,0,0,0.5)',
+              'inset 0 0 0 1px rgba(90, 90, 90, 0.6), 0 2px 6px rgba(0,0,0,0.6)',
             clipPath:
-              'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-            textShadow: '0 0 6px rgba(92, 196, 240, 0.4), 0 1px 1px rgba(0,0,0,0.9)',
+              'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+            textShadow: '0 0 8px rgba(92, 196, 240, 0.5), 0 1px 2px rgba(0,0,0,0.9)',
           }}
         >
           {playerName.toUpperCase()}
@@ -234,11 +239,11 @@ function SaoBar({
             style={{
               ...valueTextStyle,
               left: SLOT.levelLeft,
-              color: '#EBA601',
-              textShadow: '0 0 6px rgba(235, 166, 1, 0.8)',
+              color: '#FBFBFB',
+              textShadow: '0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.8)',
             }}
           >
-            {String(level).padStart(2, '0')}
+            {String(level)}
           </div>
         )}
 
