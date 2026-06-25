@@ -1,40 +1,46 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
-import { STATS, type Gender } from '@/lib/sao-data';
+import { STATS } from '@/lib/sao-data';
+import type { Gender } from '@/lib/sao-data';
+import {
+  calcDerivedStats,
+  calcMaxHp,
+  calcMaxMp,
+  calcMaxSp,
+  calcXpToNext,
+  STAT_META,
+  getUnlockedBonuses,
+  getNextBonus,
+  type DerivedStats,
+} from '@/lib/sao-stats-engine';
+import type { PlayerStats } from '@/lib/sao-types';
 
 /**
  * SAO Character Panel — shown when the user clicks "Personaggio" in the menu.
  *
  * Animation (from Progetto-SAO/qml/PanelView.qml):
- *   OPEN:
- *     - opacity: 0 → 1 over 500ms
- *     - panelClip width/height: 80 → full over 400ms with easing OutQuart
- *     - sound after 300ms delay
- *   CLOSE:
- *     - opacity: 1 → 0 over 250ms
- *     - panelClip width/height collapse over 250ms
+ *   OPEN: opacity 0→1 (500ms) + scale 0.85→1 (400ms, OutQuart)
+ *   CLOSE: opacity 1→0 (250ms) + scale 1→0.9
  *
- * Layout:
- *   - Background overlay: rgba(2,8,20,0.6) with backdrop-blur (the game
- *     world is dimmed when the panel is open)
- *   - Card: white SAO style (#FBFBFB) with angular clip-path corners,
- *     matching the gender selection cards
- *   - LEFT side: avatar in a SAO-style box (using the canonical
- *     "Parte interna finestra" gray #D6D6D6 background), with stats below
- *   - RIGHT side: character name + level + XP progress + full stat list
- *     with the 7 canonical stat icons (Forza, Vita, Agilità, Destrezza,
- *     Intelligenza, Mente, Resistenza)
+ * VR hover effect on the card:
+ *   - 3D tilt (rotateX/rotateY) following the mouse
+ *   - Parallax depth (inner content shifts slightly)
+ *   - Glow that follows the cursor
  *
- * All assets used:
+ * All stats are computed using the SAO stats engine (lib/sao-stats-engine.ts):
+ *   - calcDerivedStats() for attack/defense/dodge/crit/etc.
+ *   - calcMaxHp/Mp/Sp() for resource pools
+ *   - calcXpToNext() for XP requirements
+ *   - getUnlockedBonuses() and getNextBonus() for milestone display
+ *
+ * Assets used (SOLO dai repo GitHub):
  *   - SAO_Man.svg / SAO_Woman.svg (avatar)
- *   - Stats PNG icons (Forza.png, Vita.png, ecc.) from asset-gioco-di-SAO
+ *   - Stats PNG icons (Forza.png, Vita.png, ecc.)
  *   - Font SAO UI (SAOUI-Regular.otf)
- *   - Colors: #FBFBFB, #D6D6D6, #2B73B3, #EBA601, #1a2a3a
- *
- * No graphics are invented — only existing assets are used.
+ *   - Colors: #FBFBFB, #D6D6D6, #2B73B3, #EBA601, #1a2a3a, #303030
  */
 
 interface CharacterPanelProps {
@@ -43,9 +49,9 @@ interface CharacterPanelProps {
   playerName: string;
   gender: Gender;
   level: number;
-  stats: Record<string, number>;
-  /** Current XP and XP needed for next level */
-  xp: { current: number; needed: number };
+  stats: PlayerStats;
+  /** Current XP (absolute, not percentage) */
+  xp: number;
 }
 
 export default function CharacterPanel({
@@ -58,6 +64,10 @@ export default function CharacterPanel({
   xp,
 }: CharacterPanelProps) {
   const { play } = useSaoSound();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState('');
+  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
+  const [isHover, setIsHover] = useState(false);
 
   // Sound on open (after 300ms delay, per PanelView.qml pattern)
   useEffect(() => {
@@ -80,7 +90,40 @@ export default function CharacterPanel({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [open, onClose, play]);
 
-  const xpPct = Math.min(100, (xp.current / xp.needed) * 100);
+  // VR hover effect: 3D tilt + parallax following the mouse
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const rotY = (px - 0.5) * 8; // -4..4 deg
+    const rotX = -(py - 0.5) * 8;
+    setTransform(
+      `perspective(1200px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale3d(1.01, 1.01, 1.01)`
+    );
+    setLightPos({ x: px * 100, y: py * 100 });
+  };
+
+  const handleMouseEnter = () => {
+    setIsHover(true);
+    play('click', 0.15);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHover(false);
+    setTransform('');
+  };
+
+  // === Compute derived stats using the SAO stats engine ===
+  const derived: DerivedStats = calcDerivedStats(level, stats, {
+    weaponCategory: 'none', // fists/no weapon equipped
+  });
+  const maxHp = calcMaxHp(level, stats.vit);
+  const maxMp = calcMaxMp(level, stats.men);
+  const maxSp = calcMaxSp(level, stats.res);
+  const xpToNext = calcXpToNext(level);
+  const xpRemaining = Math.max(0, xpToNext - xp);
 
   return (
     <AnimatePresence>
@@ -98,13 +141,21 @@ export default function CharacterPanel({
           onClick={onClose}
         >
           {/* Card container — animation from PanelView.qml:
-              opacity 0→1 (500ms) + scale/clip expand (400ms OutQuart) */}
+              opacity 0→1 (500ms) + scale 0.85→1 (400ms OutQuart)
+              + VR hover (3D tilt + parallax + cursor-following glow) */}
           <motion.div
+            ref={cardRef}
+            onMouseMove={handleMouseMove}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             className="relative"
             style={{
               width: 'min(900px, 95vw)',
               maxHeight: '90vh',
               overflow: 'hidden',
+              transform,
+              transformStyle: 'preserve-3d',
+              transition: 'transform 0.18s ease-out',
             }}
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -118,18 +169,32 @@ export default function CharacterPanel({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Card body — white SAO style with angular clip-path
-                (matching the gender selection cards) */}
+            {/* VR cursor-following glow overlay */}
+            <div
+              className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+              style={{
+                opacity: isHover ? 1 : 0,
+                background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, rgba(92, 196, 240, 0.18) 0%, transparent 50%)`,
+                mixBlendMode: 'screen',
+                zIndex: 50,
+              }}
+              aria-hidden
+            />
+
+            {/* Card body — white SAO style with angular clip-path */}
             <div
               className="relative w-full"
               style={{
                 background: '#FBFBFB',
                 clipPath:
                   'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 60px rgba(43, 115, 179, 0.3)',
+                boxShadow: isHover
+                  ? '0 20px 60px rgba(0,0,0,0.6), 0 0 80px rgba(43, 115, 179, 0.5)'
+                  : '0 12px 40px rgba(0,0,0,0.5), 0 0 60px rgba(43, 115, 179, 0.3)',
+                transition: 'box-shadow 0.25s',
               }}
             >
-              {/* Top accent bar (canonical SAO #A8A8A8 separator) */}
+              {/* Top accent bar */}
               <div
                 className="h-1.5 w-full"
                 style={{
@@ -138,7 +203,7 @@ export default function CharacterPanel({
                 }}
               />
 
-              {/* Close button (top-right, using the red X circle SVG) */}
+              {/* Close button (top-right, red X circle) */}
               <button
                 onClick={() => {
                   play('dismissLauncher', 0.35);
@@ -167,7 +232,7 @@ export default function CharacterPanel({
                 />
               </button>
 
-              {/* Title (top-center) */}
+              {/* Title */}
               <div
                 className="px-8 pt-5 pb-3 text-center"
                 style={{
@@ -189,7 +254,7 @@ export default function CharacterPanel({
                 </h2>
               </div>
 
-              {/* Main content: 2 columns (avatar+stats | details) */}
+              {/* Main content: 2 columns */}
               <div className="grid md:grid-cols-[300px_1fr] gap-0">
                 {/* ===== LEFT: Avatar box + sub-stats ===== */}
                 <div
@@ -199,8 +264,7 @@ export default function CharacterPanel({
                     borderRight: '1px solid #A8A8A8',
                   }}
                 >
-                  {/* Avatar box — SAO style with metallic border
-                      (matching the bar value box aesthetic: #303030 + #151515 + #5a5a5a) */}
+                  {/* Avatar box — SAO style with metallic border */}
                   <div
                     className="relative mb-4"
                     style={{
@@ -215,7 +279,6 @@ export default function CharacterPanel({
                       overflow: 'hidden',
                     }}
                   >
-                    {/* Avatar SVG (SAO_Man or SAO_Woman) */}
                     <img
                       src={`/sao/characters/${gender.svg}`}
                       alt={gender.label}
@@ -225,7 +288,6 @@ export default function CharacterPanel({
                         filter: 'drop-shadow(0 0 10px rgba(43, 115, 179, 0.5))',
                       }}
                     />
-                    {/* Gender color accent at bottom of avatar box */}
                     <div
                       className="absolute bottom-0 left-0 right-0 h-1"
                       style={{
@@ -235,7 +297,7 @@ export default function CharacterPanel({
                     />
                   </div>
 
-                  {/* Player name + level under avatar */}
+                  {/* Player name + level (LV 1, black, bold, relief effect) */}
                   <div className="text-center mb-4">
                     <p
                       className="tracking-[0.3em]"
@@ -251,18 +313,20 @@ export default function CharacterPanel({
                     <p
                       className="mt-1 tracking-[0.2em]"
                       style={{
-                        color: '#EBA601',
+                        color: '#000000',
                         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 400,
-                        fontSize: '0.75rem',
-                        textShadow: '0 0 4px rgba(235, 166, 1, 0.4)',
+                        fontWeight: 700,
+                        fontSize: '1.1rem',
+                        // Relief effect: light shadow top-left, dark shadow bottom-right
+                        textShadow:
+                          '1px 1px 0 rgba(255,255,255,0.7), -1px -1px 1px rgba(0,0,0,0.4), 0 0 2px rgba(0,0,0,0.3)',
                       }}
                     >
-                      LV {String(level).padStart(2, '0')}
+                      LV {level}
                     </p>
                   </div>
 
-                  {/* Sub-stats (gender + class info) — small SAO-style box */}
+                  {/* Sub-stats (gender + system) */}
                   <div
                     className="w-full p-3"
                     style={{
@@ -273,85 +337,41 @@ export default function CharacterPanel({
                     }}
                   >
                     <div className="flex justify-between items-center mb-2">
-                      <span
-                        style={{
-                          color: 'rgba(26, 42, 58, 0.6)',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.65rem',
-                          letterSpacing: '0.15em',
-                        }}
-                      >
-                        GENERE
-                      </span>
-                      <span
-                        style={{
-                          color: '#1a2a3a',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.7rem',
-                          letterSpacing: '0.1em',
-                        }}
-                      >
+                      <span style={subStatLabelStyle}>GENERE</span>
+                      <span style={subStatValueStyle}>
                         {gender.label.toUpperCase()}
                       </span>
                     </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span style={subStatLabelStyle}>SISTEMA</span>
+                      <span style={subStatValueStyle}>NERVEGEAR</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span style={subStatLabelStyle}>HP MAX</span>
+                      <span style={subStatValueStyle}>{maxHp}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span style={subStatLabelStyle}>MP MAX</span>
+                      <span style={subStatValueStyle}>{maxMp}</span>
+                    </div>
                     <div className="flex justify-between items-center">
-                      <span
-                        style={{
-                          color: 'rgba(26, 42, 58, 0.6)',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.65rem',
-                          letterSpacing: '0.15em',
-                        }}
-                      >
-                        SISTEMA
-                      </span>
-                      <span
-                        style={{
-                          color: '#1a2a3a',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.7rem',
-                          letterSpacing: '0.1em',
-                        }}
-                      >
-                        NERVEGEAR
-                      </span>
+                      <span style={subStatLabelStyle}>ENERGIA MAX</span>
+                      <span style={subStatValueStyle}>{maxSp}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* ===== RIGHT: Stats + XP ===== */}
-                <div className="p-6 flex flex-col gap-5">
-                  {/* XP section */}
+                {/* ===== RIGHT: XP + Stats + Derived ===== */}
+                <div className="p-6 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: '80vh' }}>
+                  {/* XP section — NO percentage, just numeric values */}
                   <div>
                     <div className="flex justify-between items-baseline mb-2">
-                      <span
-                        style={{
-                          color: 'rgba(26, 42, 58, 0.7)',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.7rem',
-                          letterSpacing: '0.25em',
-                        }}
-                      >
-                        ESPERIENZA
-                      </span>
-                      <span
-                        style={{
-                          color: '#1a2a3a',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.75rem',
-                          letterSpacing: '0.05em',
-                        }}
-                      >
-                        {xp.current} / {xp.needed} EXP
+                      <span style={sectionLabelStyle}>ESPERIENZA</span>
+                      <span style={sectionValueStyle}>
+                        {xp} / {xpToNext} EXP
                       </span>
                     </div>
-                    {/* XP bar — SAO style (dark #303030 box with metallic border) */}
+                    {/* XP bar — SAO style */}
                     <div
                       className="relative w-full h-5 overflow-hidden"
                       style={{
@@ -370,10 +390,10 @@ export default function CharacterPanel({
                           boxShadow: '0 0 8px rgba(235, 166, 1, 0.6)',
                         }}
                         initial={{ width: 0 }}
-                        animate={{ width: `${xpPct}%` }}
+                        animate={{ width: `${Math.min(100, (xp / xpToNext) * 100)}%` }}
                         transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
                       />
-                      {/* XP text overlay */}
+                      {/* XP text overlay — numeric only, no percentage */}
                       <div
                         className="absolute inset-0 flex items-center justify-center"
                         style={{
@@ -385,31 +405,23 @@ export default function CharacterPanel({
                           textShadow: '0 1px 1px rgba(0,0,0,0.9)',
                         }}
                       >
-                        {xpPct.toFixed(0)}% — MANCANO {xp.needed - xp.current} EXP
+                        MANCANO {xpRemaining} EXP AL LIVELLO {level + 1}
                       </div>
                     </div>
                   </div>
 
-                  {/* Stats grid — 7 stats with canonical icons */}
+                  {/* Stats grid — 7 stats with canonical icons (no white background) */}
                   <div>
-                    <p
-                      className="mb-3 tracking-[0.3em]"
-                      style={{
-                        color: 'rgba(26, 42, 58, 0.7)',
-                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 400,
-                        fontSize: '0.7rem',
-                        letterSpacing: '0.25em',
-                      }}
-                    >
-                      STATISTICHE
-                    </p>
+                    <p className="mb-2" style={sectionLabelStyle}>STATISTICHE</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {STATS.map((stat) => {
-                        const value = stats[stat.id] ?? 1;
+                      {(Object.keys(STAT_META) as Array<keyof typeof STAT_META>).map((key) => {
+                        const meta = STAT_META[key];
+                        const value = stats[key];
+                        const unlocked = getUnlockedBonuses(value, key);
+                        const next = getNextBonus(value, key);
                         return (
                           <div
-                            key={stat.id}
+                            key={key}
                             className="flex items-center gap-2 px-2 py-1.5"
                             style={{
                               background: 'rgba(48, 48, 48, 0.08)',
@@ -417,40 +429,52 @@ export default function CharacterPanel({
                               clipPath:
                                 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
                             }}
-                            title={stat.description}
+                            title={meta.description}
                           >
-                            {/* Stat icon (from asset-gioco-di-SAO/1_Menu-1/Icone statistiche/) */}
-                            <img
-                              src={`/sao/stats/${stat.icon}`}
-                              alt={stat.name}
-                              className="w-6 h-6 flex-shrink-0"
-                              draggable={false}
-                            />
+                            {/* Stat icon — PNG with transparent background.
+                                The icon has dark colors, so we put a light
+                                circular background to make it visible. */}
+                            <div
+                              className="w-7 h-7 flex-shrink-0 flex items-center justify-center"
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.95)',
+                                borderRadius: '2px',
+                                border: '1px solid rgba(43, 115, 179, 0.2)',
+                              }}
+                            >
+                              <img
+                                src={meta.icon}
+                                alt={meta.name}
+                                className="w-5 h-5"
+                                draggable={false}
+                                style={{ objectFit: 'contain' }}
+                              />
+                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-baseline justify-between">
                                 <span
                                   style={{
-                                    color: 'rgba(26, 42, 58, 0.7)',
+                                    color: meta.color,
                                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                                     fontWeight: 400,
                                     fontSize: '0.6rem',
                                     letterSpacing: '0.15em',
                                   }}
                                 >
-                                  {stat.id}
+                                  {meta.short}
                                 </span>
                                 <span
                                   style={{
                                     color: '#1a2a3a',
                                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                                     fontWeight: 400,
-                                    fontSize: '0.8rem',
+                                    fontSize: '0.85rem',
                                   }}
                                 >
                                   {value}
                                 </span>
                               </div>
-                              {/* Mini progress bar (value / 20 for visual) */}
+                              {/* Mini progress bar toward next milestone */}
                               <div
                                 className="h-0.5 mt-0.5 overflow-hidden"
                                 style={{ background: 'rgba(26, 42, 58, 0.15)' }}
@@ -458,15 +482,33 @@ export default function CharacterPanel({
                                 <motion.div
                                   className="h-full"
                                   style={{
-                                    background:
-                                      'linear-gradient(90deg, #2B73B3, #5CC4F0)',
-                                    boxShadow: '0 0 4px rgba(43, 115, 179, 0.6)',
+                                    background: meta.color,
+                                    boxShadow: `0 0 4px ${meta.color}`,
                                   }}
                                   initial={{ width: 0 }}
-                                  animate={{ width: `${Math.min(100, (value / 20) * 100)}%` }}
+                                  animate={{
+                                    width: next
+                                      ? `${Math.min(100, (value / next.pointsRequired) * 100)}%`
+                                      : '100%',
+                                  }}
                                   transition={{ duration: 0.6, ease: 'easeOut', delay: 0.4 }}
                                 />
                               </div>
+                              {/* Next milestone hint */}
+                              {next && (
+                                <p
+                                  className="mt-0.5"
+                                  style={{
+                                    color: 'rgba(26, 42, 58, 0.5)',
+                                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                    fontWeight: 400,
+                                    fontSize: '0.5rem',
+                                    letterSpacing: '0.05em',
+                                  }}
+                                >
+                                  → {next.description}
+                                </p>
+                              )}
                             </div>
                           </div>
                         );
@@ -474,40 +516,38 @@ export default function CharacterPanel({
                     </div>
                   </div>
 
-                  {/* Equipment preview (using canonical equipment icons) */}
+                  {/* Derived combat stats (from the SAO stats engine) */}
                   <div>
-                    <p
-                      className="mb-2 tracking-[0.3em]"
-                      style={{
-                        color: 'rgba(26, 42, 58, 0.7)',
-                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 400,
-                        fontSize: '0.7rem',
-                        letterSpacing: '0.25em',
-                      }}
-                    >
-                      EQUIPAGGIAMENTO
-                    </p>
-                    <div className="flex gap-2">
-                      {['icon_sword.png', 'icon_light_armor.png', 'icon_accessory.png'].map((icon, i) => (
-                        <div
-                          key={i}
-                          className="w-10 h-10 flex items-center justify-center"
-                          style={{
-                            background: 'rgba(48, 48, 48, 0.08)',
-                            border: '1px solid rgba(43, 115, 179, 0.3)',
-                            clipPath:
-                              'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-                          }}
-                        >
-                          <img
-                            src={`/sao/equipment/${icon}`}
-                            alt=""
-                            className="w-7 h-7"
-                            draggable={false}
-                          />
-                        </div>
-                      ))}
+                    <p className="mb-2" style={sectionLabelStyle}>COMBATTIMENTO</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <DerivedStatBox label="ATTACCO" value={derived.attack} />
+                      <DerivedStatBox label="DIFESA" value={derived.defense} />
+                      <DerivedStatBox label="SCHIVATA" value={`${derived.dodge}%`} />
+                      <DerivedStatBox label="CRITICO" value={`${derived.critChance}%`} />
+                      <DerivedStatBox label="SCHIVATA PERF." value={`${derived.perfectDodgeChance}%`} />
+                      <DerivedStatBox label="MISS AVV." value={`${derived.enemyMissChance}%`} />
+                      <DerivedStatBox label="STORDIMENTO" value={`${derived.stunChance}%`} />
+                      <DerivedStatBox label="DANNO SKILL" value={`+${Math.round((derived.skillDamageMult - 1) * 100)}%`} />
+                    </div>
+                  </div>
+
+                  {/* Status resistances */}
+                  <div>
+                    <p className="mb-2" style={sectionLabelStyle}>RESISTENZE STATUS</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <DerivedStatBox label="BRUCIATO" value={`${derived.resistBurn}%`} />
+                      <DerivedStatBox label="AVVELENATO" value={`${derived.resistPoison}%`} />
+                      <DerivedStatBox label="CONGELATO" value={`${derived.resistFreeze}%`} />
+                      <DerivedStatBox label="ADDORMENTATO" value={`${derived.resistSleep}%`} />
+                    </div>
+                  </div>
+
+                  {/* Utility multipliers */}
+                  <div>
+                    <p className="mb-2" style={sectionLabelStyle}>BONUS UTILITY</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <DerivedStatBox label="XP BONUS" value={`+${Math.round((derived.xpMult - 1) * 100)}%`} />
+                      <DerivedStatBox label="COL BONUS" value={`+${Math.round((derived.colMult - 1) * 100)}%`} />
                     </div>
                   </div>
                 </div>
@@ -526,5 +566,77 @@ export default function CharacterPanel({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/* ---------- Styles ---------- */
+
+const subStatLabelStyle: React.CSSProperties = {
+  color: 'rgba(26, 42, 58, 0.6)',
+  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+  fontWeight: 400,
+  fontSize: '0.65rem',
+  letterSpacing: '0.15em',
+};
+
+const subStatValueStyle: React.CSSProperties = {
+  color: '#1a2a3a',
+  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+  fontWeight: 400,
+  fontSize: '0.7rem',
+  letterSpacing: '0.1em',
+};
+
+const sectionLabelStyle: React.CSSProperties = {
+  color: 'rgba(26, 42, 58, 0.7)',
+  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+  fontWeight: 400,
+  fontSize: '0.7rem',
+  letterSpacing: '0.25em',
+};
+
+const sectionValueStyle: React.CSSProperties = {
+  color: '#1a2a3a',
+  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+  fontWeight: 400,
+  fontSize: '0.75rem',
+  letterSpacing: '0.05em',
+};
+
+/* ---------- Sub-components ---------- */
+
+function DerivedStatBox({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div
+      className="flex items-center justify-between px-2 py-1.5"
+      style={{
+        background: 'rgba(48, 48, 48, 0.08)',
+        border: '1px solid rgba(43, 115, 179, 0.3)',
+        clipPath:
+          'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+      }}
+    >
+      <span
+        style={{
+          color: 'rgba(26, 42, 58, 0.7)',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          fontWeight: 400,
+          fontSize: '0.6rem',
+          letterSpacing: '0.15em',
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          color: '#1a2a3a',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          fontWeight: 400,
+          fontSize: '0.75rem',
+        }}
+      >
+        {value}
+      </span>
+    </div>
   );
 }

@@ -559,7 +559,7 @@ function StatsGrid() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
       {STATS.map((s) => {
-        const value = stats[s.id] ?? 0;
+        const value = stats[s.key] ?? 0;
         const max = 10;
         return (
           <div

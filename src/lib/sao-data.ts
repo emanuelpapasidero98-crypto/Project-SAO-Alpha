@@ -1,36 +1,78 @@
 /**
- * SAO static data.
+ * SAO static data — character creation data (gender, stat display).
  *
  * IMPORTANT: Sword Art Online is a SKILL-BASED system, not a class-based one.
  * Any player can learn any skill, and there are NO fixed classes at character
  * creation. All avatars start with the same base stats and grow them through
- * play. This module therefore exposes only the starting stats and the list of
- * primary attributes — no classes, no archetypes.
+ * play.
+ *
+ * The actual stats engine (milestones, XP table, derived stats, formulas) is
+ * in `sao-stats.ts`. This file re-exports the key types and functions for
+ * convenience, plus holds the gender display data.
  *
  * All icons referenced here come exclusively from the asset-gioco-di-SAO repo.
  */
 
+// Re-export everything from the stats engine
+export {
+  type StatKey,
+  type PlayerStats,
+  type StatBonus,
+  type StatMilestone,
+  type StatMeta,
+  type WeaponScaling,
+  type DerivedStats,
+  STAT_MILESTONES,
+  STAT_META,
+  XP_TABLE,
+  MAX_PLAYER_LEVEL,
+  BASE_CRIT_CHANCE,
+  getStatPointsForLevel,
+  getTotalStatPointsAtLevel,
+  calcMaxHp,
+  calcMaxMp,
+  calcMaxSp,
+  calcBaseAttack,
+  calcBaseDefense,
+  calcBaseDodge,
+  getStatBonusSum,
+  getUnlockedBonuses,
+  getNextBonus,
+  calcDerivedStats,
+  calcXpToNext,
+  getStartingStats,
+  getStartingPlayerStats,
+  getStartingVitals,
+} from './sao-stats';
+
+import { STAT_META, type StatKey } from './sao-stats';
+
+/**
+ * Display-friendly stat list (built from STAT_META in sao-stats.ts).
+ * Used by UI components that need to iterate over the 7 stats.
+ */
 export interface CharacterStat {
-  id: string;
+  id: string;       // uppercase short code (FOR, VIT, AGI, DES, MEN, INT, RES)
+  key: StatKey;     // lowercase key used in PlayerStats
   name: string;
-  /** PNG filename in /sao/stats/ */
-  icon: string;
+  icon: string;     // PNG filename in /sao/stats/
+  color: string;
   description: string;
 }
 
-/**
- * The seven primary attributes of an SAO avatar.
- * Sourced from the "Icone statistiche" folder of the asset repo.
- */
-export const STATS: CharacterStat[] = [
-  { id: 'STR', name: 'Forza', icon: 'Forza.png', description: 'Danno fisico dei colpi e capacità di carico' },
-  { id: 'VIT', name: 'Vita', icon: 'Vita.png', description: 'Punti ferita massimi e resistenza ai colpi' },
-  { id: 'AGI', name: 'Agilità', icon: 'Agilità.png', description: 'Velocità di movimento e di evasione' },
-  { id: 'DEX', name: 'Destrezza', icon: 'Destrezza.png', description: 'Precisione dei colpi e probabilità di critico' },
-  { id: 'INT', name: 'Intelligenza', icon: 'Intelligenza.png', description: 'Potenza delle abilità speciali' },
-  { id: 'MEN', name: 'Mente', icon: 'Mente.png', description: 'Punti mana e concentrazione' },
-  { id: 'RES', name: 'Resistenza', icon: 'Resistenza.png', description: 'Difesa fisica e riduzione del danno subito' },
-];
+export const STATS: CharacterStat[] = (
+  Object.keys(STAT_META) as StatKey[]
+).map((key) => {
+  const meta = STAT_META[key];
+  return {
+    id: meta.short,
+    key: meta.key,
+    name: meta.name,
+    icon: meta.icon.split('/').pop() || '',
+    color: meta.color,
+    description: meta.description,
+  };
+});
 
 export interface Gender {
   id: 'male' | 'female';
@@ -57,13 +99,3 @@ export const GENDERS: Gender[] = [
     glowColor: '#BE2156',
   },
 ];
-
-/**
- * Starting stats for a fresh SAO avatar.
- * In SAO every player begins with the same minimal baseline (all stats at 1)
- * and grows them through play. There are NO classes — growth is purely
- * skill-based.
- */
-export function getStartingStats(): Record<string, number> {
-  return { STR: 1, VIT: 1, AGI: 1, DEX: 1, INT: 1, MEN: 1, RES: 1 };
-}

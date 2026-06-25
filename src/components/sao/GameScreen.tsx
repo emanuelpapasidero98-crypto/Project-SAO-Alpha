@@ -9,7 +9,7 @@ import SaoNotificationWindow, {
   type SaoNotificationData,
 } from './SaoNotificationWindow';
 import CharacterPanel from './CharacterPanel';
-import { getStartingStats, type Gender } from '@/lib/sao-data';
+import { getStartingPlayerStats, type PlayerStats, type Gender } from '@/lib/sao-data';
 
 interface GameScreenProps {
   playerName: string;
@@ -45,8 +45,8 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
   const [notification, setNotification] = useState<SaoNotificationData | null>(null);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCharacterPanel, setShowCharacterPanel] = useState(false);
-  const [stats] = useState<Record<string, number>>(getStartingStats());
-  const [xp] = useState<{ current: number; needed: number }>({ current: 0, needed: 100 });
+  const [stats] = useState<PlayerStats>(getStartingPlayerStats());
+  const [xp] = useState<number>(0); // absolute XP value
 
   const pushNotification = useCallback(
     (n: Omit<SaoNotificationData, 'id'>) => {
