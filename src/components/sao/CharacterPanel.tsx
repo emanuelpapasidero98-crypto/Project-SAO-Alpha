@@ -15,6 +15,7 @@ import {
   type DerivedStats,
 } from '@/lib/sao-stats-engine';
 import type { PlayerStats } from '@/lib/sao-types';
+import type { EquipmentState, Item } from '@/lib/sao-inventory-types';
 
 /**
  * SAO Character Panel — shown when the user clicks "Personaggio" in the menu.
@@ -50,6 +51,8 @@ interface CharacterPanelProps {
   stats: PlayerStats;
   /** Current XP (absolute, not percentage) */
   xp: number;
+  equipment?: EquipmentState;
+  allItems?: Item[];
 }
 
 export default function CharacterPanel({
@@ -60,6 +63,8 @@ export default function CharacterPanel({
   level,
   stats,
   xp,
+  equipment,
+  allItems,
 }: CharacterPanelProps) {
   const { play } = useSaoSound();
   const cardRef = useRef<HTMLDivElement>(null);
@@ -384,6 +389,141 @@ export default function CharacterPanel({
                     <div className="flex justify-between items-center">
                       <span style={subStatLabelStyle}>ENERGIA MAX</span>
                       <span style={subStatValueStyle}>{maxSp}</span>
+                    </div>
+                  </div>
+
+                  {/* === Equipment box === */}
+                  <div
+                    className="w-full p-3 mt-3"
+                    style={{
+                      background: 'rgba(48, 48, 48, 0.08)',
+                      border: '1px solid rgba(43, 115, 179, 0.3)',
+                      clipPath:
+                        'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+                    }}
+                  >
+                    <p
+                      className="mb-2 tracking-[0.2em] text-center"
+                      style={{
+                        color: 'rgba(26, 42, 58, 0.6)',
+                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                        fontWeight: 400,
+                        fontSize: '0.6rem',
+                      }}
+                    >
+                      EQUIPAGGIAMENTO
+                    </p>
+                    {/* Equipment slots grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          { slot: 'weapon', label: 'ARMA' },
+                          { slot: 'shield', label: 'SCUDO' },
+                          { slot: 'armor', label: 'ARMATURA' },
+                          { slot: 'accessory1', label: 'ACC. 1' },
+                          { slot: 'accessory2', label: 'ACC. 2' },
+                        ] as const
+                      ).map(({ slot, label }) => {
+                        const itemId = equipment?.[slot] ?? null;
+                        const item = itemId ? allItems?.find((i) => i.id === itemId) : null;
+                        const isShieldBlocked =
+                          slot === 'shield' &&
+                          equipment?.weapon &&
+                          allItems?.find((i) => i.id === equipment.weapon)?.handedness === 'two-handed';
+                        return (
+                          <div
+                            key={slot}
+                            className="flex flex-col items-center p-1.5"
+                            style={{
+                              background: item
+                                ? 'rgba(127, 197, 34, 0.08)'
+                                : isShieldBlocked
+                                  ? 'rgba(190, 33, 86, 0.05)'
+                                  : 'rgba(48, 48, 48, 0.05)',
+                              border: `1px solid ${item ? 'rgba(127, 197, 34, 0.3)' : 'rgba(43, 115, 179, 0.15)'}`,
+                              clipPath:
+                                'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
+                              opacity: isShieldBlocked ? 0.4 : 1,
+                            }}
+                          >
+                            <span
+                              className="mb-1"
+                              style={{
+                                color: 'rgba(26, 42, 58, 0.5)',
+                                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                fontWeight: 400,
+                                fontSize: '0.5rem',
+                                letterSpacing: '0.1em',
+                              }}
+                            >
+                              {label}
+                            </span>
+                            {item ? (
+                              <div
+                                className="w-10 h-10 flex items-center justify-center"
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.9)',
+                                  border: '1px solid rgba(127, 197, 34, 0.3)',
+                                  borderRadius: '2px',
+                                }}
+                              >
+                                <img
+                                  src={`/sao/equipment/${item.icon}`}
+                                  alt={item.name}
+                                  className="w-8 h-8"
+                                  draggable={false}
+                                  style={{ objectFit: 'contain' }}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                className="w-10 h-10 flex items-center justify-center"
+                                style={{
+                                  background: 'rgba(48, 48, 48, 0.05)',
+                                  border: '1px dashed rgba(43, 115, 179, 0.15)',
+                                  borderRadius: '2px',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    color: 'rgba(26, 42, 58, 0.2)',
+                                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                    fontSize: '0.7rem',
+                                  }}
+                                >
+                                  —
+                                </span>
+                              </div>
+                            )}
+                            {item && (
+                              <p
+                                className="truncate w-full text-center mt-0.5"
+                                style={{
+                                  color: '#1a2a3a',
+                                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                  fontWeight: 400,
+                                  fontSize: '0.45rem',
+                                }}
+                              >
+                                {item.name}
+                              </p>
+                            )}
+                            {isShieldBlocked && (
+                              <p
+                                className="text-center mt-0.5"
+                                style={{
+                                  color: 'rgba(190, 33, 86, 0.5)',
+                                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                  fontWeight: 400,
+                                  fontSize: '0.4rem',
+                                }}
+                              >
+                                BLOCCATO
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

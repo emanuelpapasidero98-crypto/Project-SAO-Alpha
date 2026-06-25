@@ -9,8 +9,12 @@ import SaoNotificationWindow, {
   type SaoNotificationData,
 } from './SaoNotificationWindow';
 import CharacterPanel from './CharacterPanel';
+import SaoPanel from './SaoPanel';
 import { getStartingPlayerStats, type PlayerStats, type Gender } from '@/lib/sao-data';
 import { calcMaxHp, calcMaxMp, calcMaxSp } from '@/lib/sao-stats-engine';
+import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
+import type { Item, EquipmentState } from '@/lib/sao-inventory-types';
+import { BAG_MAX_ITEMS, isTwoHanded, getEquipmentSlot } from '@/lib/sao-inventory-types';
 
 interface GameScreenProps {
   playerName: string;
@@ -52,6 +56,16 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
   const [notification, setNotification] = useState<SaoNotificationData | null>(null);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCharacterPanel, setShowCharacterPanel] = useState(false);
+  const [showBagPanel, setShowBagPanel] = useState(false);
+  const [showInventoryPanel, setShowInventoryPanel] = useState(false);
+  const [items, setItems] = useState<Item[]>(SAMPLE_ITEMS);
+  const [equipment, setEquipment] = useState<EquipmentState>({
+    weapon: null,
+    shield: null,
+    armor: null,
+    accessory1: null,
+    accessory2: null,
+  });
   const [xp] = useState<number>(0); // absolute XP value
 
   const pushNotification = useCallback(
@@ -98,20 +112,12 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         setShowCharacterPanel(true);
         break;
       case 'wallet':
-        pushNotification({
-          kind: 'present',
-          title: 'Borsa',
-          body: 'Col: 0  —  Valuta iniziale. Esplora Aincrad per guadagnare.',
-          autoDismiss: 6000,
-        });
+        play('popupPanel', 0.4);
+        setShowBagPanel(true);
         break;
       case 'inventory':
-        pushNotification({
-          kind: 'message',
-          title: 'Inventario',
-          body: 'Lo zaino è vuoto. Raccogli oggetti durante le tue avventure.',
-          autoDismiss: 6000,
-        });
+        play('popupPanel', 0.4);
+        setShowInventoryPanel(true);
         break;
       case 'quest':
         pushNotification({
@@ -179,9 +185,56 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
   };
 
   const handleCancel = (_id: number) => {
-    // Cancel button (red X) just dismisses the window.
-    // For Log Out, this means "no, don't logout" — just close.
     setNotification(null);
+  };
+
+  // === Equipment logic ===
+  const handleEquip = (item: Item) => {
+    setEquipment((prev) => {
+      const next = { ...prev };
+      if (item.category === 'accessory') {
+        if (!prev.accessory1) next.accessory1 = item.id;
+        else if (!prev.accessory2) next.accessory2 = item.id;
+        else next.accessory1 = item.id;
+      } else {
+        const slot = getEquipmentSlot(item);
+        if (slot && slot !== 'accessory1' && slot !== 'accessory2') {
+          (next as Record<string, string | null>)[slot] = item.id;
+        }
+      }
+      if (isTwoHanded(item)) next.shield = null;
+      return next;
+    });
+    pushNotification({
+      kind: 'system',
+      title: 'Equipaggiato',
+      body: `${item.name} equipaggiato.`,
+      autoDismiss: 3000,
+    });
+  };
+
+  const handleMoveToBag = (item: Item) => {
+    const bagCount = items.filter((i) => i.location === 'bag').length;
+    if (bagCount >= BAG_MAX_ITEMS) {
+      pushNotification({
+        kind: 'alert',
+        title: 'Borsa Piena',
+        body: `La borsa pu\u00f2 contenere massimo ${BAG_MAX_ITEMS} oggetti.`,
+        autoDismiss: 4000,
+      });
+      return;
+    }
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, location: 'bag' as const } : i))
+    );
+    play('click', 0.4);
+  };
+
+  const handleMoveToInventory = (item: Item) => {
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, location: 'inventory' as const } : i))
+    );
+    play('click', 0.4);
   };
 
   return (
@@ -295,6 +348,34 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         level={level}
         stats={stats}
         xp={xp}
+        equipment={equipment}
+        allItems={items}
+      />
+
+      {/* ===== Bag Panel (shown when "Borsa" is clicked) ===== */}
+      <SaoPanel
+        open={showBagPanel}
+        onClose={() => setShowBagPanel(false)}
+        title="BorSA"
+        mode="bag"
+        items={items.filter((i) => i.location === 'bag')}
+        equipment={equipment}
+        onEquip={handleEquip}
+        onMoveToBag={handleMoveToBag}
+        onMoveToInventory={handleMoveToInventory}
+      />
+
+      {/* ===== Inventory Panel (shown when "Inventario" is clicked) ===== */}
+      <SaoPanel
+        open={showInventoryPanel}
+        onClose={() => setShowInventoryPanel(false)}
+        title="Inventario"
+        mode="inventory"
+        items={items}
+        equipment={equipment}
+        onEquip={handleEquip}
+        onMoveToBag={handleMoveToBag}
+        onMoveToInventory={handleMoveToInventory}
       />
     </motion.div>
   );
