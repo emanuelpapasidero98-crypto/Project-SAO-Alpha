@@ -12,6 +12,31 @@
   font-display: swap;
 }
 
+/* ===== SAO-style scrollbar =====
+   Thin, dark, with cyan glow — matches the SAO HUD aesthetic.
+   Uses only CSS (no GitHub asset needed for the scrollbar itself,
+   but the colors match the canonical SAO palette: #2B73B3, #5CC4F0). */
+.sao-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sao-scroll::-webkit-scrollbar-track {
+  background: rgba(48, 48, 48, 0.15);
+  border-radius: 3px;
+}
+.sao-scroll::-webkit-scrollbar-thumb {
+  background: rgba(43, 115, 179, 0.5);
+  border-radius: 3px;
+  box-shadow: 0 0 4px rgba(92, 196, 240, 0.4);
+}
+.sao-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(43, 115, 179, 0.8);
+  box-shadow: 0 0 8px rgba(92, 196, 240, 0.7);
+}
+.sao-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(43, 115, 179, 0.5) rgba(48, 48, 48, 0.15);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

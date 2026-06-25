@@ -356,7 +356,7 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
       <SaoPanel
         open={showBagPanel}
         onClose={() => setShowBagPanel(false)}
-        title="BorSA"
+        title="Borsa"
         mode="bag"
         items={items.filter((i) => i.location === 'bag')}
         equipment={equipment}

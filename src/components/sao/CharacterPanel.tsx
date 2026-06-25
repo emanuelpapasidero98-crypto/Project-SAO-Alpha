@@ -290,10 +290,12 @@ export default function CharacterPanel({
               <div className="grid md:grid-cols-[300px_1fr] gap-0">
                 {/* ===== LEFT: Avatar box + sub-stats ===== */}
                 <div
-                  className="p-6 flex flex-col items-center"
+                  className="p-6 flex flex-col items-center sao-scroll"
                   style={{
                     background: '#D6D6D6',
                     borderRight: '1px solid #A8A8A8',
+                    maxHeight: '70vh',
+                    overflowY: 'auto',
                   }}
                 >
                   {/* Avatar box — SAO style with metallic border */}
@@ -529,7 +531,7 @@ export default function CharacterPanel({
                 </div>
 
                 {/* ===== RIGHT: XP + Stats + Derived ===== */}
-                <div className="p-6 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: '80vh' }}>
+                <div className="p-6 flex flex-col gap-4 overflow-y-auto sao-scroll" style={{ maxHeight: '80vh' }}>
                   {/* XP section — NO percentage, just numeric values */}
                   <div>
                     <div className="flex justify-between items-baseline mb-2">

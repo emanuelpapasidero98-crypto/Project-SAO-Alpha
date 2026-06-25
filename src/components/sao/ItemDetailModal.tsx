@@ -182,27 +182,29 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                   {categoryMeta?.label.toUpperCase()}
                 </p>
 
-                {/* Item name */}
+                {/* Item name — bold with relief */}
                 <h3
-                  className="tracking-[0.2em] mb-3"
+                  className="tracking-[0.15em] mb-3"
                   style={{
                     color: '#1a2a3a',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400,
+                    fontWeight: 700,
                     fontSize: '1.3rem',
+                    textShadow: '0 1px 0 rgba(255,255,255,0.7), 0 -1px 1px rgba(0,0,0,0.1)',
                   }}
                 >
                   {item.name}
                 </h3>
 
-                {/* Description */}
+                {/* Description — larger, more readable */}
                 <p
                   className="leading-relaxed mb-4"
                   style={{
                     color: '#1a2a3a',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                     fontWeight: 400,
-                    fontSize: '0.8rem',
+                    fontSize: '0.9rem',
+                    lineHeight: 1.5,
                   }}
                 >
                   {item.description}

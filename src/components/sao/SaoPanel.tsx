@@ -238,7 +238,7 @@ export default function SaoPanel({
                   </div>
 
                   {/* Content */}
-                  <div className="p-5" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                  <div className="p-5 sao-scroll" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                     {mode === 'inventory' && (
                       <>
                         {/* Search + Sort */}
@@ -430,15 +430,16 @@ function ItemCard({
         )}
       </button>
 
-      {/* Item name (truncated) */}
+      {/* Item name — larger with stronger relief effect */}
       <p
         className="truncate w-full text-center mb-1"
         style={{
           color: '#1a2a3a',
           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-          fontWeight: 400,
-          fontSize: '0.55rem',
+          fontWeight: 700,
+          fontSize: '0.75rem',
           letterSpacing: '0.02em',
+          textShadow: '0 1px 0 rgba(255,255,255,0.9), 0 -1px 2px rgba(0,0,0,0.2), 0 0 4px rgba(43, 115, 179, 0.15)',
         }}
       >
         {item.name}
