@@ -16,6 +16,7 @@ import {
 } from '@/lib/sao-stats-engine';
 import type { PlayerStats } from '@/lib/sao-types';
 import type { EquipmentState, Item } from '@/lib/sao-inventory-types';
+import ItemDetailModal from './ItemDetailModal';
 
 /**
  * SAO Character Panel — shown when the user clicks "Personaggio" in the menu.
@@ -71,6 +72,7 @@ export default function CharacterPanel({
   const [transform, setTransform] = useState('');
   const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
   const [isHover, setIsHover] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   // Sound on open (after 300ms delay, per PanelView.qml pattern)
   useEffect(() => {
@@ -144,6 +146,7 @@ export default function CharacterPanel({
   const xpRemaining = Math.max(0, xpToNext - xp);
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -286,16 +289,14 @@ export default function CharacterPanel({
                 </h2>
               </div>
 
-              {/* Main content: 2 columns */}
-              <div className="grid md:grid-cols-[300px_1fr] gap-0">
+              {/* Main content: 2 columns — scrollable as a whole */}
+              <div className="grid md:grid-cols-[300px_1fr] gap-0 sao-scroll" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
                 {/* ===== LEFT: Avatar box + sub-stats ===== */}
                 <div
-                  className="p-6 flex flex-col items-center sao-scroll"
+                  className="p-6 flex flex-col items-center"
                   style={{
                     background: '#D6D6D6',
                     borderRight: '1px solid #A8A8A8',
-                    maxHeight: '70vh',
-                    overflowY: 'auto',
                   }}
                 >
                   {/* Avatar box — SAO style with metallic border */}
@@ -461,13 +462,18 @@ export default function CharacterPanel({
                               {label}
                             </span>
                             {item ? (
-                              <div
+                              <button
+                                onClick={() => { play('click', 0.3); setSelectedItem(item); }}
+                                onMouseEnter={() => play('click', 0.12)}
                                 className="w-10 h-10 flex items-center justify-center"
                                 style={{
                                   background: 'rgba(255, 255, 255, 0.9)',
                                   border: '1px solid rgba(127, 197, 34, 0.3)',
                                   borderRadius: '2px',
+                                  cursor: 'pointer',
+                                  padding: 0,
                                 }}
+                                title={`Clicca per ispezionare: ${item.name}`}
                               >
                                 <img
                                   src={`/sao/equipment/${item.icon}`}
@@ -476,7 +482,7 @@ export default function CharacterPanel({
                                   draggable={false}
                                   style={{ objectFit: 'contain' }}
                                 />
-                              </div>
+                              </button>
                             ) : (
                               <div
                                 className="w-10 h-10 flex items-center justify-center"
@@ -531,7 +537,7 @@ export default function CharacterPanel({
                 </div>
 
                 {/* ===== RIGHT: XP + Stats + Derived ===== */}
-                <div className="p-6 flex flex-col gap-4 overflow-y-auto sao-scroll" style={{ maxHeight: '80vh' }}>
+                <div className="p-6 flex flex-col gap-4">
                   {/* XP section — NO percentage, just numeric values */}
                   <div>
                     <div className="flex justify-between items-baseline mb-2">
@@ -697,6 +703,10 @@ export default function CharacterPanel({
         </motion.div>
       )}
     </AnimatePresence>
+
+    {/* Item detail modal — opens when clicking an equipped item */}
+    <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+    </>
   );
 }
 
