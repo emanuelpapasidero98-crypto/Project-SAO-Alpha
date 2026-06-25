@@ -8,9 +8,12 @@ import SaoMainMenu from './SaoMainMenu';
 import SaoNotificationWindow, {
   type SaoNotificationData,
 } from './SaoNotificationWindow';
+import CharacterPanel from './CharacterPanel';
+import { getStartingStats, type Gender } from '@/lib/sao-data';
 
 interface GameScreenProps {
   playerName: string;
+  gender: Gender;
   onExit?: () => void;
 }
 
@@ -34,13 +37,16 @@ interface GameScreenProps {
  * (menu clicks, etc.) or future combat events.
  */
 
-export default function GameScreen({ playerName, onExit }: GameScreenProps) {
+export default function GameScreen({ playerName, gender, onExit }: GameScreenProps) {
   const { play } = useSaoSound();
   const [hp] = useState<BarValue>({ current: 300, max: 300 });
   const [mp] = useState<BarValue>({ current: 120, max: 120 });
   const [energy] = useState<BarValue>({ current: 200, max: 200 });
   const [notification, setNotification] = useState<SaoNotificationData | null>(null);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showCharacterPanel, setShowCharacterPanel] = useState(false);
+  const [stats] = useState<Record<string, number>>(getStartingStats());
+  const [xp] = useState<{ current: number; needed: number }>({ current: 0, needed: 100 });
 
   const pushNotification = useCallback(
     (n: Omit<SaoNotificationData, 'id'>) => {
@@ -81,12 +87,9 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
   const handleMenuClick = (id: string) => {
     switch (id) {
       case 'character':
-        pushNotification({
-          kind: 'system',
-          title: 'Personaggio',
-          body: `${playerName} — Lv.1  HP ${hp.current}/${hp.max}  MP ${mp.current}/${mp.max}`,
-          autoDismiss: 6000,
-        });
+        // Open the character panel (instead of a simple notification)
+        play('popupPanel', 0.4);
+        setShowCharacterPanel(true);
         break;
       case 'wallet':
         pushNotification({
@@ -275,6 +278,17 @@ export default function GameScreen({ playerName, onExit }: GameScreenProps) {
         notification={notification}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
+      />
+
+      {/* ===== Character Panel (shown when "Personaggio" is clicked) ===== */}
+      <CharacterPanel
+        open={showCharacterPanel}
+        onClose={() => setShowCharacterPanel(false)}
+        playerName={playerName}
+        gender={gender}
+        level={1}
+        stats={stats}
+        xp={xp}
       />
     </motion.div>
   );

@@ -160,7 +160,7 @@ export default function Home() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <GameScreen playerName={playerName} onExit={handleExitGame} />
+            <GameScreen playerName={playerName} gender={gender!} onExit={handleExitGame} />
           </motion.div>
         )}
       </AnimatePresence>
