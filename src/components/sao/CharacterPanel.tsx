@@ -12,8 +12,6 @@ import {
   calcMaxSp,
   calcXpToNext,
   STAT_META,
-  getUnlockedBonuses,
-  getNextBonus,
   type DerivedStats,
 } from '@/lib/sao-stats-engine';
 import type { PlayerStats } from '@/lib/sao-types';
@@ -90,24 +88,39 @@ export default function CharacterPanel({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [open, onClose, play]);
 
-  // VR hover effect: 3D tilt + parallax following the mouse
+  // VR hover effect: 3D tilt + parallax following the mouse.
+  // The handler is attached to the backdrop overlay (which always receives
+  // mouse events), and computes the position relative to the card rect.
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    // Only apply tilt when the cursor is over the card itself
+    if (
+      e.clientX < rect.left ||
+      e.clientX > rect.right ||
+      e.clientY < rect.top ||
+      e.clientY > rect.bottom
+    ) {
+      // Cursor left the card — reset tilt
+      if (isHover) {
+        setIsHover(false);
+        setTransform('');
+      }
+      return;
+    }
     const px = (e.clientX - rect.left) / rect.width;
     const py = (e.clientY - rect.top) / rect.height;
-    const rotY = (px - 0.5) * 8; // -4..4 deg
+    const rotY = (px - 0.5) * 8;
     const rotX = -(py - 0.5) * 8;
     setTransform(
-      `perspective(1200px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale3d(1.01, 1.01, 1.01)`
+      `perspective(1200px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale3d(1.015, 1.015, 1.015)`
     );
     setLightPos({ x: px * 100, y: py * 100 });
-  };
-
-  const handleMouseEnter = () => {
-    setIsHover(true);
-    play('click', 0.15);
+    if (!isHover) {
+      setIsHover(true);
+      play('click', 0.15);
+    }
   };
 
   const handleMouseLeave = () => {
@@ -139,24 +152,14 @@ export default function CharacterPanel({
             backdropFilter: 'blur(6px)',
           }}
           onClick={onClose}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
         >
           {/* Card container — animation from PanelView.qml:
-              opacity 0→1 (500ms) + scale 0.85→1 (400ms OutQuart)
-              + VR hover (3D tilt + parallax + cursor-following glow) */}
+              opacity 0→1 (500ms) + scale 0.85→1 (400ms OutQuart).
+              The VR hover (3D tilt) is applied to an INNER wrapper so it
+              doesn't conflict with Framer Motion's scale animation. */}
           <motion.div
-            ref={cardRef}
-            onMouseMove={handleMouseMove}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            className="relative"
-            style={{
-              width: 'min(900px, 95vw)',
-              maxHeight: '90vh',
-              overflow: 'hidden',
-              transform,
-              transformStyle: 'preserve-3d',
-              transition: 'transform 0.18s ease-out',
-            }}
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
@@ -168,7 +171,31 @@ export default function CharacterPanel({
               },
             }}
             onClick={(e) => e.stopPropagation()}
+            style={{ width: 'min(900px, 95vw)' }}
           >
+            {/* Inner wrapper for the VR hover tilt (kept separate from
+                Framer Motion's scale to avoid transform conflicts).
+                The mousemove handler is attached directly here so it
+                receives real React synthetic events. */}
+            <div
+              ref={cardRef}
+              className="relative"
+              onMouseMove={handleMouseMove}
+              onMouseEnter={() => {
+                if (!isHover) {
+                  setIsHover(true);
+                  play('click', 0.15);
+                }
+              }}
+              onMouseLeave={handleMouseLeave}
+              style={{
+                maxHeight: '90vh',
+                overflow: 'hidden',
+                transform,
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.18s ease-out',
+              }}
+            >
             {/* VR cursor-following glow overlay */}
             <div
               className="absolute inset-0 pointer-events-none transition-opacity duration-300"
@@ -417,8 +444,6 @@ export default function CharacterPanel({
                       {(Object.keys(STAT_META) as Array<keyof typeof STAT_META>).map((key) => {
                         const meta = STAT_META[key];
                         const value = stats[key];
-                        const unlocked = getUnlockedBonuses(value, key);
-                        const next = getNextBonus(value, key);
                         return (
                           <div
                             key={key}
@@ -450,65 +475,28 @@ export default function CharacterPanel({
                                 style={{ objectFit: 'contain' }}
                               />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-baseline justify-between">
-                                <span
-                                  style={{
-                                    color: meta.color,
-                                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                    fontWeight: 400,
-                                    fontSize: '0.6rem',
-                                    letterSpacing: '0.15em',
-                                  }}
-                                >
-                                  {meta.short}
-                                </span>
-                                <span
-                                  style={{
-                                    color: '#1a2a3a',
-                                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                    fontWeight: 400,
-                                    fontSize: '0.85rem',
-                                  }}
-                                >
-                                  {value}
-                                </span>
-                              </div>
-                              {/* Mini progress bar toward next milestone */}
-                              <div
-                                className="h-0.5 mt-0.5 overflow-hidden"
-                                style={{ background: 'rgba(26, 42, 58, 0.15)' }}
+                            <div className="flex-1 min-w-0 flex items-center justify-between">
+                              <span
+                                style={{
+                                  color: meta.color,
+                                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                  fontWeight: 400,
+                                  fontSize: '0.65rem',
+                                  letterSpacing: '0.15em',
+                                }}
                               >
-                                <motion.div
-                                  className="h-full"
-                                  style={{
-                                    background: meta.color,
-                                    boxShadow: `0 0 4px ${meta.color}`,
-                                  }}
-                                  initial={{ width: 0 }}
-                                  animate={{
-                                    width: next
-                                      ? `${Math.min(100, (value / next.pointsRequired) * 100)}%`
-                                      : '100%',
-                                  }}
-                                  transition={{ duration: 0.6, ease: 'easeOut', delay: 0.4 }}
-                                />
-                              </div>
-                              {/* Next milestone hint */}
-                              {next && (
-                                <p
-                                  className="mt-0.5"
-                                  style={{
-                                    color: 'rgba(26, 42, 58, 0.5)',
-                                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                    fontWeight: 400,
-                                    fontSize: '0.5rem',
-                                    letterSpacing: '0.05em',
-                                  }}
-                                >
-                                  → {next.description}
-                                </p>
-                              )}
+                                {meta.short}
+                              </span>
+                              <span
+                                style={{
+                                  color: '#1a2a3a',
+                                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                  fontWeight: 400,
+                                  fontSize: '0.95rem',
+                                }}
+                              >
+                                {value}
+                              </span>
                             </div>
                           </div>
                         );
@@ -561,6 +549,7 @@ export default function CharacterPanel({
                     'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)',
                 }}
               />
+            </div>
             </div>
           </motion.div>
         </motion.div>

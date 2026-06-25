@@ -10,6 +10,7 @@ import SaoNotificationWindow, {
 } from './SaoNotificationWindow';
 import CharacterPanel from './CharacterPanel';
 import { getStartingPlayerStats, type PlayerStats, type Gender } from '@/lib/sao-data';
+import { calcMaxHp, calcMaxMp, calcMaxSp } from '@/lib/sao-stats-engine';
 
 interface GameScreenProps {
   playerName: string;
@@ -39,13 +40,18 @@ interface GameScreenProps {
 
 export default function GameScreen({ playerName, gender, onExit }: GameScreenProps) {
   const { play } = useSaoSound();
-  const [hp] = useState<BarValue>({ current: 300, max: 300 });
-  const [mp] = useState<BarValue>({ current: 120, max: 120 });
-  const [energy] = useState<BarValue>({ current: 200, max: 200 });
+  const [stats] = useState<PlayerStats>(getStartingPlayerStats());
+  const level = 1;
+  // HP/MP/Energy are computed from level + stats using the SAO stats engine
+  const maxHp = calcMaxHp(level, stats.vit);
+  const maxMp = calcMaxMp(level, stats.men);
+  const maxSp = calcMaxSp(level, stats.res);
+  const [hp] = useState<BarValue>({ current: maxHp, max: maxHp });
+  const [mp] = useState<BarValue>({ current: maxMp, max: maxMp });
+  const [energy] = useState<BarValue>({ current: maxSp, max: maxSp });
   const [notification, setNotification] = useState<SaoNotificationData | null>(null);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCharacterPanel, setShowCharacterPanel] = useState(false);
-  const [stats] = useState<PlayerStats>(getStartingPlayerStats());
   const [xp] = useState<number>(0); // absolute XP value
 
   const pushNotification = useCallback(
@@ -286,7 +292,7 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         onClose={() => setShowCharacterPanel(false)}
         playerName={playerName}
         gender={gender}
-        level={1}
+        level={level}
         stats={stats}
         xp={xp}
       />
