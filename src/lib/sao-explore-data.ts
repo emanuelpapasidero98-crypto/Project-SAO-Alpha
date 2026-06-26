@@ -19,8 +19,8 @@ export const EXPLORE_SUBAREAS: SubAreaDef[] = [
   {
     id: 'pianure-esteriori',
     areaId: 'grandi-pianure',
-    name: 'Pianure Esteriori',
-    description: 'La prima zona delle Grandi Pianure, subito fuori dalle mura della città.',
+    name: 'Praterie',
+    description: 'Le praterie aperte subito fuori dalla città. Il primo territorio che ogni avventuriero esplora ad Aincrad.',
     order: 1,
     terrainPalette: ['plains', 'hills', 'river', 'sparse_wood', 'clearing', 'ruins'],
     zoneTexts: {

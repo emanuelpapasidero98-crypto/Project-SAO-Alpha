@@ -119,6 +119,17 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   // Advance zone
   const handleAdvance = useCallback(() => {
     if (!run || !activeSubAreaId) return;
+
+    // Blocca avanzamento se non sono risolti almeno 2 eventi
+    const currentZone = run.zones[run.currentZoneIndex];
+    if (currentZone && currentZone.terrain !== 'terminal') {
+      const resolvedCount = currentZone.events.filter((e) => e.resolved).length;
+      if (resolvedCount < 2) {
+        play('warning', 0.3);
+        return;
+      }
+    }
+
     const updatedZones = run.zones.map((z, i) =>
       i === run.currentZoneIndex
         ? { ...z, cleared: true, events: z.events.map((ev) => ({ ...ev, resolved: true })) }
@@ -404,20 +415,42 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                   </p>
                 )}
 
-                {/* Advance */}
-                <div className="flex justify-end">
+                {/* Advance button */}
+                <div className="flex justify-between items-center">
+                  {/* Event counter */}
+                  {currentZone.terrain !== 'terminal' && (
+                    <span
+                      style={{
+                        color: currentZone.events.filter((e) => e.resolved).length >= 2
+                          ? 'rgba(127, 197, 34, 0.6)'
+                          : 'rgba(235, 166, 1, 0.6)',
+                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                        fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em',
+                      }}
+                    >
+                      EVENTI: {currentZone.events.filter((e) => e.resolved).length}/{currentZone.events.length}
+                      {currentZone.events.filter((e) => e.resolved).length < 2 ? ' (MIN 2)' : ''}
+                    </span>
+                  )}
                   <button
                     onClick={handleAdvance}
-                    className="px-5 py-2"
+                    className="px-5 py-2 ml-auto"
                     style={{
-                      background: 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)',
-                      boxShadow: '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)',
-                      border: '1px solid rgba(255,255,255,0.4)',
+                      background: currentZone.terrain === 'terminal' || currentZone.events.filter((e) => e.resolved).length >= 2
+                        ? 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)'
+                        : 'rgba(48, 48, 48, 0.3)',
+                      boxShadow: currentZone.terrain === 'terminal' || currentZone.events.filter((e) => e.resolved).length >= 2
+                        ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
+                        : 'none',
+                      border: '1px solid rgba(255,255,255,0.3)',
                       clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
                       color: '#FBFBFB',
                       fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                       fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
-                      cursor: 'pointer',
+                      cursor: currentZone.terrain === 'terminal' || currentZone.events.filter((e) => e.resolved).length >= 2
+                        ? 'pointer' : 'not-allowed',
+                      opacity: currentZone.terrain === 'terminal' || currentZone.events.filter((e) => e.resolved).length >= 2
+                        ? 1 : 0.5,
                     }}
                   >
                     {run.currentZoneIndex === 7 ? 'COMPLETA →' : 'AVANZA →'}
@@ -772,11 +805,35 @@ function TerminalManagePanel({ items, equipment, onMoveToBag, onMoveToInventory,
   onClose: () => void;
 }) {
   const { play } = useSaoSound();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState('');
+  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [activeTab, setActiveTab] = useState<'bag' | 'inventory' | 'equipment'>('bag');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+      if (tilt) { setTilt(''); }
+      return;
+    }
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    setTilt(`perspective(1200px) rotateX(${-(py - 0.5) * 6}deg) rotateY(${(px - 0.5) * 6}deg) scale3d(1.01, 1.01, 1.01)`);
+    setLightPos({ x: px * 100, y: py * 100 });
+  };
 
   const bagItems = items.filter((i) => i.location === 'bag');
-  const inventoryItems = items.filter((i) => i.location === 'inventory');
+  const inventoryItems = items.filter((i) => {
+    if (i.location !== 'inventory') return false;
+    if (searchQuery.trim() && !i.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (activeCategory !== 'all' && i.category !== activeCategory) return false;
+    return true;
+  });
 
   const equippedSlots = equipment ? [
     { slot: 'weapon', label: 'ARMA', itemId: equipment.weapon },
@@ -786,6 +843,13 @@ function TerminalManagePanel({ items, equipment, onMoveToBag, onMoveToInventory,
     { slot: 'accessory2', label: 'ACC. 2', itemId: equipment.accessory2 },
   ] : [];
 
+  const categories = ['all', 'one-handed-sword', 'two-handed-sword', 'one-handed-axe', 'two-handed-axe', 'dagger', 'finesword', 'shield', 'armor', 'accessory', 'item', 'potion', 'quest-item'];
+  const catLabels: Record<string, string> = {
+    'all': 'TUTTI', 'one-handed-sword': 'SPADE 1H', 'two-handed-sword': 'SPADONI', 'one-handed-axe': 'ASCE 1H',
+    'two-handed-axe': 'ASCE 2H', 'dagger': 'PUGNALI', 'finesword': 'FIORETTO', 'shield': 'SCUDI',
+    'armor': 'ARMATURE', 'accessory': 'ACCESSORI', 'item': 'OGGETTI', 'potion': 'POZIONI', 'quest-item': 'MISSIONE',
+  };
+
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
@@ -794,6 +858,8 @@ function TerminalManagePanel({ items, equipment, onMoveToBag, onMoveToInventory,
       exit={{ opacity: 0 }}
       style={{ background: 'rgba(2,8,20,0.85)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setTilt('')}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.85 }}
@@ -806,15 +872,35 @@ function TerminalManagePanel({ items, equipment, onMoveToBag, onMoveToInventory,
         onClick={(e) => e.stopPropagation()}
         style={{ width: 'min(900px, 95vw)', maxHeight: '90vh' }}
       >
-        {/* Card body — SAO white style */}
+        {/* Inner wrapper for VR tilt */}
         <div
-          className="relative w-full"
+          ref={cardRef}
+          className="relative"
           style={{
-            background: '#FBFBFB',
-            clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
-            boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 60px rgba(43, 115, 179, 0.3)',
+            transform: tilt,
+            transformStyle: 'preserve-3d',
+            transition: 'transform 0.18s ease-out',
           }}
         >
+          {/* VR glow */}
+          <div
+            className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+            style={{
+              opacity: tilt ? 1 : 0,
+              background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, rgba(92, 196, 240, 0.18) 0%, transparent 50%)`,
+              mixBlendMode: 'screen',
+              zIndex: 50,
+            }}
+          />
+          {/* Card body */}
+          <div
+            className="relative w-full"
+            style={{
+              background: '#FBFBFB',
+              clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 60px rgba(43, 115, 179, 0.3)',
+            }}
+          >
           <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)' }} />
 
           {/* Close button */}
@@ -877,6 +963,46 @@ function TerminalManagePanel({ items, equipment, onMoveToBag, onMoveToInventory,
 
             {activeTab === 'inventory' && (
               <div>
+                {/* Search bar */}
+                <div className="flex gap-3 mb-3">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cerca oggetto..."
+                    className="flex-1 px-3 py-1.5 outline-none"
+                    style={{
+                      background: 'rgba(255,255,255,0.95)',
+                      color: '#1a2a3a',
+                      border: '1px solid rgba(43, 115, 179, 0.4)',
+                      fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                      fontWeight: 400, fontSize: '0.75rem',
+                      clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+                    }}
+                  />
+                </div>
+                {/* Category filters */}
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => { setActiveCategory(cat); play('click', 0.15); }}
+                      className="px-2 py-0.5"
+                      style={{
+                        background: activeCategory === cat ? 'rgba(43,115,179,0.2)' : 'transparent',
+                        border: `1px solid ${activeCategory === cat ? 'rgba(43,115,179,0.5)' : 'rgba(43,115,179,0.15)'}`,
+                        color: activeCategory === cat ? '#2B73B3' : 'rgba(26,42,58,0.4)',
+                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                        fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.1em',
+                        cursor: 'pointer',
+                        clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {catLabels[cat]}
+                    </button>
+                  ))}
+                </div>
                 <p className="mb-3 tracking-[0.2em] text-center" style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
                   INVENTARIO — {inventoryItems.length} OGGETTI
                 </p>
@@ -933,7 +1059,8 @@ function TerminalManagePanel({ items, equipment, onMoveToBag, onMoveToInventory,
           </div>
 
           <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)' }} />
-        </div>
+          </div>
+          </div>
       </motion.div>
 
       {/* Item detail modal */}

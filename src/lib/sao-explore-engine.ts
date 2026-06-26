@@ -165,7 +165,6 @@ function rollZoneEvents(
       events.push(makeCombat(count, hasElite));
     }
   } else {
-    // Modalità independent: roll indipendenti
     if (rng() < 0.60) {
       const max = firstThree ? 2 : 5;
       const count = rngInt(rng, 1, max);
@@ -195,7 +194,24 @@ function rollZoneEvents(
     events.push(makeQuestNpc());
   }
 
-  return events; // può essere vuoto → zona di passaggio
+  // === GARANTIA MIN 2 EVENTI, MAX 4 ===
+  // Se ci sono meno di 2 eventi, aggiungi eventi finché ne abbiamo almeno 2
+  while (events.length < 2) {
+    // Aggiungi un forziere o un combattimento base
+    if (rng() < 0.5) {
+      events.push(makeChest(rng));
+    } else {
+      const max = firstThree ? 2 : 5;
+      events.push(makeCombat(rngInt(rng, 1, max), false));
+    }
+  }
+
+  // Se ci sono più di 4 eventi, taglia a 4
+  if (events.length > 4) {
+    events.splice(4);
+  }
+
+  return events;
 }
 
 // === FACTORY EVENTI ===
