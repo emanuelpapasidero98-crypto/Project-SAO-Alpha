@@ -483,6 +483,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                 onRest={handleTerminalRest}
                 onCheckpoint={handleTerminalCheckpoint}
                 visitedHubs={exploreState.visitedHubs}
+                onManageBag={() => { setShowTerminal(false); setShowManagePanel(true); play('popupPanel', 0.4); }}
               />
             )}
           </AnimatePresence>
@@ -552,8 +553,8 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
 
 /* ---------- Terminal Overlay ---------- */
 
-function TerminalOverlay({ onClose, onRest, onCheckpoint, visitedHubs }: {
-  onClose: () => void; onRest: () => void; onCheckpoint: () => void; visitedHubs: string[];
+function TerminalOverlay({ onClose, onRest, onCheckpoint, visitedHubs, onManageBag }: {
+  onClose: () => void; onRest: () => void; onCheckpoint: () => void; visitedHubs: string[]; onManageBag: () => void;
 }) {
   const { play } = useSaoSound();
   const [showCheckpointMsg, setShowCheckpointMsg] = useState(false);
@@ -577,7 +578,7 @@ function TerminalOverlay({ onClose, onRest, onCheckpoint, visitedHubs }: {
         {!showCheckpointMsg ? (
           <div className="flex flex-col gap-2">
             <TerminalButton label="Riposa (HP/MP/Energia full)" color="#7FC522" onClick={onRest} />
-            <TerminalButton label="Modifica Borsa" color="#5CC4F0" onClick={() => { setShowTerminal(false); setShowManagePanel(true); play('popupPanel', 0.4); }} />
+            <TerminalButton label="Modifica Borsa" color="#5CC4F0" onClick={onManageBag} />
             <TerminalButton label="Teletrasporto" color="#EBA601" onClick={() => { setShowCheckpointMsg(true); play('system', 0.3); }} />
             <TerminalButton label="Chiudi" color="#BE2156" onClick={() => { play('dismissLauncher', 0.3); onClose(); }} />
           </div>
