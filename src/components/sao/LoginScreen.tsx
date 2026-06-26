@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSaoSound } from '@/hooks/useSaoSound';
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (isAdmin: boolean) => void;
 }
 
 /**
@@ -98,7 +98,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     }
     play('click', 0.7);
     play('linkStartK', 0.6);
-    onLogin();
+    const isAdmin = username.trim() === 'Administrator' && password.trim() === 'cardinal';
+    onLogin(isAdmin);
   };
 
   // Boot log lines — typed out progressively

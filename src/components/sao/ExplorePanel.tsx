@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
 import {
   type SubAreaRun,
+  type ZoneNode,
   type ZoneEvent,
   type ExploreState,
   createInitialExploreState,
@@ -37,6 +38,8 @@ interface ExplorePanelProps {
   onMoveToInventory?: (item: Item) => void;
   onEquip?: (item: Item) => void;
   onUnequip?: (slot: string) => void;
+  // Cheats
+  cheats?: { skipEvents: boolean; immortal: boolean; instakill: boolean; infiniteCol: boolean };
 }
 
 const EVENT_LABELS: Record<string, { label: string; color: string; icon: string }> = {
@@ -49,7 +52,7 @@ const EVENT_LABELS: Record<string, { label: string; color: string; icon: string 
   distressNpc: { label: 'NPC in Difficoltà', color: '#EBA601', icon: '!' },
 };
 
-export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest, items = [], equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip }: ExplorePanelProps) {
+export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest, items = [], equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip, cheats }: ExplorePanelProps) {
   const { play } = useSaoSound();
   const [exploreState, setExploreState] = useState<ExploreState>(createInitialExploreState);
   const [run, setRun] = useState<SubAreaRun | null>(null);
@@ -120,9 +123,9 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   const handleAdvance = useCallback(() => {
     if (!run || !activeSubAreaId) return;
 
-    // Blocca avanzamento se non sono risolti almeno 2 eventi
+    // Blocca avanzamento se non sono risolti almeno 2 eventi (a meno che skipEvents non sia attivo)
     const currentZone = run.zones[run.currentZoneIndex];
-    if (currentZone && currentZone.terrain !== 'terminal') {
+    if (currentZone && currentZone.terrain !== 'terminal' && !cheats?.skipEvents) {
       const resolvedCount = currentZone.events.filter((e) => e.resolved).length;
       if (resolvedCount < 2) {
         play('warning', 0.3);
@@ -160,7 +163,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
       setRun({ ...run, zones: updatedZones, currentZoneIndex: nextIndex });
       play('click', 0.3);
     }
-  }, [run, activeSubAreaId, play]);
+  }, [run, activeSubAreaId, play, cheats]);
 
   // Resolve event
   const handleResolveEvent = useCallback((event: ZoneEvent) => {
@@ -361,102 +364,8 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                 ))}
               </div>
 
-              {/* Current zone card (glass-panel style) */}
-              <div className="glass-panel p-6 w-full max-w-2xl">
-                <div className="flex items-baseline justify-between mb-3">
-                  <h3
-                    className="tracking-[0.2em]"
-                    style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}
-                  >
-                    ZONA {currentZone.position} — {currentZone.title}
-                  </h3>
-                  <span style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em' }}>
-                    {currentZone.terrain.toUpperCase()}
-                  </span>
-                </div>
-                <p
-                  className="leading-relaxed mb-4"
-                  style={{ color: 'rgba(251,251,251,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}
-                >
-                  {currentZone.description}
-                </p>
-
-                {/* Events */}
-                {currentZone.events.length > 0 ? (
-                  <div className="flex flex-col gap-2 mb-4">
-                    {currentZone.events.map((event, idx) => {
-                      const meta = EVENT_LABELS[event.type] || { label: event.type, color: '#999', icon: '?' };
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => handleResolveEvent(event)}
-                          disabled={event.resolved}
-                          className="flex items-center gap-3 px-4 py-2.5 text-left transition-all"
-                          style={{
-                            background: event.resolved ? 'rgba(48,48,48,0.15)' : `${meta.color}22`,
-                            border: `1px solid ${event.resolved ? 'rgba(48,48,48,0.15)' : meta.color + '66'}`,
-                            clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-                            cursor: event.resolved ? 'default' : 'pointer',
-                            opacity: event.resolved ? 0.35 : 1,
-                          }}
-                        >
-                          <span style={{ color: meta.color, fontSize: '1rem' }}>{meta.icon}</span>
-                          <span style={{ color: event.resolved ? 'rgba(251,251,251,0.3)' : '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem' }}>
-                            {meta.label}{event.resolved ? ' — Risolto' : ''}
-                          </span>
-                          {!event.resolved && <span className="ml-auto" style={{ color: meta.color, fontSize: '0.6rem' }}>▸</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="mb-4" style={{ color: 'rgba(251,251,251,0.25)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.15em' }}>
-                    ZONA DI PASSAGGIO. NESSUN EVENTO.
-                  </p>
-                )}
-
-                {/* Advance button */}
-                <div className="flex justify-between items-center">
-                  {/* Event counter */}
-                  {currentZone.terrain !== 'terminal' && (
-                    <span
-                      style={{
-                        color: currentZone.events.filter((e) => e.resolved).length >= 2
-                          ? 'rgba(127, 197, 34, 0.6)'
-                          : 'rgba(235, 166, 1, 0.6)',
-                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em',
-                      }}
-                    >
-                      EVENTI: {currentZone.events.filter((e) => e.resolved).length}/{currentZone.events.length}
-                      {currentZone.events.filter((e) => e.resolved).length < 2 ? ' (MIN 2)' : ''}
-                    </span>
-                  )}
-                  <button
-                    onClick={handleAdvance}
-                    className="px-5 py-2 ml-auto"
-                    style={{
-                      background: currentZone.terrain === 'terminal' || currentZone.events.filter((e) => e.resolved).length >= 2
-                        ? 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)'
-                        : 'rgba(48, 48, 48, 0.3)',
-                      boxShadow: currentZone.terrain === 'terminal' || currentZone.events.filter((e) => e.resolved).length >= 2
-                        ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
-                        : 'none',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
-                      color: '#FBFBFB',
-                      fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                      fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
-                      cursor: currentZone.terrain === 'terminal' || currentZone.events.filter((e) => e.resolved).length >= 2
-                        ? 'pointer' : 'not-allowed',
-                      opacity: currentZone.terrain === 'terminal' || currentZone.events.filter((e) => e.resolved).length >= 2
-                        ? 1 : 0.5,
-                    }}
-                  >
-                    {run.currentZoneIndex === 7 ? 'COMPLETA →' : 'AVANZA →'}
-                  </button>
-                </div>
-              </div>
+              {/* Current zone card — same style as SubAreaCard (white borders, VR hover) */}
+              <ZoneCard currentZone={currentZone} run={run} onResolveEvent={handleResolveEvent} onAdvance={handleAdvance} cheats={cheats} />
             </motion.div>
           )}
 
@@ -658,6 +567,154 @@ function TerminalButton({ label, color, onClick }: { label: string; color: strin
     >
       {label}
     </button>
+  );
+}
+
+/* ---------- Zone Card with VR hover (same style as SubAreaCard) ---------- */
+
+function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
+  currentZone: ZoneNode;
+  run: SubAreaRun;
+  onResolveEvent: (event: ZoneEvent) => void;
+  onAdvance: () => void;
+  cheats?: { skipEvents: boolean; immortal: boolean; instakill: boolean; infiniteCol: boolean };
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState('');
+  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    setTilt(`perspective(800px) rotateX(${-(py - 0.5) * 8}deg) rotateY(${(px - 0.5) * 8}deg) scale3d(1.02, 1.02, 1.02)`);
+    setLightPos({ x: px * 100, y: py * 100 });
+  };
+
+  const resolvedCount = currentZone.events.filter((e) => e.resolved).length;
+  const canAdvance = currentZone.terrain === 'terminal' || resolvedCount >= 2 || !!cheats?.skipEvents;
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setTilt('')}
+      className="relative w-full max-w-2xl overflow-hidden"
+      style={{
+        padding: '24px',
+        transform: tilt,
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.15s ease-out',
+        background: 'rgba(8, 22, 40, 0.85)',
+        border: '2px solid rgba(251, 251, 251, 0.5)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
+        clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
+      }}
+    >
+      {/* VR glow following cursor */}
+      <div
+        className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+        style={{
+          opacity: tilt ? 1 : 0,
+          background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, rgba(92, 196, 240, 0.15) 0%, transparent 50%)`,
+          mixBlendMode: 'screen',
+        }}
+      />
+
+      {/* Zone title */}
+      <div className="flex items-baseline justify-between mb-3">
+        <h3
+          className="tracking-[0.2em]"
+          style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}
+        >
+          ZONA {currentZone.position} — {currentZone.title}
+        </h3>
+        <span style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em' }}>
+          {currentZone.terrain.toUpperCase()}
+        </span>
+      </div>
+
+      {/* Description */}
+      <p
+        className="leading-relaxed mb-4"
+        style={{ color: 'rgba(251,251,251,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}
+      >
+        {currentZone.description}
+      </p>
+
+      {/* Events */}
+      {currentZone.events.length > 0 ? (
+        <div className="flex flex-col gap-2 mb-4">
+          {currentZone.events.map((event, idx) => {
+            const meta = EVENT_LABELS[event.type] || { label: event.type, color: '#999', icon: '?' };
+            return (
+              <button
+                key={idx}
+                onClick={() => onResolveEvent(event)}
+                disabled={event.resolved}
+                className="flex items-center gap-3 px-4 py-2.5 text-left transition-all"
+                style={{
+                  background: event.resolved ? 'rgba(48,48,48,0.15)' : `${meta.color}22`,
+                  border: `1px solid ${event.resolved ? 'rgba(48,48,48,0.15)' : meta.color + '66'}`,
+                  clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+                  cursor: event.resolved ? 'default' : 'pointer',
+                  opacity: event.resolved ? 0.35 : 1,
+                }}
+              >
+                <span style={{ color: meta.color, fontSize: '1rem' }}>{meta.icon}</span>
+                <span style={{ color: event.resolved ? 'rgba(251,251,251,0.3)' : '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem' }}>
+                  {meta.label}{event.resolved ? ' — Risolto' : ''}
+                </span>
+                {!event.resolved && <span className="ml-auto" style={{ color: meta.color, fontSize: '0.6rem' }}>▸</span>}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mb-4" style={{ color: 'rgba(251,251,251,0.25)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.15em' }}>
+          ZONA DI PASSAGGIO. NESSUN EVENTO.
+        </p>
+      )}
+
+      {/* Advance button + event counter */}
+      <div className="flex justify-between items-center">
+        {currentZone.terrain !== 'terminal' && (
+          <span
+            style={{
+              color: resolvedCount >= 2 ? 'rgba(127, 197, 34, 0.6)' : 'rgba(235, 166, 1, 0.6)',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em',
+            }}
+          >
+            EVENTI: {resolvedCount}/{currentZone.events.length}
+            {resolvedCount < 2 ? ' (MIN 2)' : ''}
+          </span>
+        )}
+        <button
+          onClick={onAdvance}
+          className="px-5 py-2 ml-auto"
+          style={{
+            background: canAdvance
+              ? 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)'
+              : 'rgba(48, 48, 48, 0.3)',
+            boxShadow: canAdvance
+              ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
+              : 'none',
+            border: '1px solid rgba(255,255,255,0.3)',
+            clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
+            color: '#FBFBFB',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
+            cursor: canAdvance ? 'pointer' : 'not-allowed',
+            opacity: canAdvance ? 1 : 0.5,
+          }}
+        >
+          {run.currentZoneIndex === 7 ? 'COMPLETA →' : 'AVANZA →'}
+        </button>
+      </div>
+    </div>
   );
 }
 

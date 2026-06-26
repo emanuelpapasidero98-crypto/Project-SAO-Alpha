@@ -25,7 +25,10 @@ export default function Home() {
   const [playerName, setPlayerName] = useState<string>('');
   const [gender, setGender] = useState<Gender | null>(null);
 
-  const handleLogin = () => {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const handleLogin = (admin: boolean = false) => {
+    setIsAdmin(admin);
     setStage('linkstart');
   };
 
@@ -160,7 +163,7 @@ export default function Home() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <GameScreen playerName={playerName} gender={gender!} onExit={handleExitGame} />
+            <GameScreen playerName={playerName} gender={gender!} isAdmin={isAdmin} onExit={handleExitGame} />
           </motion.div>
         )}
       </AnimatePresence>

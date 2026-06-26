@@ -21,6 +21,7 @@ import { BAG_MAX_ITEMS, isTwoHanded, getEquipmentSlot } from '@/lib/sao-inventor
 interface GameScreenProps {
   playerName: string;
   gender: Gender;
+  isAdmin?: boolean;
   onExit?: () => void;
 }
 
@@ -44,7 +45,7 @@ interface GameScreenProps {
  * (menu clicks, etc.) or future combat events.
  */
 
-export default function GameScreen({ playerName, gender, onExit }: GameScreenProps) {
+export default function GameScreen({ playerName, gender, isAdmin = false, onExit }: GameScreenProps) {
   const { play } = useSaoSound();
   const [stats] = useState<PlayerStats>(getStartingPlayerStats());
   const level = 1;
@@ -63,6 +64,13 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
   const [showFloorPanel, setShowFloorPanel] = useState(false);
   const [showExplorePanel, setShowExplorePanel] = useState(false);
   const [exploreAreaId, setExploreAreaId] = useState<string>('grandi-pianure');
+  const [showCheatPanel, setShowCheatPanel] = useState(false);
+  const [cheats, setCheats] = useState({
+    skipEvents: false,
+    immortal: false,
+    instakill: false,
+    infiniteCol: false,
+  });
   const [items, setItems] = useState<Item[]>(SAMPLE_ITEMS);
   const [equipment, setEquipment] = useState<EquipmentState>({
     weapon: null,
@@ -258,6 +266,70 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         />
       </div>
 
+      {/* ===== Cheat button (admin only) — below menu icon ===== */}
+      {isAdmin && (
+        <button
+          onClick={() => { play('click', 0.3); setShowCheatPanel(!showCheatPanel); }}
+          className="fixed top-16 right-4 z-30 px-3 py-1.5"
+          style={{
+            background: showCheatPanel ? 'rgba(190, 33, 86, 0.8)' : 'rgba(8, 12, 20, 0.6)',
+            border: '1px solid rgba(190, 33, 86, 0.5)',
+            clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+            color: showCheatPanel ? '#FBFBFB' : 'rgba(190, 33, 86, 0.7)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400, fontSize: '0.6rem', letterSpacing: '0.2em',
+            cursor: 'pointer',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          CHEAT
+        </button>
+      )}
+
+      {/* ===== Cheat panel (admin only) ===== */}
+      {isAdmin && showCheatPanel && (
+        <div
+          className="fixed top-24 right-4 z-30 p-4"
+          style={{
+            background: 'rgba(8, 12, 20, 0.85)',
+            border: '1px solid rgba(190, 33, 86, 0.4)',
+            clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
+            backdropFilter: 'blur(8px)',
+            minWidth: '220px',
+          }}
+        >
+          <p
+            className="tracking-[0.3em] mb-3 text-center"
+            style={{ color: '#BE2156', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem' }}
+          >
+            CHEAT ADMIN
+          </p>
+          {[
+            { key: 'skipEvents' as const, label: 'Salta eventi zona' },
+            { key: 'immortal' as const, label: 'Immortalità' },
+            { key: 'instakill' as const, label: 'Instakill' },
+            { key: 'infiniteCol' as const, label: 'Col infiniti' },
+          ].map(({ key, label }) => (
+            <label
+              key={key}
+              className="flex items-center gap-2 cursor-pointer mb-2"
+              style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem' }}
+            >
+              <input
+                type="checkbox"
+                checked={cheats[key]}
+                onChange={(e) => {
+                  setCheats({ ...cheats, [key]: e.target.checked });
+                  play('click', 0.3);
+                }}
+                style={{ accentColor: '#BE2156', width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      )}
+
       {/* ===== HUD (top-left) ===== */}
       <SaoHUD hp={hp} mp={mp} energy={energy} level={1} playerName={playerName} />
 
@@ -406,6 +478,7 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
           setEquipment((prev) => ({ ...prev, [slot]: null }));
           play('click', 0.4);
         }}
+        cheats={cheats}
         onItemFound={(itemId) => {
           // Add found item to inventory
           setItems((prev) => {
