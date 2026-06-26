@@ -141,23 +141,8 @@ function SaoWindow({
         backdropFilter: 'blur(4px)',
       }}
     >
-      {/* CRT TV power-on overlay (slightly slower for notifications) */}
-      <motion.div
-        className="absolute inset-0 z-50 pointer-events-none"
-        style={{ background: '#5CC4F0' }}
-        initial={{ scaleY: 0.005, opacity: 1 }}
-        animate={{ scaleY: [0.005, 0.005, 1, 1], opacity: [1, 1, 1, 0] }}
-        transition={{ duration: 0.8, times: [0, 0.12, 0.6, 1], ease: 'easeOut' }}
-      />
-      {/* CRT TV power-off overlay (on exit) */}
-      <motion.div
-        className="absolute inset-0 z-50 pointer-events-none"
-        style={{ background: '#5CC4F0' }}
-        initial={{ scaleY: 0, opacity: 0 }}
-        exit={{ scaleY: [0, 1, 1, 0.005], opacity: [0, 1, 1, 1] }}
-        transition={{ duration: 0.6, times: [0, 0.1, 0.5, 1], ease: 'easeIn' }}
-      />
-      {/* Window container — TV power-on animation */}
+      {/* Window container — TV power-on animation (applied ONLY to the
+          notification window itself, no full-screen blue flash overlay) */}
       <motion.div
         className="relative"
         style={{
