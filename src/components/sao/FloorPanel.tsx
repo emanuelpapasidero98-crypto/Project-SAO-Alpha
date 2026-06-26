@@ -52,7 +52,7 @@ const FLOOR_1_ZONES: Zone[] = [
     id: 'starting-plains',
     name: 'Pianure dell\'inizio',
     description: 'Ampie pianure appena fuori dalla città. Ideali per i primi combattimenti e per esplorare. Mostri di basso livello.',
-    image: '/sao/backgrounds/Aincrad.png',
+    image: '/sao/backgrounds/Pianure dell\'inizio.svg',
     type: 'explore',
   },
 ];
@@ -159,7 +159,7 @@ export default function FloorPanel({ open, onClose, onZoneSelect }: FloorPanelPr
               scale: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
             }}
             onClick={(e) => e.stopPropagation()}
-            style={{ width: 'min(800px, 95vw)' }}
+            style={{ width: 'min(1100px, 95vw)' }}
           >
             <div
               ref={cardRef}
@@ -239,7 +239,7 @@ export default function FloorPanel({ open, onClose, onZoneSelect }: FloorPanelPr
                 </div>
 
                 {/* Content */}
-                <div className="p-6 sao-scroll" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <div className="p-8 sao-scroll" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                   {view === 'floors' && (
                     <>
                       {/* Floor 1 — large clickable image */}
@@ -357,7 +357,7 @@ export default function FloorPanel({ open, onClose, onZoneSelect }: FloorPanelPr
                   )}
 
                   {view === 'zones' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       {FLOOR_1_ZONES.map((zone, idx) => (
                         <motion.div
                           key={zone.id}

@@ -42,22 +42,24 @@ import { useSaoSound } from '@/hooks/useSaoSound';
 interface MenuItemDef {
   id: string;
   label: string;
-  /** Optional icon path from /sao/menu/ */
+  /** Icon path (normal state) from /sao/menu/ */
   icon?: string;
+  /** Icon path (hover state) from /sao/menu/ */
+  iconOn?: string;
   /** Hover/active sound */
   sound?: 'popupMenu' | 'popupPanel' | 'popupMessage' | 'popupLauncher';
 }
 
 const MENU_ITEMS: MenuItemDef[] = [
-  { id: 'character', label: 'Personaggio', icon: '/sao/menu/Man.svg', sound: 'popupMenu' },
-  { id: 'wallet', label: 'Borsa', icon: '/sao/menu/Location.svg', sound: 'popupPanel' },
-  { id: 'inventory', label: 'Inventario', icon: '/sao/menu/Config.svg', sound: 'popupMessage' },
-  { id: 'quest', label: 'Quest', icon: '/sao/menu/Message.svg', sound: 'popupLauncher' },
-  { id: 'floor', label: 'Piano', sound: 'popupMenu' },
-  { id: 'party', label: 'Party', sound: 'popupPanel' },
-  { id: 'options', label: 'Opzioni', sound: 'popupMessage' },
-  { id: 'messages', label: 'Messaggi', sound: 'popupLauncher' },
-  { id: 'logout', label: 'Log Out', sound: 'popupMenu' },
+  { id: 'character', label: 'Personaggio', icon: '/sao/menu/Player.svg', iconOn: '/sao/menu/Player_on.svg', sound: 'popupMenu' },
+  { id: 'wallet', label: 'Borsa', icon: '/sao/menu/Items.svg', iconOn: '/sao/menu/Items_on.svg', sound: 'popupPanel' },
+  { id: 'inventory', label: 'Inventario', icon: '/sao/menu/Equipment.svg', iconOn: '/sao/menu/Equipment_on.svg', sound: 'popupMessage' },
+  { id: 'quest', label: 'Quest', icon: '/sao/menu/Quest & Message Box.svg', iconOn: '/sao/menu/Quest & Message Box_on.svg', sound: 'popupLauncher' },
+  { id: 'floor', label: 'Piano', icon: '/sao/menu/Location.svg', iconOn: '/sao/menu/Location_on.svg', sound: 'popupMenu' },
+  { id: 'party', label: 'Party', icon: '/sao/menu/Party & Profile.svg', iconOn: '/sao/menu/Party & Profile_on.svg', sound: 'popupPanel' },
+  { id: 'options', label: 'Opzioni', icon: '/sao/menu/Option.svg', iconOn: '/sao/menu/Option_on.svg', sound: 'popupMessage' },
+  { id: 'messages', label: 'Messaggi', icon: '/sao/menu/Message.svg', iconOn: '/sao/menu/Message_on.svg', sound: 'popupLauncher' },
+  { id: 'logout', label: 'Log Out', icon: '/sao/menu/Logout.svg', iconOn: '/sao/menu/Logout_on.svg', sound: 'popupMenu' },
 ];
 
 interface SaoMainMenuProps {
@@ -262,18 +264,28 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
                         border: `1px solid ${hoveredItem === item.id ? 'rgba(255,255,255,0.5)' : 'rgba(43, 115, 179, 0.3)'}`,
                       }}
                     >
+                      {/* Normal state icon */}
                       <img
                         src={item.icon}
                         alt=""
-                        className="w-5 h-5"
+                        className="w-5 h-5 absolute transition-opacity duration-200"
                         draggable={false}
                         style={{
-                          filter:
-                            hoveredItem === item.id
-                              ? 'brightness(0) invert(1)'
-                              : 'none',
+                          opacity: hoveredItem === item.id ? 0 : 1,
                         }}
                       />
+                      {/* Hover state icon (iconOn variant) */}
+                      {item.iconOn && (
+                        <img
+                          src={item.iconOn}
+                          alt=""
+                          className="w-5 h-5 absolute transition-opacity duration-200"
+                          draggable={false}
+                          style={{
+                            opacity: hoveredItem === item.id ? 1 : 0,
+                          }}
+                        />
+                      )}
                     </div>
                   )}
 
