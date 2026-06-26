@@ -16,15 +16,12 @@ import {
 } from '@/lib/sao-explore-data';
 import { generateSubAreaRun, generateSeed, getChestLoot } from '@/lib/sao-explore-engine';
 import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
+import type { Item, EquipmentState } from '@/lib/sao-inventory-types';
+import { BAG_MAX_ITEMS } from '@/lib/sao-inventory-types';
+import ItemDetailModal from './ItemDetailModal';
 
 /**
  * SAO Explore Panel — Full-screen procedural exploration.
- *
- * Styling: glass-panel with cyan/terminal tint, full-screen.
- * Opening animation: CRT TV power-on (horizontal line → expand vertically).
- * Sub-area selection: 3 sub-areas with checkmark if completed.
- * Re-exploration: completed sub-areas can be re-entered infinitely.
- * Zone traversal: 8 zones, events, terminal at Zona 5.
  */
 
 interface ExplorePanelProps {
@@ -33,6 +30,13 @@ interface ExplorePanelProps {
   areaId?: string;
   onItemFound?: (itemId: string) => void;
   onRest?: () => void;
+  // Terminal management props
+  items?: Item[];
+  equipment?: EquipmentState;
+  onMoveToBag?: (item: Item) => void;
+  onMoveToInventory?: (item: Item) => void;
+  onEquip?: (item: Item) => void;
+  onUnequip?: (slot: string) => void;
 }
 
 const EVENT_LABELS: Record<string, { label: string; color: string; icon: string }> = {
@@ -45,13 +49,14 @@ const EVENT_LABELS: Record<string, { label: string; color: string; icon: string 
   distressNpc: { label: 'NPC in Difficoltà', color: '#EBA601', icon: '!' },
 };
 
-export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest }: ExplorePanelProps) {
+export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest, items = [], equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip }: ExplorePanelProps) {
   const { play } = useSaoSound();
   const [exploreState, setExploreState] = useState<ExploreState>(createInitialExploreState);
   const [run, setRun] = useState<SubAreaRun | null>(null);
   const [view, setView] = useState<'subareas' | 'exploring'>('subareas');
   const [activeSubAreaId, setActiveSubAreaId] = useState<string | null>(null);
   const [showTerminal, setShowTerminal] = useState(false);
+  const [showManagePanel, setShowManagePanel] = useState(false);
   const [foundItem, setFoundItem] = useState<string | null>(null);
   const [showCheckmark, setShowCheckmark] = useState<string | null>(null);
 
@@ -294,99 +299,13 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                   const status = exploreState.subAreaProgress[sa.id]?.status ?? 'unlocked';
                   const isCompleted = status === 'completed';
                   return (
-                    <motion.div
+                    <SubAreaCard
                       key={sa.id}
+                      sa={sa}
+                      idx={idx}
+                      isCompleted={isCompleted}
                       onClick={() => handleStartExplore(sa.id)}
-                      className="glass-panel cursor-pointer relative overflow-hidden"
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 + idx * 0.1, duration: 0.5 }}
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.98 }}
-                      style={{
-                        padding: '24px',
-                        borderColor: isCompleted ? 'rgba(127, 197, 34, 0.4)' : 'rgba(43, 115, 179, 0.4)',
-                      }}
-                    >
-                      {/* Completed checkmark */}
-                      {isCompleted && (
-                        <motion.div
-                          className="absolute top-3 right-3 flex items-center justify-center"
-                          style={{
-                            width: '28px',
-                            height: '28px',
-                            borderRadius: '50%',
-                            background: 'rgba(127, 197, 34, 0.2)',
-                            border: '2px solid rgba(127, 197, 34, 0.6)',
-                          }}
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ delay: 0.6 + idx * 0.1, type: 'spring' }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                            <path d="M2 7L5.5 10.5L12 3.5" stroke="#7FC522" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </motion.div>
-                      )}
-
-                      {/* Order number */}
-                      <div
-                        className="mb-3 flex items-center justify-center"
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '50%',
-                          background: 'rgba(43, 115, 179, 0.2)',
-                          border: '1px solid rgba(43, 115, 179, 0.5)',
-                          color: '#5CC4F0',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.9rem',
-                        }}
-                      >
-                        {sa.order}
-                      </div>
-
-                      {/* Name */}
-                      <h3
-                        className="tracking-[0.2em] mb-2"
-                        style={{
-                          color: '#FBFBFB',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 700,
-                          fontSize: '1rem',
-                          textShadow: '0 1px 0 rgba(255,255,255,0.1)',
-                        }}
-                      >
-                        {sa.name.toUpperCase()}
-                      </h3>
-
-                      {/* Description */}
-                      <p
-                        className="leading-relaxed mb-3"
-                        style={{
-                          color: 'rgba(251,251,251,0.5)',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.7rem',
-                        }}
-                      >
-                        {sa.description}
-                      </p>
-
-                      {/* Status */}
-                      <p
-                        className="tracking-[0.2em]"
-                        style={{
-                          color: isCompleted ? 'rgba(127, 197, 34, 0.7)' : 'rgba(92, 196, 240, 0.5)',
-                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
-                          fontSize: '0.6rem',
-                        }}
-                      >
-                        {isCompleted ? '[ COMPLETATA — RIESPLORABILE ]' : '[ DISPONIBILE ]'}
-                      </p>
-                    </motion.div>
+                    />
                   );
                 })}
               </div>
@@ -568,6 +487,21 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
             )}
           </AnimatePresence>
 
+          {/* === TERMINAL MANAGE PANEL === */}
+          <AnimatePresence>
+            {showManagePanel && (
+              <TerminalManagePanel
+                items={items}
+                equipment={equipment}
+                onMoveToBag={onMoveToBag}
+                onMoveToInventory={onMoveToInventory}
+                onEquip={onEquip}
+                onUnequip={onUnequip}
+                onClose={() => { setShowManagePanel(false); play('dismissLauncher', 0.3); }}
+              />
+            )}
+          </AnimatePresence>
+
           {/* === ITEM FOUND OVERLAY === */}
           <AnimatePresence>
             {foundItem && (
@@ -643,7 +577,7 @@ function TerminalOverlay({ onClose, onRest, onCheckpoint, visitedHubs }: {
         {!showCheckpointMsg ? (
           <div className="flex flex-col gap-2">
             <TerminalButton label="Riposa (HP/MP/Energia full)" color="#7FC522" onClick={onRest} />
-            <TerminalButton label="Modifica Borsa" color="#5CC4F0" onClick={() => play('click', 0.3)} />
+            <TerminalButton label="Modifica Borsa" color="#5CC4F0" onClick={() => { setShowTerminal(false); setShowManagePanel(true); play('popupPanel', 0.4); }} />
             <TerminalButton label="Teletrasporto" color="#EBA601" onClick={() => { setShowCheckpointMsg(true); play('system', 0.3); }} />
             <TerminalButton label="Chiudi" color="#BE2156" onClick={() => { play('dismissLauncher', 0.3); onClose(); }} />
           </div>
@@ -690,5 +624,351 @@ function TerminalButton({ label, color, onClick }: { label: string; color: strin
     >
       {label}
     </button>
+  );
+}
+
+/* ---------- Sub-Area Card with VR hover ---------- */
+
+function SubAreaCard({ sa, idx, isCompleted, onClick }: {
+  sa: { id: string; name: string; description: string; order: number };
+  idx: number;
+  isCompleted: boolean;
+  onClick: () => void;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState('');
+  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    setTilt(`perspective(800px) rotateX(${-(py - 0.5) * 10}deg) rotateY(${(px - 0.5) * 10}deg) scale3d(1.03, 1.03, 1.03)`);
+    setLightPos({ x: px * 100, y: py * 100 });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.4 + idx * 0.1, duration: 0.5 }}
+    >
+      <div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setTilt('')}
+        onClick={onClick}
+        className="relative cursor-pointer overflow-hidden"
+        style={{
+          padding: '24px',
+          transform: tilt,
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.15s ease-out',
+          background: 'rgba(8, 22, 40, 0.85)',
+          border: `2px solid ${isCompleted ? 'rgba(127, 197, 34, 0.6)' : 'rgba(251, 251, 251, 0.5)'}`,
+          boxShadow: isCompleted
+            ? '0 4px 20px rgba(127, 197, 34, 0.2), inset 0 0 20px rgba(127, 197, 34, 0.05)'
+            : '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
+          clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
+        }}
+      >
+        {/* VR glow following cursor */}
+        <div
+          className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+          style={{
+            opacity: tilt ? 1 : 0,
+            background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, rgba(92, 196, 240, 0.15) 0%, transparent 50%)`,
+            mixBlendMode: 'screen',
+          }}
+        />
+
+        {/* Completed checkmark */}
+        {isCompleted && (
+          <motion.div
+            className="absolute top-3 right-3 flex items-center justify-center"
+            style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: 'rgba(127, 197, 34, 0.2)',
+              border: '2px solid rgba(127, 197, 34, 0.6)',
+            }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.6 + idx * 0.1, type: 'spring' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 7L5.5 10.5L12 3.5" stroke="#7FC522" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </motion.div>
+        )}
+
+        {/* Order number */}
+        <div
+          className="mb-3 flex items-center justify-center"
+          style={{
+            width: '36px', height: '36px', borderRadius: '50%',
+            background: 'rgba(43, 115, 179, 0.2)',
+            border: '1px solid rgba(251, 251, 251, 0.3)',
+            color: '#5CC4F0',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400, fontSize: '0.9rem',
+          }}
+        >
+          {sa.order}
+        </div>
+
+        {/* Name */}
+        <h3
+          className="tracking-[0.2em] mb-2"
+          style={{
+            color: '#FBFBFB',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 700, fontSize: '1rem',
+            textShadow: '0 1px 0 rgba(255,255,255,0.1)',
+          }}
+        >
+          {sa.name.toUpperCase()}
+        </h3>
+
+        {/* Description */}
+        <p
+          className="leading-relaxed mb-3"
+          style={{
+            color: 'rgba(251,251,251,0.5)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400, fontSize: '0.7rem',
+          }}
+        >
+          {sa.description}
+        </p>
+
+        {/* Status */}
+        <p
+          className="tracking-[0.2em]"
+          style={{
+            color: isCompleted ? 'rgba(127, 197, 34, 0.7)' : 'rgba(92, 196, 240, 0.5)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400, fontSize: '0.6rem',
+          }}
+        >
+          {isCompleted ? '[ COMPLETATA — RIESPLORABILE ]' : '[ DISPONIBILE ]'}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ---------- Terminal Manage Panel (Borsa + Inventario + Equipaggiamento) ---------- */
+
+function TerminalManagePanel({ items, equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip, onClose }: {
+  items: Item[];
+  equipment?: EquipmentState;
+  onMoveToBag?: (item: Item) => void;
+  onMoveToInventory?: (item: Item) => void;
+  onEquip?: (item: Item) => void;
+  onUnequip?: (slot: string) => void;
+  onClose: () => void;
+}) {
+  const { play } = useSaoSound();
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [activeTab, setActiveTab] = useState<'bag' | 'inventory' | 'equipment'>('bag');
+
+  const bagItems = items.filter((i) => i.location === 'bag');
+  const inventoryItems = items.filter((i) => i.location === 'inventory');
+
+  const equippedSlots = equipment ? [
+    { slot: 'weapon', label: 'ARMA', itemId: equipment.weapon },
+    { slot: 'shield', label: 'SCUDO', itemId: equipment.shield },
+    { slot: 'armor', label: 'ARMATURA', itemId: equipment.armor },
+    { slot: 'accessory1', label: 'ACC. 1', itemId: equipment.accessory1 },
+    { slot: 'accessory2', label: 'ACC. 2', itemId: equipment.accessory2 },
+  ] : [];
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{ background: 'rgba(2,8,20,0.85)', backdropFilter: 'blur(8px)' }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{
+          opacity: { duration: 0.5, ease: 'easeOut' },
+          scale: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+        }}
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: 'min(900px, 95vw)', maxHeight: '90vh' }}
+      >
+        {/* Card body — SAO white style */}
+        <div
+          className="relative w-full"
+          style={{
+            background: '#FBFBFB',
+            clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 60px rgba(43, 115, 179, 0.3)',
+          }}
+        >
+          <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)' }} />
+
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 z-10"
+            style={{ width: '28px', height: '28px', cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+            aria-label="Chiudi"
+          >
+            <img src="/sao/window/btn-red.svg" alt="Chiudi" className="w-full h-full" draggable={false} />
+          </button>
+
+          {/* Title */}
+          <div className="px-8 pt-5 pb-3 text-center" style={{ background: 'linear-gradient(180deg, #EFEFEF 0%, #DFDFDF 100%)', borderBottom: '1px solid #A8A8A8' }}>
+            <h2 className="tracking-[0.4em]" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: 'clamp(1rem, 2vw, 1.4rem)' }}>
+              GESTIONE TERMINALE
+            </h2>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 p-4 justify-center border-b border-[#A8A8A8]">
+            {(['bag', 'inventory', 'equipment'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(tab); play('click', 0.2); }}
+                className="px-4 py-1.5"
+                style={{
+                  background: activeTab === tab ? '#2B73B3' : 'rgba(48,48,48,0.08)',
+                  color: activeTab === tab ? '#FBFBFB' : 'rgba(26,42,58,0.5)',
+                  border: `1px solid ${activeTab === tab ? '#2B73B3' : 'rgba(43,115,179,0.2)'}`,
+                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                  fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.15em',
+                  cursor: 'pointer',
+                  clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+                }}
+              >
+                {tab === 'bag' ? 'BORSA' : tab === 'inventory' ? 'INVENTARIO' : 'EQUIPAGGIAMENTO'}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="p-5 sao-scroll" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            {activeTab === 'bag' && (
+              <div>
+                <p className="mb-3 tracking-[0.2em] text-center" style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
+                  BORSA — {bagItems.length} / {BAG_MAX_ITEMS} SLOT
+                </p>
+                {bagItems.length === 0 ? (
+                  <p className="text-center py-8" style={{ color: 'rgba(26,42,58,0.3)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.8rem' }}>BORSA VUOTA</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {bagItems.map((item) => (
+                      <ManageItemCard key={item.id} item={item} onClick={() => { play('click', 0.3); setSelectedItem(item); }} onAction={onMoveToInventory ? () => onMoveToInventory(item) : undefined} actionLabel="INV." canEquip={item.equippable} onEquip={onEquip ? () => onEquip(item) : undefined} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'inventory' && (
+              <div>
+                <p className="mb-3 tracking-[0.2em] text-center" style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
+                  INVENTARIO — {inventoryItems.length} OGGETTI
+                </p>
+                {inventoryItems.length === 0 ? (
+                  <p className="text-center py-8" style={{ color: 'rgba(26,42,58,0.3)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.8rem' }}>INVENTARIO VUOTO</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {inventoryItems.map((item) => {
+                      const bagCount = bagItems.length;
+                      const canMove = bagCount < BAG_MAX_ITEMS;
+                      return (
+                        <ManageItemCard key={item.id} item={item} onClick={() => { play('click', 0.3); setSelectedItem(item); }} onAction={canMove && onMoveToBag ? () => onMoveToBag(item) : undefined} actionLabel="BORSA" canEquip={item.equippable} onEquip={onEquip ? () => onEquip(item) : undefined} />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'equipment' && (
+              <div>
+                <p className="mb-3 tracking-[0.2em] text-center" style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
+                  EQUIPAGGIAMENTO
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                  {equippedSlots.map(({ slot, label, itemId }) => {
+                    const item = itemId ? items.find((i) => i.id === itemId) : null;
+                    return (
+                      <div key={slot} className="flex flex-col items-center p-2" style={{ background: item ? 'rgba(127,197,34,0.08)' : 'rgba(48,48,48,0.05)', border: `1px solid ${item ? 'rgba(127,197,34,0.3)' : 'rgba(43,115,179,0.15)'}`, clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)' }}>
+                        <span style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.5rem', letterSpacing: '0.1em' }}>{label}</span>
+                        {item ? (
+                          <>
+                            <button onClick={() => { play('click', 0.3); setSelectedItem(item); }} className="my-1" style={{ width: '40px', height: '40px', cursor: 'pointer', background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(127,197,34,0.3)', borderRadius: '2px', padding: 0 }}>
+                              <img src={`/sao/equipment/${item.icon}`} alt={item.name} className="w-8 h-8" draggable={false} style={{ objectFit: 'contain', margin: 'auto' }} />
+                            </button>
+                            <p className="truncate w-full text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.45rem' }}>{item.name}</p>
+                            {onUnequip && (
+                              <button onClick={() => { play('click', 0.3); onUnequip(slot); }} className="mt-1 px-1.5 py-0.5" style={{ background: 'rgba(190,33,86,0.1)', border: '1px solid rgba(190,33,86,0.3)', color: '#BE2156', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.45rem', cursor: 'pointer', clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)' }}>
+                                RIMUOVI
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <div className="my-1 flex items-center justify-center" style={{ width: '40px', height: '40px', background: 'rgba(48,48,48,0.05)', border: '1px dashed rgba(43,115,179,0.15)', borderRadius: '2px' }}>
+                            <span style={{ color: 'rgba(26,42,58,0.2)', fontSize: '0.7rem' }}>—</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)' }} />
+        </div>
+      </motion.div>
+
+      {/* Item detail modal */}
+      <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+    </motion.div>
+  );
+}
+
+/* ---------- Manage Item Card ---------- */
+
+function ManageItemCard({ item, onClick, onAction, actionLabel, canEquip, onEquip }: {
+  item: Item;
+  onClick: () => void;
+  onAction?: () => void;
+  actionLabel: string;
+  canEquip: boolean;
+  onEquip?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center p-2" style={{ background: 'rgba(48,48,48,0.06)', border: '1px solid rgba(43,115,179,0.2)', clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)' }}>
+      <button onClick={onClick} style={{ width: '48px', height: '48px', cursor: 'pointer', background: 'transparent', border: 'none', padding: 0, marginBottom: '4px' }} title={item.name}>
+        <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid rgba(43,115,179,0.15)', borderRadius: '2px' }}>
+          <img src={`/sao/equipment/${item.icon}`} alt={item.name} className="w-10 h-10" draggable={false} style={{ objectFit: 'contain' }} />
+        </div>
+      </button>
+      <p className="truncate w-full text-center mb-1" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.7rem', textShadow: '0 1px 0 rgba(255,255,255,0.9), 0 -1px 2px rgba(0,0,0,0.2)' }}>
+        {item.name}
+      </p>
+      <div className="flex gap-1">
+        {canEquip && onEquip && (
+          <button onClick={onEquip} className="px-1.5 py-0.5" style={{ background: 'rgba(127,197,34,0.15)', border: '1px solid rgba(127,197,34,0.4)', color: '#3a7a0c', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.5rem', cursor: 'pointer', clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)' }}>EQUIP</button>
+        )}
+        {onAction && (
+          <button onClick={onAction} className="px-1.5 py-0.5" style={{ background: 'rgba(43,115,179,0.1)', border: '1px solid rgba(43,115,179,0.3)', color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.5rem', cursor: 'pointer', clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)' }}>{actionLabel}</button>
+        )}
+      </div>
+    </div>
   );
 }

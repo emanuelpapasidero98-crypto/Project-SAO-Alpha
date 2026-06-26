@@ -397,6 +397,15 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         open={showExplorePanel}
         onClose={() => setShowExplorePanel(false)}
         areaId={exploreAreaId}
+        items={items}
+        equipment={equipment}
+        onMoveToBag={handleMoveToBag}
+        onMoveToInventory={handleMoveToInventory}
+        onEquip={handleEquip}
+        onUnequip={(slot) => {
+          setEquipment((prev) => ({ ...prev, [slot]: null }));
+          play('click', 0.4);
+        }}
         onItemFound={(itemId) => {
           // Add found item to inventory
           setItems((prev) => {
