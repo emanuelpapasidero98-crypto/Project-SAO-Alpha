@@ -178,7 +178,24 @@ function SaoBar({
       )}
 
       {/* Bar (using [Blank] 2.png as background) */}
-      <div className="relative" style={{ aspectRatio: '1620 / 258' }}>
+      {/* On HP/MP we clip away the bottom-right corner to hide the PNG's
+          built-in "LV:" box (the LV box must appear on the Energy bar only).
+          The clip removes everything past X=84%, Y=52% — i.e. exactly the
+          LV box region — while keeping the large "/" value box (which ends
+          at X=84%) and the whole colored bar (which sits above Y=52%) fully
+          intact. Applied only when type !== 'energy'. */}
+      <div
+        className="relative"
+        style={{
+          aspectRatio: '1620 / 258',
+          ...(type !== 'energy'
+            ? {
+                clipPath:
+                  'polygon(0% 0%, 100% 0%, 100% 52%, 84% 52%, 84% 100%, 0% 100%)',
+              }
+            : {}),
+        }}
+      >
         {/* Bar PNG — animated fill via clip-path */}
         <motion.img
           src={config.png}

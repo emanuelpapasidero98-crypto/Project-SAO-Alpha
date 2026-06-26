@@ -107,7 +107,7 @@ export default function SaoPanel({
       `perspective(1200px) rotateX(${-(py - 0.5) * 6}deg) rotateY(${(px - 0.5) * 6}deg) scale3d(1.01, 1.01, 1.01)`
     );
     setLightPos({ x: px * 100, y: py * 100 });
-    if (!isHover) { setIsHover(true); play('click', 0.12); }
+    if (!isHover) { setIsHover(true); }
   };
 
   // Filter + sort items
@@ -389,19 +389,37 @@ function ItemCard({
   moveLabel: string;
 }) {
   const { play } = useSaoSound();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState('');
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    setTilt(`perspective(600px) rotateX(${-(py - 0.5) * 12}deg) rotateY(${(px - 0.5) * 12}deg) scale3d(1.03, 1.03, 1.03)`);
+  };
+
   return (
     <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setTilt('')}
       className="flex flex-col items-center p-2"
       style={{
         background: 'rgba(48, 48, 48, 0.06)',
         border: `1px solid ${equipped ? 'rgba(127, 197, 34, 0.5)' : 'rgba(43, 115, 179, 0.2)'}`,
         clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+        transform: tilt,
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.15s ease-out',
+        cursor: 'default',
       }}
     >
       {/* Item icon — click to inspect (VR detail) */}
       <button
         onClick={onInspect}
-        onMouseEnter={() => play('click', 0.1)}
         className="relative mb-1"
         style={{ width: '48px', height: '48px', cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
         title={item.name}

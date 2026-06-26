@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
 import type { Item } from '@/lib/sao-inventory-types';
 import { CATEGORIES } from '@/lib/sao-inventory-types';
@@ -30,6 +30,36 @@ interface ItemDetailModalProps {
 
 export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps) {
   const { play } = useSaoSound();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState('');
+  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
+  const [isHover, setIsHover] = useState(false);
+
+  // VR hover effect: 3D tilt + parallax following the mouse (same as CharacterPanel)
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (
+      e.clientX < rect.left || e.clientX > rect.right ||
+      e.clientY < rect.top || e.clientY > rect.bottom
+    ) {
+      if (isHover) { setIsHover(false); setTilt(''); }
+      return;
+    }
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    setTilt(
+      `perspective(1200px) rotateX(${-(py - 0.5) * 8}deg) rotateY(${(px - 0.5) * 8}deg) scale3d(1.015, 1.015, 1.015)`
+    );
+    setLightPos({ x: px * 100, y: py * 100 });
+    if (!isHover) { setIsHover(true); }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHover(false);
+    setTilt('');
+  };
 
   useEffect(() => {
     if (item) {
@@ -70,6 +100,8 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
             play('dismissLauncher', 0.35);
             onClose();
           }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
         >
           <motion.div
             className="relative flex flex-col items-center"
@@ -81,16 +113,40 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
               scale: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
             }}
             onClick={(e) => e.stopPropagation()}
+            style={{ width: 'min(500px, 95vw)' }}
           >
+            {/* Inner wrapper for VR hover tilt (separate from Framer Motion scale) */}
+            <div
+              ref={cardRef}
+              className="relative"
+              style={{
+                transform: tilt,
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.18s ease-out',
+              }}
+            >
+              {/* VR cursor-following glow overlay */}
+              <div
+                className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+                style={{
+                  opacity: isHover ? 1 : 0,
+                  background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, rgba(92, 196, 240, 0.18) 0%, transparent 50%)`,
+                  mixBlendMode: 'screen',
+                  zIndex: 50,
+                }}
+                aria-hidden
+              />
             {/* Card body — SAO style white with angular clip-path */}
             <div
               className="relative"
               style={{
-                width: 'min(500px, 95vw)',
                 background: '#FBFBFB',
                 clipPath:
                   'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 80px rgba(43, 115, 179, 0.4)',
+                boxShadow: isHover
+                  ? '0 20px 60px rgba(0,0,0,0.6), 0 0 80px rgba(43, 115, 179, 0.5)'
+                  : '0 20px 60px rgba(0,0,0,0.6), 0 0 80px rgba(43, 115, 179, 0.4)',
+                transition: 'box-shadow 0.25s',
               }}
             >
               {/* Top accent bar */}
@@ -286,6 +342,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                     'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)',
                 }}
               />
+            </div>
             </div>
           </motion.div>
         </motion.div>

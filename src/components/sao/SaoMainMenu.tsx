@@ -219,7 +219,6 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
                   onClick={() => handleItemClick(item)}
                   onMouseEnter={() => {
                     setHoveredItem(item.id);
-                    // Single hover sound for all menu items (popupMenu = Personaggio sound)
                     play('popupMenu', 0.2);
                   }}
                   onMouseLeave={() => setHoveredItem(null)}

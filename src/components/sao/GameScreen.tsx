@@ -10,6 +10,7 @@ import SaoNotificationWindow, {
 } from './SaoNotificationWindow';
 import CharacterPanel from './CharacterPanel';
 import SaoPanel from './SaoPanel';
+import FloorPanel from './FloorPanel';
 import { getStartingPlayerStats, type PlayerStats, type Gender } from '@/lib/sao-data';
 import { calcMaxHp, calcMaxMp, calcMaxSp } from '@/lib/sao-stats-engine';
 import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
@@ -58,6 +59,7 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
   const [showCharacterPanel, setShowCharacterPanel] = useState(false);
   const [showBagPanel, setShowBagPanel] = useState(false);
   const [showInventoryPanel, setShowInventoryPanel] = useState(false);
+  const [showFloorPanel, setShowFloorPanel] = useState(false);
   const [items, setItems] = useState<Item[]>(SAMPLE_ITEMS);
   const [equipment, setEquipment] = useState<EquipmentState>({
     weapon: null,
@@ -128,12 +130,8 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         });
         break;
       case 'floor':
-        pushNotification({
-          kind: 'system',
-          title: 'Piano',
-          body: 'Aincrad — Floor 1: Città degli Inizi.',
-          autoDismiss: 6000,
-        });
+        play('popupPanel', 0.4);
+        setShowFloorPanel(true);
         break;
       case 'party':
         pushNotification({
@@ -204,12 +202,6 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
       }
       if (isTwoHanded(item)) next.shield = null;
       return next;
-    });
-    pushNotification({
-      kind: 'system',
-      title: 'Equipaggiato',
-      body: `${item.name} equipaggiato.`,
-      autoDismiss: 3000,
     });
   };
 
@@ -376,6 +368,22 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         onEquip={handleEquip}
         onMoveToBag={handleMoveToBag}
         onMoveToInventory={handleMoveToInventory}
+      />
+
+      {/* ===== Floor Panel (shown when "Piano" is clicked) ===== */}
+      <FloorPanel
+        open={showFloorPanel}
+        onClose={() => setShowFloorPanel(false)}
+        onZoneSelect={(zoneId) => {
+          const zone = zoneId === 'city-of-beginnings' ? 'Città degli Inizi' : 'Pianure dell\'inizio';
+          pushNotification({
+            kind: zoneId === 'starting-plains' ? 'alert' : 'system',
+            title: zoneId === 'starting-plains' ? 'Esplorazione' : 'Città',
+            body: zoneId === 'starting-plains'
+              ? `Stai per esplorare: ${zone}. Modalità esplorazione in arrivo!`
+              : `Benvenuto a ${zone}.`,
+          });
+        }}
       />
     </motion.div>
   );

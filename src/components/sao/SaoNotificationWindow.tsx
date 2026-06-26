@@ -78,17 +78,7 @@ export default function SaoNotificationWindow({
 }: SaoNotificationWindowProps) {
   const { play } = useSaoSound();
 
-  // Auto-dismiss
-  useEffect(() => {
-    if (!notification) return;
-    const ms = notification.autoDismiss ?? 6000;
-    if (ms <= 0) return;
-    const t = setTimeout(() => {
-      play('dismissMessage', 0.35);
-      onConfirm?.(notification.id);
-    }, ms);
-    return () => clearTimeout(t);
-  }, [notification, onConfirm, play]);
+  // No auto-dismiss — notifications stay until user closes them
 
   return (
     <AnimatePresence mode="wait">
@@ -281,7 +271,6 @@ function SaoWindow({
         <HoverButton
           side="confirm"
           onClick={handleConfirm}
-          onHover={() => play('click', 0.2)}
         />
 
         {/* ===== Cancel button hit-area (red circle, right) =====
@@ -291,41 +280,29 @@ function SaoWindow({
         <HoverButton
           side="cancel"
           onClick={handleCancel}
-          onHover={() => play('click', 0.2)}
         />
       </motion.div>
     </motion.div>
   );
 }
 
-/* ---------- Hover button with simple "lift" effect ---------- */
+/* ---------- Simple button (no hover animation) ---------- */
 
 function HoverButton({
   side,
   onClick,
-  onHover,
 }: {
   side: 'confirm' | 'cancel';
   onClick: () => void;
-  onHover: () => void;
+  onHover?: () => void;
 }) {
-  const [isHover, setIsHover] = useState(false);
   const isConfirm = side === 'confirm';
   const left = isConfirm ? 'calc(27.5% - 9%)' : 'calc(72.5% - 9%)';
-  // Shadow color per side
-  const shadowColor = isConfirm
-    ? 'rgba(43, 115, 179, 0.6)'
-    : 'rgba(190, 33, 86, 0.6)';
 
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onClick}
-      onMouseEnter={() => {
-        setIsHover(true);
-        onHover();
-      }}
-      onMouseLeave={() => setIsHover(false)}
       className="absolute"
       style={{
         left,
@@ -338,26 +315,7 @@ function HoverButton({
         padding: 0,
         borderRadius: '50%',
       }}
-      animate={{
-        // Simple "lift" effect: button rises slightly on hover with a stronger shadow below
-        y: isHover ? -4 : 0,
-        scale: isHover ? 1.05 : 1,
-      }}
-      whileTap={{ scale: 0.95, y: 0 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
       aria-label={isConfirm ? 'Conferma' : 'Annulla'}
-    >
-      {/* Drop shadow under the button — intensifies on hover to enhance the lift */}
-      <motion.div
-        className="absolute inset-0 rounded-full pointer-events-none"
-        animate={{
-          boxShadow: isHover
-            ? `0 8px 16px ${shadowColor}, 0 4px 8px rgba(0,0,0,0.4)`
-            : '0 2px 4px rgba(0,0,0,0.3)',
-        }}
-        transition={{ duration: 0.2 }}
-        aria-hidden
-      />
-    </motion.button>
+    />
   );
 }
