@@ -21,6 +21,8 @@ export type EquipmentSlot =
   | 'accessory1' // Accessorio 1
   | 'accessory2'; // Accessorio 2
 
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
 export interface Item {
   id: string;
   name: string;
@@ -31,6 +33,8 @@ export interface Item {
   equippable: boolean;
   /** Weapon handedness (only for weapons) */
   handedness?: 'one-handed' | 'two-handed';
+  /** Rarity tier for loot tables */
+  rarity?: ItemRarity;
   /** Optional stats bonuses granted when equipped */
   statBonuses?: Partial<{
     str: number; dex: number; agi: number; vit: number;

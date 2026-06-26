@@ -84,3 +84,32 @@ Stage Summary:
   - File modificato: src/components/sao/SaoHUD.tsx
   - Coordinate finali: current 66.3%, max 78.3%, level 93.2%, top 76.4%
   - Estetica invariata (font, colori, dimensioni, animazioni)
+
+---
+Task ID: SAO-EXPLORE-SYSTEM
+Agent: main
+Task: Sistema di esplorazione procedurale (Aree/Sotto-aree/Zone + eventi)
+
+Work Log:
+  - Backup iniziale creato (BACKUP_20260626_095048)
+  - Creato src/lib/sao-explore-types.ts — tipi gerarchia (ExploreArea, SubArea, Zone[8], eventi, ExploreState, StolenLootRecord, PendingQuestStub)
+  - Aggiunto tipo ItemRarity (common/uncommon/rare/epic/legendary) a sao-inventory-types.ts
+  - Creato src/lib/sao-explore-data.ts — dati data-driven: area "Grandi Pianure", sotto-area "Pianure Esteriori" con terrainPalette + zoneTexts (3 varianti per terreno), loot tables, TERRAIN_ADJACENCY per coerenza geografica
+  - Creato src/lib/sao-explore-engine.ts — PRNG mulberry32 seedato, generateSubAreaRun() con 8 zone (Zona 5=Terminale fisso), rollZoneEvents() modalità priority/independent, factory eventi (chest/trapChest/combat/playerKiller/distressNpc/questNpc/terminal)
+  - Aggiunto .glass-panel e .glass-panel-compact a globals.css
+  - Creato src/components/sao/ExplorePanel.tsx — UI esplorazione: path 8 zone, card zona corrente con eventi cliccabili, terminale overlay (riposo/checkpoint/teletrasporto), overlay item trovato, animazione PanelView.qml + hover VR
+  - Integrato ExplorePanel in GameScreen: click "Pianure dell'inizio" → chiude FloorPanel → apre ExplorePanel; onItemFound aggiunge item all'inventario; onRest ripristina HP/MP/Energy
+  - HP/MP/Energy resi stateful (setHp/setMp/setEnergy) per supportare il riposo del terminale
+  - Fix export TERRAIN_ADJACENCY (manca keyword export)
+  - Lint pulito + build OK
+  - Backup finale creato (BACKUP_20260626_100801)
+
+Stage Summary:
+  - File creati: sao-explore-types.ts, sao-explore-data.ts, sao-explore-engine.ts, ExplorePanel.tsx
+  - File modificati: sao-inventory-types.ts (rarity), globals.css (glass-panel), GameScreen.tsx (integrazione)
+  - Combattimento: STUB con // TODO(combat-system) — non implementato (differito)
+  - Sistema quest: STUB con // TODO(quest-system) — solo hook/dati
+  - Sistema shop: differito (// TODO(shop))
+  - Assunzioni applicate: A1 (gerarchia 3 livelli), A2 (cap 2 prime 3 zone), A3 (priority mode default), A4 (flag per-run), A5 (quest differito), A6 (rarity + loot tables), A7 (dungeon 5ª sotto-area = solo dato), A8 (reputazione = solo flag)
+  - Persist: non implementato (no Zustand) — stato in useState,非 persistito. TODO futuro.
+  - Asset WARNING: non trovato asset grafico WARNING nel repo → placeholder testuale con colore #BE2156 da sostituire quando fornito

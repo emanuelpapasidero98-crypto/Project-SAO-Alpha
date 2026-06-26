@@ -11,6 +11,7 @@ import SaoNotificationWindow, {
 import CharacterPanel from './CharacterPanel';
 import SaoPanel from './SaoPanel';
 import FloorPanel from './FloorPanel';
+import ExplorePanel from './ExplorePanel';
 import { getStartingPlayerStats, type PlayerStats, type Gender } from '@/lib/sao-data';
 import { calcMaxHp, calcMaxMp, calcMaxSp } from '@/lib/sao-stats-engine';
 import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
@@ -51,15 +52,17 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
   const maxHp = calcMaxHp(level, stats.vit);
   const maxMp = calcMaxMp(level, stats.men);
   const maxSp = calcMaxSp(level, stats.res);
-  const [hp] = useState<BarValue>({ current: maxHp, max: maxHp });
-  const [mp] = useState<BarValue>({ current: maxMp, max: maxMp });
-  const [energy] = useState<BarValue>({ current: maxSp, max: maxSp });
+  const [hp, setHp] = useState<BarValue>({ current: maxHp, max: maxHp });
+  const [mp, setMp] = useState<BarValue>({ current: maxMp, max: maxMp });
+  const [energy, setEnergy] = useState<BarValue>({ current: maxSp, max: maxSp });
   const [notification, setNotification] = useState<SaoNotificationData | null>(null);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showCharacterPanel, setShowCharacterPanel] = useState(false);
   const [showBagPanel, setShowBagPanel] = useState(false);
   const [showInventoryPanel, setShowInventoryPanel] = useState(false);
   const [showFloorPanel, setShowFloorPanel] = useState(false);
+  const [showExplorePanel, setShowExplorePanel] = useState(false);
+  const [exploreSubAreaId, setExploreSubAreaId] = useState<string>('pianure-esteriori');
   const [items, setItems] = useState<Item[]>(SAMPLE_ITEMS);
   const [equipment, setEquipment] = useState<EquipmentState>({
     weapon: null,
@@ -375,14 +378,41 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         open={showFloorPanel}
         onClose={() => setShowFloorPanel(false)}
         onZoneSelect={(zoneId) => {
-          const zone = zoneId === 'city-of-beginnings' ? 'Città degli Inizi' : 'Pianure dell\'inizio';
-          pushNotification({
-            kind: zoneId === 'starting-plains' ? 'alert' : 'system',
-            title: zoneId === 'starting-plains' ? 'Esplorazione' : 'Città',
-            body: zoneId === 'starting-plains'
-              ? `Stai per esplorare: ${zone}. Modalità esplorazione in arrivo!`
-              : `Benvenuto a ${zone}.`,
+          if (zoneId === 'starting-plains') {
+            // Open exploration panel
+            setShowFloorPanel(false);
+            setExploreSubAreaId('pianure-esteriori');
+            setShowExplorePanel(true);
+          } else if (zoneId === 'city-of-beginnings') {
+            pushNotification({
+              kind: 'system',
+              title: 'Città degli Inizi',
+              body: 'Benvenuto alla Città degli Inizi. Lo shop e gli NPC saranno disponibili in futuro.',
+            });
+          }
+        }}
+      />
+
+      {/* ===== Explore Panel (shown when "Pianure dell'inizio" is clicked) ===== */}
+      <ExplorePanel
+        open={showExplorePanel}
+        onClose={() => setShowExplorePanel(false)}
+        subAreaId={exploreSubAreaId}
+        onItemFound={(itemId) => {
+          // Add found item to inventory
+          setItems((prev) => {
+            const existing = prev.find((i) => i.id === itemId);
+            if (existing) return prev; // already have it
+            const sample = SAMPLE_ITEMS.find((i) => i.id === itemId);
+            if (!sample) return prev;
+            return [...prev, { ...sample, location: 'inventory', acquiredAt: Date.now() }];
           });
+        }}
+        onRest={() => {
+          // Terminal rest: restore HP/MP/Energy to max
+          setHp({ current: maxHp, max: maxHp });
+          setMp({ current: maxMp, max: maxMp });
+          setEnergy({ current: maxSp, max: maxSp });
         }}
       />
     </motion.div>
