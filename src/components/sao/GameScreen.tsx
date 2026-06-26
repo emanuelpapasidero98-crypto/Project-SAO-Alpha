@@ -62,7 +62,7 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
   const [showInventoryPanel, setShowInventoryPanel] = useState(false);
   const [showFloorPanel, setShowFloorPanel] = useState(false);
   const [showExplorePanel, setShowExplorePanel] = useState(false);
-  const [exploreSubAreaId, setExploreSubAreaId] = useState<string>('pianure-esteriori');
+  const [exploreAreaId, setExploreAreaId] = useState<string>('grandi-pianure');
   const [items, setItems] = useState<Item[]>(SAMPLE_ITEMS);
   const [equipment, setEquipment] = useState<EquipmentState>({
     weapon: null,
@@ -379,9 +379,8 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
         onClose={() => setShowFloorPanel(false)}
         onZoneSelect={(zoneId) => {
           if (zoneId === 'starting-plains') {
-            // Open exploration panel
             setShowFloorPanel(false);
-            setExploreSubAreaId('pianure-esteriori');
+            setExploreAreaId('grandi-pianure');
             setShowExplorePanel(true);
           } else if (zoneId === 'city-of-beginnings') {
             pushNotification({
@@ -397,7 +396,7 @@ export default function GameScreen({ playerName, gender, onExit }: GameScreenPro
       <ExplorePanel
         open={showExplorePanel}
         onClose={() => setShowExplorePanel(false)}
-        subAreaId={exploreSubAreaId}
+        areaId={exploreAreaId}
         onItemFound={(itemId) => {
           // Add found item to inventory
           setItems((prev) => {

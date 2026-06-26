@@ -5,165 +5,150 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
 import {
   type SubAreaRun,
-  type ZoneNode,
   type ZoneEvent,
   type ExploreState,
-  type SubAreaProgress,
   createInitialExploreState,
 } from '@/lib/sao-explore-types';
 import {
   EXPLORE_AREAS,
-  EXPLORE_SUBAREAS,
   getSubAreasForArea,
   getSubAreaById,
 } from '@/lib/sao-explore-data';
 import { generateSubAreaRun, generateSeed, getChestLoot } from '@/lib/sao-explore-engine';
 import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
-import { useSaoSound as useSound } from '@/hooks/useSaoSound';
 
 /**
- * SAO Explore Panel — the procedural exploration UI.
+ * SAO Explore Panel — Full-screen procedural exploration.
  *
- * Hierarchy: Area → SubArea → 8 Zones (Zona 5 = Terminal)
- *
- * Flow:
- *   1. Player clicks "Pianure dell'inizio" in FloorPanel → opens ExplorePanel
- *   2. Shows the 8 zones of the sub-area as a path
- *   3. Player traverses zones sequentially
- *   4. Each zone may have events: chest, combat, trapChest, questNpc, playerKiller, distressNpc
- *   5. Zona 5 = Terminal (rest, modify bag, teleport)
- *   6. Complete all 8 zones → sub-area completed → unlock next
- *
- * Combat events are STUBBED with // TODO(combat-system).
- * Chest events give items directly.
- * Terminal events let the player rest/teleport.
- *
- * Same card style as CharacterPanel/InventoryPanel.
- * Uses .glass-panel for zone cards.
+ * Styling: glass-panel with cyan/terminal tint, full-screen.
+ * Opening animation: CRT TV power-on (horizontal line → expand vertically).
+ * Sub-area selection: 3 sub-areas with checkmark if completed.
+ * Re-exploration: completed sub-areas can be re-entered infinitely.
+ * Zone traversal: 8 zones, events, terminal at Zona 5.
  */
 
 interface ExplorePanelProps {
   open: boolean;
   onClose: () => void;
-  subAreaId: string;
+  areaId?: string;
   onItemFound?: (itemId: string) => void;
   onRest?: () => void;
 }
 
-// Event type labels (Italian)
 const EVENT_LABELS: Record<string, { label: string; color: string; icon: string }> = {
-  chest: { label: 'Forziere', color: '#EBA601', icon: '📦' },
+  chest: { label: 'Forziere', color: '#EBA601', icon: '◆' },
   trapChest: { label: 'Forziere Trappola!', color: '#BE2156', icon: '⚠' },
   combat: { label: 'Nemici', color: '#cc2233', icon: '⚔' },
   terminal: { label: 'Terminale', color: '#5CC4F0', icon: '◈' },
-  questNpc: { label: 'NPC Quest', color: '#3b82f6', icon: '◈' },
+  questNpc: { label: 'NPC Quest', color: '#3b82f6', icon: '✦' },
   playerKiller: { label: 'Player Killer!', color: '#BE2156', icon: '☠' },
   distressNpc: { label: 'NPC in Difficoltà', color: '#EBA601', icon: '!' },
 };
 
-export default function ExplorePanel({ open, onClose, subAreaId, onItemFound, onRest }: ExplorePanelProps) {
+export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest }: ExplorePanelProps) {
   const { play } = useSaoSound();
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [transform, setTransform] = useState('');
-  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
-  const [isHover, setIsHover] = useState(false);
-
-  // Exploration state
   const [exploreState, setExploreState] = useState<ExploreState>(createInitialExploreState);
   const [run, setRun] = useState<SubAreaRun | null>(null);
+  const [view, setView] = useState<'subareas' | 'exploring'>('subareas');
+  const [activeSubAreaId, setActiveSubAreaId] = useState<string | null>(null);
   const [showTerminal, setShowTerminal] = useState(false);
   const [foundItem, setFoundItem] = useState<string | null>(null);
+  const [showCheckmark, setShowCheckmark] = useState<string | null>(null);
 
-  const subAreaDef = getSubAreaById(subAreaId);
-  const areaDef = EXPLORE_AREAS.find((a) => a.id === subAreaDef?.areaId);
+  const areaDef = EXPLORE_AREAS.find((a) => a.id === areaId);
+  const subAreas = areaDef ? getSubAreasForArea(areaId) : [];
+  const currentZone = run?.zones[run.currentZoneIndex];
+  const activeSubAreaDef = activeSubAreaId ? getSubAreaById(activeSubAreaId) : null;
 
-  // Generate run when panel opens
+  // Sound on open
   useEffect(() => {
-    if (open && subAreaDef) {
-      const checkpoint = exploreState.subAreaCheckpoints[subAreaId];
-      const seed = checkpoint?.seed ?? generateSeed();
-      const newRun = generateSubAreaRun(subAreaDef, seed, checkpoint);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRun(newRun);
-      const t = setTimeout(() => play('popupPanel', 0.4), 300);
+    if (open) {
+      const t = setTimeout(() => play('popupPanel', 0.4), 200);
       return () => clearTimeout(t);
     }
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRun(null);
+      setView('subareas');
+      setActiveSubAreaId(null);
       setShowTerminal(false);
       setFoundItem(null);
+      setShowCheckmark(null);
     }
-  }, [open, subAreaId, subAreaDef, exploreState, play]);
+  }, [open, play]);
 
-  // ESC to close
+  // ESC
   useEffect(() => {
     if (!open) return;
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !showTerminal && !foundItem) {
-        play('dismissLauncher', 0.35);
-        onClose();
+      if (e.key === 'Escape') {
+        if (showTerminal || foundItem) return;
+        if (view === 'exploring') {
+          play('dismissLauncher', 0.3);
+          setView('subareas');
+          setRun(null);
+          setActiveSubAreaId(null);
+        } else {
+          play('dismissLauncher', 0.35);
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [open, onClose, play, showTerminal, foundItem]);
+  }, [open, onClose, play, view, showTerminal, foundItem]);
 
-  // VR hover effect
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = cardRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-      if (isHover) { setIsHover(false); setTransform(''); }
-      return;
-    }
-    const px = (e.clientX - rect.left) / rect.width;
-    const py = (e.clientY - rect.top) / rect.height;
-    setTransform(`perspective(1200px) rotateX(${-(py - 0.5) * 6}deg) rotateY(${(px - 0.5) * 6}deg) scale3d(1.01, 1.01, 1.01)`);
-    setLightPos({ x: px * 100, y: py * 100 });
-    if (!isHover) setIsHover(true);
-  };
+  // Start exploration
+  const handleStartExplore = useCallback((subAreaId: string) => {
+    const def = getSubAreaById(subAreaId);
+    if (!def) return;
+    const checkpoint = exploreState.subAreaCheckpoints[subAreaId];
+    const seed = checkpoint?.seed ?? generateSeed();
+    const newRun = generateSubAreaRun(def, seed, checkpoint);
+    setRun(newRun);
+    setActiveSubAreaId(subAreaId);
+    setView('exploring');
+    play('click', 0.5);
+  }, [exploreState, play]);
 
-  // === Zone interaction ===
-  const currentZone = run?.zones[run.currentZoneIndex];
-
-  const handleAdvanceZone = useCallback(() => {
-    if (!run) return;
-    // Mark current zone as cleared
-    const updatedZones = [...run.zones];
-    updatedZones[run.currentZoneIndex] = {
-      ...updatedZones[run.currentZoneIndex],
-      cleared: true,
-      events: updatedZones[run.currentZoneIndex].events.map((ev) => ({ ...ev, resolved: true })),
-    };
-
+  // Advance zone
+  const handleAdvance = useCallback(() => {
+    if (!run || !activeSubAreaId) return;
+    const updatedZones = run.zones.map((z, i) =>
+      i === run.currentZoneIndex
+        ? { ...z, cleared: true, events: z.events.map((ev) => ({ ...ev, resolved: true })) }
+        : z,
+    );
     const nextIndex = run.currentZoneIndex + 1;
 
     if (nextIndex >= 8) {
-      // Sub-area completed!
+      // Completed!
       setRun({ ...run, zones: updatedZones, currentZoneIndex: 7 });
       setExploreState((prev) => ({
         ...prev,
         subAreaProgress: {
           ...prev.subAreaProgress,
-          [subAreaId]: { status: 'completed' },
+          [activeSubAreaId]: { status: 'completed' },
         },
         activeRun: null,
-        subAreaCheckpoints: {
-          ...prev.subAreaCheckpoints,
-          [subAreaId]: undefined as never, // remove checkpoint
-        },
       }));
+      setShowCheckmark(activeSubAreaId);
       play('present', 0.5);
+      setTimeout(() => {
+        setShowCheckmark(null);
+        setView('subareas');
+        setRun(null);
+        setActiveSubAreaId(null);
+      }, 2500);
     } else {
       setRun({ ...run, zones: updatedZones, currentZoneIndex: nextIndex });
       play('click', 0.3);
     }
-  }, [run, subAreaId, play]);
+  }, [run, activeSubAreaId, play]);
 
+  // Resolve event
   const handleResolveEvent = useCallback((event: ZoneEvent) => {
     if (event.resolved) return;
-
     switch (event.type) {
       case 'chest': {
         const itemId = getChestLoot(event);
@@ -175,26 +160,24 @@ export default function ExplorePanel({ open, onClose, subAreaId, onItemFound, on
             play('present', 0.4);
           }
         } else {
-          setFoundItem('Vuoto');
+          setFoundItem('Forziere vuoto...');
           play('click', 0.3);
         }
         break;
       }
-      case 'terminal': {
+      case 'terminal':
         setShowTerminal(true);
         play('popupPanel', 0.4);
         break;
-      }
       case 'combat':
       case 'trapChest':
       case 'playerKiller':
       case 'distressNpc':
-        // TODO(combat-system): startCombat with event.payload composition
+        // TODO(combat-system)
         play('alert', 0.4);
-        // For now, mark as resolved (stub)
         break;
       case 'questNpc':
-        // TODO(quest-system): create PendingQuestStub
+        // TODO(quest-system)
         play('message', 0.4);
         break;
     }
@@ -207,12 +190,12 @@ export default function ExplorePanel({ open, onClose, subAreaId, onItemFound, on
   }, [onRest, play]);
 
   const handleTerminalCheckpoint = useCallback(() => {
-    if (!run) return;
+    if (!run || !activeSubAreaId) return;
     setExploreState((prev) => ({
       ...prev,
       subAreaCheckpoints: {
         ...prev.subAreaCheckpoints,
-        [subAreaId]: {
+        [activeSubAreaId]: {
           seed: run.seed,
           zoneIndex: run.currentZoneIndex,
           spawnedTrapChest: run.spawnedTrapChest,
@@ -223,289 +206,357 @@ export default function ExplorePanel({ open, onClose, subAreaId, onItemFound, on
     }));
     play('system', 0.4);
     setShowTerminal(false);
-  }, [run, subAreaId, play]);
-
-  const isCompleted = exploreState.subAreaProgress[subAreaId]?.status === 'completed';
+  }, [run, activeSubAreaId, play]);
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-40 flex items-center justify-center px-4"
+          className="fixed inset-0 z-40"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          style={{ background: 'rgba(2, 8, 20, 0.7)', backdropFilter: 'blur(6px)' }}
-          onClick={onClose}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => { setIsHover(false); setTransform(''); }}
+          transition={{ duration: 0.3 }}
+          style={{ background: 'rgba(2, 8, 20, 0.92)', backdropFilter: 'blur(10px)' }}
         >
+          {/* CRT TV power-on animation overlay */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{
-              opacity: { duration: 0.5, ease: 'easeOut' },
-              scale: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+            className="absolute inset-0 z-50 pointer-events-none"
+            style={{ background: '#5CC4F0' }}
+            initial={{ scaleY: 0.005, opacity: 1 }}
+            animate={{ scaleY: [0.005, 0.005, 1, 1], opacity: [1, 1, 1, 0] }}
+            transition={{ duration: 0.6, times: [0, 0.15, 0.5, 1], ease: 'easeOut' }}
+          />
+
+          {/* Close button */}
+          <button
+            onClick={() => {
+              play('dismissLauncher', 0.35);
+              onClose();
             }}
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: 'min(1000px, 95vw)' }}
+            className="absolute top-4 right-4 z-30"
+            style={{ width: '32px', height: '32px', cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+            aria-label="Chiudi"
           >
-            <div
-              ref={cardRef}
-              className="relative"
+            <img src="/sao/window/btn-red.svg" alt="Chiudi" className="w-full h-full" draggable={false} />
+          </button>
+
+          {/* Back button (when exploring) */}
+          {view === 'exploring' && (
+            <button
+              onClick={() => {
+                play('dismissLauncher', 0.3);
+                setView('subareas');
+                setRun(null);
+                setActiveSubAreaId(null);
+              }}
+              className="absolute top-4 left-4 z-30"
               style={{
-                maxHeight: '90vh',
-                overflow: 'hidden',
-                transform,
-                transformStyle: 'preserve-3d',
-                transition: 'transform 0.18s ease-out',
+                color: 'rgba(92, 196, 240, 0.6)',
+                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                fontWeight: 400,
+                fontSize: '0.7rem',
+                letterSpacing: '0.2em',
+                cursor: 'pointer',
+                background: 'transparent',
+                border: 'none',
               }}
             >
-              {/* VR glow */}
-              <div
-                className="absolute inset-0 pointer-events-none transition-opacity duration-300"
-                style={{
-                  opacity: isHover ? 1 : 0,
-                  background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, rgba(92, 196, 240, 0.18) 0%, transparent 50%)`,
-                  mixBlendMode: 'screen',
-                  zIndex: 50,
-                }}
-              />
-              {/* Card body */}
-              <div
-                className="relative w-full"
-                style={{
-                  background: '#FBFBFB',
-                  clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
-                  boxShadow: isHover
-                    ? '0 20px 60px rgba(0,0,0,0.6), 0 0 80px rgba(43, 115, 179, 0.5)'
-                    : '0 12px 40px rgba(0,0,0,0.5), 0 0 60px rgba(43, 115, 179, 0.3)',
-                  transition: 'box-shadow 0.25s',
-                }}
+              ◀ SOTTO-AREE
+            </button>
+          )}
+
+          {/* === SUB-AREA SELECTION === */}
+          {view === 'subareas' && (
+            <motion.div
+              className="h-full flex flex-col items-center justify-center px-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              {/* Title */}
+              <p
+                className="tracking-[0.3em] mb-2"
+                style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem' }}
               >
-                <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)' }} />
+                {areaDef?.name.toUpperCase()}
+              </p>
+              <h2
+                className="tracking-[0.4em] mb-8"
+                style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: 'clamp(1.2rem, 3vw, 2rem)', textShadow: '0 0 20px rgba(92,196,240,0.5)' }}
+              >
+                SELEZIONA SOTTO-AREA
+              </h2>
 
-                {/* Close button */}
-                <button
-                  onClick={() => { play('dismissLauncher', 0.35); onClose(); }}
-                  className="absolute top-3 right-3 z-10"
-                  style={{ width: '28px', height: '28px', cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
-                  aria-label="Chiudi"
-                >
-                  <img src="/sao/window/btn-red.svg" alt="Chiudi" className="w-full h-full" draggable={false} />
-                </button>
-
-                {/* Title */}
-                <div
-                  className="px-8 pt-5 pb-3 text-center"
-                  style={{ background: 'linear-gradient(180deg, #EFEFEF 0%, #DFDFDF 100%)', borderBottom: '1px solid #A8A8A8' }}
-                >
-                  <p
-                    className="tracking-[0.25em] mb-1"
-                    style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}
-                  >
-                    {areaDef?.name.toUpperCase()}
-                  </p>
-                  <h2
-                    className="tracking-[0.3em]"
-                    style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: 'clamp(1rem, 2vw, 1.4rem)' }}
-                  >
-                    {subAreaDef?.name.toUpperCase()}
-                  </h2>
-                  {isCompleted && (
-                    <p
-                      className="mt-1 tracking-[0.3em]"
-                      style={{ color: '#7FC522', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}
+              {/* Sub-area cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
+                {subAreas.map((sa, idx) => {
+                  const status = exploreState.subAreaProgress[sa.id]?.status ?? 'unlocked';
+                  const isCompleted = status === 'completed';
+                  return (
+                    <motion.div
+                      key={sa.id}
+                      onClick={() => handleStartExplore(sa.id)}
+                      className="glass-panel cursor-pointer relative overflow-hidden"
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 + idx * 0.1, duration: 0.5 }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: '24px',
+                        borderColor: isCompleted ? 'rgba(127, 197, 34, 0.4)' : 'rgba(43, 115, 179, 0.4)',
+                      }}
                     >
-                      [ COMPLETATA ]
-                    </p>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="p-6 sao-scroll" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                  {run && currentZone && !isCompleted && (
-                    <>
-                      {/* Zone path visualization (8 zones) */}
-                      <div className="flex items-center justify-center gap-1 mb-6">
-                        {run.zones.map((zone, i) => (
-                          <div key={zone.id} className="flex items-center">
-                            {/* Zone dot */}
-                            <div
-                              className="flex items-center justify-center"
-                              style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '50%',
-                                background:
-                                  zone.cleared
-                                    ? 'rgba(127, 197, 34, 0.3)'
-                                    : i === run.currentZoneIndex
-                                      ? 'rgba(43, 115, 179, 0.8)'
-                                      : 'rgba(48, 48, 48, 0.1)',
-                                border: `2px solid ${
-                                  zone.cleared
-                                    ? 'rgba(127, 197, 34, 0.6)'
-                                    : i === run.currentZoneIndex
-                                      ? '#2B73B3'
-                                      : 'rgba(43, 115, 179, 0.2)'
-                                }`,
-                                color: zone.cleared
-                                  ? '#3a7a0c'
-                                  : i === run.currentZoneIndex
-                                    ? '#FBFBFB'
-                                    : 'rgba(26,42,58,0.4)',
-                                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                fontWeight: 400,
-                                fontSize: '0.6rem',
-                              }}
-                            >
-                              {zone.position}
-                            </div>
-                            {/* Connector line */}
-                            {i < 7 && (
-                              <div
-                                style={{
-                                  width: '20px',
-                                  height: '2px',
-                                  background: zone.cleared ? 'rgba(127, 197, 34, 0.4)' : 'rgba(43, 115, 179, 0.15)',
-                                }}
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Current zone card */}
-                      <div className="glass-panel p-5 mb-4">
-                        <div className="flex items-baseline justify-between mb-2">
-                          <h3
-                            className="tracking-[0.2em]"
-                            style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}
-                          >
-                            ZONA {currentZone.position} — {currentZone.title}
-                          </h3>
-                          <span
-                            style={{ color: 'rgba(92,196,240,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem', letterSpacing: '0.15em' }}
-                          >
-                            {currentZone.terrain.toUpperCase()}
-                          </span>
-                        </div>
-                        <p
-                          className="leading-relaxed mb-4"
-                          style={{ color: 'rgba(251,251,251,0.7)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}
+                      {/* Completed checkmark */}
+                      {isCompleted && (
+                        <motion.div
+                          className="absolute top-3 right-3 flex items-center justify-center"
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            background: 'rgba(127, 197, 34, 0.2)',
+                            border: '2px solid rgba(127, 197, 34, 0.6)',
+                          }}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.6 + idx * 0.1, type: 'spring' }}
                         >
-                          {currentZone.description}
-                        </p>
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path d="M2 7L5.5 10.5L12 3.5" stroke="#7FC522" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </motion.div>
+                      )}
 
-                        {/* Events in current zone */}
-                        {currentZone.events.length > 0 ? (
-                          <div className="flex flex-col gap-2 mb-4">
-                            {currentZone.events.map((event, idx) => {
-                              const meta = EVENT_LABELS[event.type] || { label: event.type, color: '#999', icon: '?' };
-                              return (
-                                <button
-                                  key={idx}
-                                  onClick={() => handleResolveEvent(event)}
-                                  disabled={event.resolved}
-                                  className="flex items-center gap-3 px-4 py-2.5 text-left transition-all"
-                                  style={{
-                                    background: event.resolved
-                                      ? 'rgba(48, 48, 48, 0.2)'
-                                      : `${meta.color}22`,
-                                    border: `1px solid ${event.resolved ? 'rgba(48,48,48,0.2)' : meta.color + '66'}`,
-                                    clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-                                    cursor: event.resolved ? 'default' : 'pointer',
-                                    opacity: event.resolved ? 0.4 : 1,
-                                  }}
-                                >
-                                  <span style={{ color: meta.color, fontSize: '1rem', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif" }}>
-                                    {meta.icon}
-                                  </span>
-                                  <span
-                                    style={{
-                                      color: event.resolved ? 'rgba(251,251,251,0.4)' : '#FBFBFB',
-                                      fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                      fontWeight: 400,
-                                      fontSize: '0.75rem',
-                                      letterSpacing: '0.05em',
-                                    }}
-                                  >
-                                    {meta.label}
-                                    {event.resolved ? ' — Risolto' : ''}
-                                  </span>
-                                  {!event.resolved && (
-                                    <span
-                                      className="ml-auto"
-                                      style={{ color: meta.color, fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem' }}
-                                    >
-                                      ▸
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <p
-                            className="mb-4"
-                            style={{ color: 'rgba(251,251,251,0.3)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.15em' }}
-                          >
-                            Zona di passaggio. Nessun evento.
-                          </p>
-                        )}
-
-                        {/* Advance button */}
-                        <div className="flex justify-end">
-                          <button
-                            onClick={handleAdvanceZone}
-                            className="px-5 py-2"
-                            style={{
-                              background: 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)',
-                              boxShadow: '0 0 20px rgba(43,115,179,0.6), inset 0 0 8px rgba(255,255,255,0.25)',
-                              border: '1px solid rgba(255,255,255,0.5)',
-                              clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
-                              color: '#FBFBFB',
-                              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                              fontWeight: 400,
-                              fontSize: '0.75rem',
-                              letterSpacing: '0.2em',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {run.currentZoneIndex === 7 ? 'COMPLETA SOTTO-AREA →' : 'AVANZA →'}
-                          </button>
-                        </div>
+                      {/* Order number */}
+                      <div
+                        className="mb-3 flex items-center justify-center"
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          background: 'rgba(43, 115, 179, 0.2)',
+                          border: '1px solid rgba(43, 115, 179, 0.5)',
+                          color: '#5CC4F0',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                          fontWeight: 400,
+                          fontSize: '0.9rem',
+                        }}
+                      >
+                        {sa.order}
                       </div>
-                    </>
-                  )}
 
-                  {/* Completion message */}
-                  {isCompleted && (
-                    <div className="text-center py-12">
+                      {/* Name */}
                       <h3
-                        className="tracking-[0.3em] mb-3"
-                        style={{ color: '#7FC522', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '1.3rem' }}
+                        className="tracking-[0.2em] mb-2"
+                        style={{
+                          color: '#FBFBFB',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                          fontWeight: 700,
+                          fontSize: '1rem',
+                          textShadow: '0 1px 0 rgba(255,255,255,0.1)',
+                        }}
                       >
-                        SOTTO-AREA COMPLETATA
+                        {sa.name.toUpperCase()}
                       </h3>
+
+                      {/* Description */}
                       <p
-                        style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}
+                        className="leading-relaxed mb-3"
+                        style={{
+                          color: 'rgba(251,251,251,0.5)',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                          fontWeight: 400,
+                          fontSize: '0.7rem',
+                        }}
                       >
-                        Hai esplorato tutte le 8 zone. Torna alla mappa del piano.
+                        {sa.description}
                       </p>
-                    </div>
-                  )}
-                </div>
 
-                <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, transparent, #2B73B3 20%, #2B73B3 80%, transparent)' }} />
+                      {/* Status */}
+                      <p
+                        className="tracking-[0.2em]"
+                        style={{
+                          color: isCompleted ? 'rgba(127, 197, 34, 0.7)' : 'rgba(92, 196, 240, 0.5)',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                          fontWeight: 400,
+                          fontSize: '0.6rem',
+                        }}
+                      >
+                        {isCompleted ? '[ COMPLETATA — RIESPLORABILE ]' : '[ DISPONIBILE ]'}
+                      </p>
+                    </motion.div>
+                  );
+                })}
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          )}
 
-          {/* Terminal overlay */}
+          {/* === EXPLORING === */}
+          {view === 'exploring' && run && currentZone && activeSubAreaDef && (
+            <motion.div
+              className="h-full flex flex-col items-center justify-center px-6 py-16 overflow-y-auto sao-scroll"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Sub-area title */}
+              <p
+                className="tracking-[0.25em] mb-1"
+                style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem' }}
+              >
+                {activeSubAreaDef.name.toUpperCase()}
+              </p>
+
+              {/* Zone path */}
+              <div className="flex items-center justify-center gap-1 mb-6">
+                {run.zones.map((zone, i) => (
+                  <div key={zone.id} className="flex items-center">
+                    <div
+                      className="flex items-center justify-center"
+                      style={{
+                        width: '28px', height: '28px', borderRadius: '50%',
+                        background: zone.cleared ? 'rgba(127,197,34,0.3)' : i === run.currentZoneIndex ? 'rgba(43,115,179,0.8)' : 'rgba(48,48,48,0.2)',
+                        border: `2px solid ${zone.cleared ? 'rgba(127,197,34,0.6)' : i === run.currentZoneIndex ? '#2B73B3' : 'rgba(43,115,179,0.2)'}`,
+                        color: zone.cleared ? '#3a7a0c' : i === run.currentZoneIndex ? '#FBFBFB' : 'rgba(251,251,251,0.3)',
+                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                        fontWeight: 400, fontSize: '0.6rem',
+                      }}
+                    >
+                      {zone.position}
+                    </div>
+                    {i < 7 && <div style={{ width: '20px', height: '2px', background: zone.cleared ? 'rgba(127,197,34,0.4)' : 'rgba(43,115,179,0.15)' }} />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Current zone card (glass-panel style) */}
+              <div className="glass-panel p-6 w-full max-w-2xl">
+                <div className="flex items-baseline justify-between mb-3">
+                  <h3
+                    className="tracking-[0.2em]"
+                    style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}
+                  >
+                    ZONA {currentZone.position} — {currentZone.title}
+                  </h3>
+                  <span style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em' }}>
+                    {currentZone.terrain.toUpperCase()}
+                  </span>
+                </div>
+                <p
+                  className="leading-relaxed mb-4"
+                  style={{ color: 'rgba(251,251,251,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}
+                >
+                  {currentZone.description}
+                </p>
+
+                {/* Events */}
+                {currentZone.events.length > 0 ? (
+                  <div className="flex flex-col gap-2 mb-4">
+                    {currentZone.events.map((event, idx) => {
+                      const meta = EVENT_LABELS[event.type] || { label: event.type, color: '#999', icon: '?' };
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleResolveEvent(event)}
+                          disabled={event.resolved}
+                          className="flex items-center gap-3 px-4 py-2.5 text-left transition-all"
+                          style={{
+                            background: event.resolved ? 'rgba(48,48,48,0.15)' : `${meta.color}22`,
+                            border: `1px solid ${event.resolved ? 'rgba(48,48,48,0.15)' : meta.color + '66'}`,
+                            clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+                            cursor: event.resolved ? 'default' : 'pointer',
+                            opacity: event.resolved ? 0.35 : 1,
+                          }}
+                        >
+                          <span style={{ color: meta.color, fontSize: '1rem' }}>{meta.icon}</span>
+                          <span style={{ color: event.resolved ? 'rgba(251,251,251,0.3)' : '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem' }}>
+                            {meta.label}{event.resolved ? ' — Risolto' : ''}
+                          </span>
+                          {!event.resolved && <span className="ml-auto" style={{ color: meta.color, fontSize: '0.6rem' }}>▸</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="mb-4" style={{ color: 'rgba(251,251,251,0.25)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.15em' }}>
+                    ZONA DI PASSAGGIO. NESSUN EVENTO.
+                  </p>
+                )}
+
+                {/* Advance */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleAdvance}
+                    className="px-5 py-2"
+                    style={{
+                      background: 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)',
+                      boxShadow: '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)',
+                      border: '1px solid rgba(255,255,255,0.4)',
+                      clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
+                      color: '#FBFBFB',
+                      fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                      fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {run.currentZoneIndex === 7 ? 'COMPLETA →' : 'AVANZA →'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* === COMPLETION CHECKMARK (non-invasive) === */}
+          <AnimatePresence>
+            {showCheckmark && (
+              <motion.div
+                className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  className="flex flex-col items-center"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ type: 'spring', duration: 0.6 }}
+                >
+                  {/* SAO-style check circle */}
+                  <motion.div
+                    className="flex items-center justify-center"
+                    style={{
+                      width: '80px', height: '80px', borderRadius: '50%',
+                      background: 'rgba(127, 197, 34, 0.15)',
+                      border: '3px solid rgba(127, 197, 34, 0.7)',
+                      boxShadow: '0 0 30px rgba(127, 197, 34, 0.4)',
+                    }}
+                  >
+                    <motion.svg width="40" height="40" viewBox="0 0 40 40" fill="none"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                    >
+                      <motion.path d="M8 20L16 28L32 12" stroke="#7FC522" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                    </motion.svg>
+                  </motion.div>
+                  <motion.p
+                    className="mt-4 tracking-[0.3em]"
+                    style={{ color: '#7FC522', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem', textShadow: '0 0 12px rgba(127,197,34,0.5)' }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    SOTTO-AREA COMPLETATA
+                  </motion.p>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* === TERMINAL OVERLAY === */}
           <AnimatePresence>
             {showTerminal && (
               <TerminalOverlay
@@ -517,7 +568,7 @@ export default function ExplorePanel({ open, onClose, subAreaId, onItemFound, on
             )}
           </AnimatePresence>
 
-          {/* Item found overlay */}
+          {/* === ITEM FOUND OVERLAY === */}
           <AnimatePresence>
             {foundItem && (
               <motion.div
@@ -534,20 +585,14 @@ export default function ExplorePanel({ open, onClose, subAreaId, onItemFound, on
                   exit={{ scale: 0.7, opacity: 0 }}
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                   className="glass-panel p-8 text-center"
-                  style={{ minWidth: '300px' }}
+                  style={{ minWidth: '300px', borderColor: 'rgba(43,115,179,0.5)' }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <p
-                    className="tracking-[0.3em] mb-3"
-                    style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem' }}
-                  >
+                  <p className="tracking-[0.3em] mb-3" style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem' }}>
                     HAI TROVATO
                   </p>
-                  <h3
-                    className="tracking-[0.15em] mb-4"
-                    style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.2rem' }}
-                  >
-                    {foundItem === 'Vuoto' ? 'Forziere vuoto...' : foundItem}
+                  <h3 className="tracking-[0.15em] mb-4" style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.2rem' }}>
+                    {foundItem}
                   </h3>
                   <button
                     onClick={() => setFoundItem(null)}
@@ -556,12 +601,7 @@ export default function ExplorePanel({ open, onClose, subAreaId, onItemFound, on
                       background: 'rgba(43,115,179,0.8)',
                       border: '1px solid rgba(255,255,255,0.3)',
                       clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-                      color: '#FBFBFB',
-                      fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                      fontWeight: 400,
-                      fontSize: '0.7rem',
-                      letterSpacing: '0.2em',
-                      cursor: 'pointer',
+                      color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em', cursor: 'pointer',
                     }}
                   >
                     OK
@@ -578,121 +618,50 @@ export default function ExplorePanel({ open, onClose, subAreaId, onItemFound, on
 
 /* ---------- Terminal Overlay ---------- */
 
-function TerminalOverlay({
-  onClose,
-  onRest,
-  onCheckpoint,
-  visitedHubs,
-}: {
-  onClose: () => void;
-  onRest: () => void;
-  onCheckpoint: () => void;
-  visitedHubs: string[];
+function TerminalOverlay({ onClose, onRest, onCheckpoint, visitedHubs }: {
+  onClose: () => void; onRest: () => void; onCheckpoint: () => void; visitedHubs: string[];
 }) {
-  const { play } = useSound();
+  const { play } = useSaoSound();
   const [showCheckpointMsg, setShowCheckpointMsg] = useState(false);
 
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       style={{ background: 'rgba(2,8,20,0.85)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.85, opacity: 0 }}
+        initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-panel p-6"
-        style={{ minWidth: 'min(400px, 90vw)' }}
+        className="glass-panel p-6" style={{ minWidth: 'min(400px, 90vw)', borderColor: 'rgba(43,115,179,0.5)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3
-          className="tracking-[0.3em] text-center mb-4"
-          style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '1rem' }}
-        >
+        <h3 className="tracking-[0.3em] text-center mb-4" style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '1rem' }}>
           TERMINALE
         </h3>
-
         {!showCheckpointMsg ? (
           <div className="flex flex-col gap-2">
-            {/* Rest */}
-            <TerminalButton
-              label="Riposa (HP/MP/Energia full)"
-              color="#7FC522"
-              onClick={() => { onRest(); }}
-            />
-            {/* Modify bag — TODO: open bag panel */}
-            <TerminalButton
-              label="Modifica Borsa"
-              color="#5CC4F0"
-              onClick={() => { play('click', 0.3); /* TODO: open bag panel */ }}
-            />
-            {/* Teleport */}
-            <TerminalButton
-              label="Teletrasporto"
-              color="#EBA601"
-              onClick={() => { setShowCheckpointMsg(true); play('system', 0.3); }}
-            />
-            {/* Close */}
-            <TerminalButton
-              label="Chiudi"
-              color="#BE2156"
-              onClick={() => { play('dismissLauncher', 0.3); onClose(); }}
-            />
+            <TerminalButton label="Riposa (HP/MP/Energia full)" color="#7FC522" onClick={onRest} />
+            <TerminalButton label="Modifica Borsa" color="#5CC4F0" onClick={() => play('click', 0.3)} />
+            <TerminalButton label="Teletrasporto" color="#EBA601" onClick={() => { setShowCheckpointMsg(true); play('system', 0.3); }} />
+            <TerminalButton label="Chiudi" color="#BE2156" onClick={() => { play('dismissLauncher', 0.3); onClose(); }} />
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <p
-              className="text-center tracking-[0.15em] mb-2"
-              style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}
-            >
+            <p className="text-center tracking-[0.15em] mb-2" style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}>
               Registrare la posizione attuale?
             </p>
             <div className="flex gap-2 justify-center">
-              <button
-                onClick={() => { onCheckpoint(); setShowCheckpointMsg(false); }}
-                className="px-4 py-2"
-                style={{
-                  background: 'rgba(43,115,179,0.8)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-                  color: '#FBFBFB',
-                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                  fontWeight: 400,
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.15em',
-                  cursor: 'pointer',
-                }}
-              >
+              <button onClick={() => { onCheckpoint(); setShowCheckpointMsg(false); }} className="px-4 py-2" style={{ background: 'rgba(43,115,179,0.8)', border: '1px solid rgba(255,255,255,0.3)', clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)', color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.15em', cursor: 'pointer' }}>
                 SÌ
               </button>
-              <button
-                onClick={() => { setShowCheckpointMsg(false); play('dismissLauncher', 0.3); }}
-                className="px-4 py-2"
-                style={{
-                  background: 'rgba(190,33,86,0.6)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-                  color: '#FBFBFB',
-                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                  fontWeight: 400,
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.15em',
-                  cursor: 'pointer',
-                }}
-              >
+              <button onClick={() => { setShowCheckpointMsg(false); play('dismissLauncher', 0.3); }} className="px-4 py-2" style={{ background: 'rgba(190,33,86,0.6)', border: '1px solid rgba(255,255,255,0.2)', clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)', color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.15em', cursor: 'pointer' }}>
                 NO
               </button>
             </div>
             {visitedHubs.length > 0 && (
-              <p
-                className="text-center mt-2"
-                style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.1em' }}
-              >
+              <p className="text-center mt-2" style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.1em' }}>
                 HUB visitati: {visitedHubs.join(', ')}
               </p>
             )}
@@ -707,18 +676,14 @@ function TerminalButton({ label, color, onClick }: { label: string; color: strin
   return (
     <button
       onClick={onClick}
-      className="px-4 py-2.5 text-left"
+      className="px-4 py-2.5 text-left w-full transition-all"
       style={{
         background: `${color}22`,
         border: `1px solid ${color}55`,
         clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
         color: '#FBFBFB',
         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-        fontWeight: 400,
-        fontSize: '0.75rem',
-        letterSpacing: '0.1em',
-        cursor: 'pointer',
-        transition: 'background 0.2s',
+        fontWeight: 400, fontSize: '0.75rem', letterSpacing: '0.1em', cursor: 'pointer',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.background = `${color}44`; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = `${color}22`; }}
