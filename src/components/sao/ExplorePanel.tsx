@@ -165,9 +165,27 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     }
   }, [run, activeSubAreaId, play, cheats]);
 
-  // Resolve event
+  // Resolve event — marks the event as resolved so it can't be clicked again.
+  // EXCEPTION: terminal events are NEVER marked as resolved (reusable — can be
+  // clicked multiple times to access rest/checkpoint/manage bag repeatedly).
   const handleResolveEvent = useCallback((event: ZoneEvent) => {
     if (event.resolved) return;
+    if (!run) return;
+
+    // Terminal events are reusable — don't mark as resolved
+    if (event.type !== 'terminal') {
+      const updatedZones = run.zones.map((z, i) => {
+        if (i !== run.currentZoneIndex) return z;
+        return {
+          ...z,
+          events: z.events.map((ev) =>
+            ev === event ? { ...ev, resolved: true } : ev
+          ),
+        };
+      });
+      setRun({ ...run, zones: updatedZones });
+    }
+
     switch (event.type) {
       case 'chest': {
         const itemId = getChestLoot(event);
@@ -200,7 +218,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
         play('message', 0.4);
         break;
     }
-  }, [onItemFound, play]);
+  }, [run, onItemFound, play]);
 
   const handleTerminalRest = useCallback(() => {
     onRest?.();
@@ -580,10 +598,12 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
   cheats?: { skipEvents: boolean; immortal: boolean; instakill: boolean; infiniteCol: boolean };
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState('');
-  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
+  // Single state object for hover transform + light position (reduces re-renders)
+  const [hover, setHover] = useState<{ tilt: string; lightX: number; lightY: number } | null>(null);
   const [typedText, setTypedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  // RAF throttle ref — coalesce multiple mousemove events into 1 frame
+  const rafRef = useRef<number | null>(null);
 
   // Typewriter effect per la descrizione lunga
   useEffect(() => {
@@ -607,14 +627,26 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
     return () => clearInterval(interval);
   }, [currentZone.id, currentZone.longDescription]);
 
+  // Throttled mouse-move handler — uses RAF to coalesce events to 1 per frame
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width;
     const py = (e.clientY - rect.top) / rect.height;
-    setTilt(`perspective(800px) rotateX(${-(py - 0.5) * 8}deg) rotateY(${(px - 0.5) * 8}deg) scale3d(1.02, 1.02, 1.02)`);
-    setLightPos({ x: px * 100, y: py * 100 });
+
+    // Cancel pending frame, schedule new one
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    rafRef.current = requestAnimationFrame(() => {
+      setHover({
+        tilt: `perspective(800px) rotateX(${-(py - 0.5) * 8}deg) rotateY(${(px - 0.5) * 8}deg) scale3d(1.02, 1.02, 1.02)`,
+        lightX: px * 100,
+        lightY: py * 100,
+      });
+      rafRef.current = null;
+    });
   };
 
   const resolvedCount = currentZone.events.filter((e) => e.resolved).length;
@@ -624,25 +656,26 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
     <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
-      onMouseLeave={() => setTilt('')}
+      onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
       className="relative w-full max-w-2xl overflow-hidden"
       style={{
         padding: '24px',
-        transform: tilt,
+        transform: hover?.tilt,
         transformStyle: 'preserve-3d',
         transition: 'transform 0.15s ease-out',
         background: 'rgba(8, 22, 40, 0.85)',
         border: '2px solid rgba(251, 251, 251, 0.5)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
         clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
+        willChange: hover ? 'transform' : 'auto',
       }}
     >
       {/* VR glow following cursor */}
       <div
         className="absolute inset-0 pointer-events-none transition-opacity duration-300"
         style={{
-          opacity: tilt ? 1 : 0,
-          background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, rgba(92, 196, 240, 0.15) 0%, transparent 50%)`,
+          opacity: hover ? 1 : 0,
+          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92, 196, 240, 0.15) 0%, transparent 50%)`,
           mixBlendMode: 'screen',
         }}
       />
@@ -660,17 +693,19 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
         </span>
       </div>
 
-      {/* Long description with typewriter effect */}
+      {/* Long description with typewriter effect — white SAO-style, larger for readability */}
       {typedText && (
         <p
           className="leading-relaxed mb-3"
           style={{
-            color: 'rgba(251,251,251,0.5)',
+            color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
             fontWeight: 400,
-            fontSize: '0.7rem',
-            lineHeight: 1.6,
+            fontSize: '0.85rem',
+            lineHeight: 1.8,
             minHeight: '4rem',
+            textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7)',
+            letterSpacing: '0.01em',
           }}
         >
           {typedText}
@@ -678,39 +713,37 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
         </p>
       )}
 
-      {/* Short description */}
+      {/* Short description — white SAO-style, slightly larger */}
       <p
         className="leading-relaxed mb-4"
-        style={{ color: 'rgba(251,251,251,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}
+        style={{
+          color: '#FBFBFB',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          fontWeight: 400,
+          fontSize: '0.85rem',
+          lineHeight: 1.6,
+          textShadow: '0 1px 3px rgba(0,0,0,0.95)',
+          opacity: 0.9,
+        }}
       >
         {currentZone.description}
       </p>
 
-      {/* Events */}
+      {/* Events — displayed as small square cards (same style as character panel equipment slots) */}
       {currentZone.events.length > 0 ? (
-        <div className="flex flex-col gap-2 mb-4">
+        <div className="grid grid-cols-6 gap-1.5 mb-4 max-w-md">
           {currentZone.events.map((event, idx) => {
             const meta = EVENT_LABELS[event.type] || { label: event.type, color: '#999', icon: '?' };
             return (
-              <button
+              <EventSquareCard
                 key={idx}
+                label={meta.label}
+                color={meta.color}
+                icon={meta.icon}
+                resolved={event.resolved}
+                isTerminal={event.type === 'terminal'}
                 onClick={() => onResolveEvent(event)}
-                disabled={event.resolved}
-                className="flex items-center gap-3 px-4 py-2.5 text-left transition-all"
-                style={{
-                  background: event.resolved ? 'rgba(48,48,48,0.15)' : `${meta.color}22`,
-                  border: `1px solid ${event.resolved ? 'rgba(48,48,48,0.15)' : meta.color + '66'}`,
-                  clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-                  cursor: event.resolved ? 'default' : 'pointer',
-                  opacity: event.resolved ? 0.35 : 1,
-                }}
-              >
-                <span style={{ color: meta.color, fontSize: '1rem' }}>{meta.icon}</span>
-                <span style={{ color: event.resolved ? 'rgba(251,251,251,0.3)' : '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem' }}>
-                  {meta.label}{event.resolved ? ' — Risolto' : ''}
-                </span>
-                {!event.resolved && <span className="ml-auto" style={{ color: meta.color, fontSize: '0.6rem' }}>▸</span>}
-              </button>
+              />
             );
           })}
         </div>
@@ -760,6 +793,148 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
   );
 }
 
+/* ---------- Event Square Card ----------
+ * Square card style matching the Character Panel equipment slots.
+ * Has a placeholder area for future event images (no image yet).
+ * VR hover effect (3D tilt + glow) like the character panel.
+ * When resolved: shows a checkmark and becomes non-clickable.
+ */
+
+function EventSquareCard({
+  label,
+  color,
+  icon,
+  resolved,
+  isTerminal = false,
+  onClick,
+}: {
+  label: string;
+  color: string;
+  icon: string;
+  resolved: boolean;
+  isTerminal?: boolean;
+  onClick: () => void;
+}) {
+  const cardRef = useRef<HTMLButtonElement>(null);
+  const [tilt, setTilt] = useState('');
+  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
+  const [isHover, setIsHover] = useState(false);
+
+  // Terminal events are always interactive (never "resolved/disabled")
+  const isDisabled = resolved && !isTerminal;
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (isDisabled) return;
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    setTilt(`perspective(400px) rotateX(${-(py - 0.5) * 10}deg) rotateY(${(px - 0.5) * 10}deg) scale3d(1.04, 1.04, 1.04)`);
+    setLightPos({ x: px * 100, y: py * 100 });
+  };
+
+  return (
+    <button
+      ref={cardRef}
+      type="button"
+      onClick={isDisabled ? undefined : onClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => { setTilt(''); setIsHover(false); }}
+      onMouseEnter={() => setIsHover(true)}
+      disabled={isDisabled}
+      className="relative overflow-hidden transition-all"
+      style={{
+        aspectRatio: '1 / 1',
+        transform: tilt,
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.15s ease-out, opacity 0.2s',
+        background: isDisabled
+          ? 'rgba(48, 48, 48, 0.15)'
+          : `linear-gradient(135deg, ${color}22 0%, ${color}11 100%)`,
+        border: `1px solid ${isDisabled ? 'rgba(48, 48, 48, 0.2)' : color + '66'}`,
+        clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
+        cursor: isDisabled ? 'default' : 'pointer',
+        opacity: isDisabled ? 0.4 : 1,
+        padding: 0,
+        willChange: isDisabled ? 'auto' : 'transform',
+      }}
+      aria-label={isDisabled ? `${label} - Completato` : label}
+    >
+      {/* VR glow following cursor (only when interactive) */}
+      {!isDisabled && (
+        <div
+          className="absolute inset-0 pointer-events-none transition-opacity duration-200"
+          style={{
+            opacity: isHover ? 1 : 0,
+            background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, ${color}33 0%, transparent 60%)`,
+            mixBlendMode: 'screen',
+          }}
+        />
+      )}
+
+      {/* Content: icon + label + image placeholder */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center p-0.5">
+        {/* Image placeholder area (for future event images) */}
+        <div
+          className="flex items-center justify-center mb-0.5"
+          style={{
+            width: '55%',
+            aspectRatio: '1 / 1',
+            background: isDisabled ? 'rgba(48, 48, 48, 0.1)' : `${color}15`,
+            border: `1px dashed ${isDisabled ? 'rgba(48, 48, 48, 0.2)' : color + '44'}`,
+            borderRadius: '2px',
+          }}
+        >
+          {/* Icon as placeholder for future image */}
+          <span
+            style={{
+              color: isDisabled ? 'rgba(251, 251, 251, 0.3)' : color,
+              fontSize: '0.85rem',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              textShadow: isDisabled ? 'none' : `0 0 4px ${color}66`,
+            }}
+          >
+            {isDisabled ? '✓' : icon}
+          </span>
+        </div>
+
+        {/* Label */}
+        <span
+          className="text-center leading-tight"
+          style={{
+            color: isDisabled ? 'rgba(251, 251, 251, 0.4)' : '#FBFBFB',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: '0.4rem',
+            letterSpacing: '0.03em',
+            textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+            padding: '0 1px',
+          }}
+        >
+          {isDisabled ? 'COMPL.' : label.toUpperCase()}
+        </span>
+      </div>
+
+      {/* Resolved overlay checkmark */}
+      {isDisabled && (
+        <div
+          className="absolute top-0.5 right-0.5 flex items-center justify-center"
+          style={{
+            width: '10px',
+            height: '10px',
+            background: 'rgba(127, 197, 34, 0.9)',
+            clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
+          }}
+        >
+          <span style={{ color: '#FFFFFF', fontSize: '0.45rem', fontWeight: 700 }}>✓</span>
+        </div>
+      )}
+    </button>
+  );
+}
+
 /* ---------- Sub-Area Card with VR hover ---------- */
 
 function SubAreaCard({ sa, idx, isCompleted, onClick }: {
@@ -769,8 +944,8 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
   onClick: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState('');
-  const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
+  const [hover, setHover] = useState<{ tilt: string; lightX: number; lightY: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
@@ -778,8 +953,16 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
     const rect = el.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width;
     const py = (e.clientY - rect.top) / rect.height;
-    setTilt(`perspective(800px) rotateX(${-(py - 0.5) * 10}deg) rotateY(${(px - 0.5) * 10}deg) scale3d(1.03, 1.03, 1.03)`);
-    setLightPos({ x: px * 100, y: py * 100 });
+
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setHover({
+        tilt: `perspective(800px) rotateX(${-(py - 0.5) * 10}deg) rotateY(${(px - 0.5) * 10}deg) scale3d(1.03, 1.03, 1.03)`,
+        lightX: px * 100,
+        lightY: py * 100,
+      });
+      rafRef.current = null;
+    });
   };
 
   return (
@@ -791,12 +974,12 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => setTilt('')}
+        onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
         onClick={onClick}
         className="relative cursor-pointer overflow-hidden"
         style={{
           padding: '24px',
-          transform: tilt,
+          transform: hover?.tilt,
           transformStyle: 'preserve-3d',
           transition: 'transform 0.15s ease-out',
           background: 'rgba(8, 22, 40, 0.85)',
@@ -805,14 +988,15 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
             ? '0 4px 20px rgba(127, 197, 34, 0.2), inset 0 0 20px rgba(127, 197, 34, 0.05)'
             : '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
           clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
+          willChange: hover ? 'transform' : 'auto',
         }}
       >
         {/* VR glow following cursor */}
         <div
           className="absolute inset-0 pointer-events-none transition-opacity duration-300"
           style={{
-            opacity: tilt ? 1 : 0,
-            background: `radial-gradient(circle at ${lightPos.x}% ${lightPos.y}%, rgba(92, 196, 240, 0.15) 0%, transparent 50%)`,
+            opacity: hover ? 1 : 0,
+            background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92, 196, 240, 0.15) 0%, transparent 50%)`,
             mixBlendMode: 'screen',
           }}
         />

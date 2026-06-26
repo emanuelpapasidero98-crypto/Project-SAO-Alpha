@@ -177,13 +177,31 @@ function SaoBar({
         </div>
       )}
 
+      {/* Bar type label (HP/MP/EN) — placed ABOVE the bar.
+          OUTSIDE the clipped div so it's never affected by clip-path. */}
+      <div
+        className="absolute left-1 px-1 z-10"
+        style={{
+          top: '-0.75rem',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          fontWeight: 400,
+          fontSize: '0.55rem',
+          letterSpacing: '0.25em',
+          color: config.labelColor,
+          textShadow: '0 0 4px rgba(0,0,0,0.9), 0 1px 1px rgba(0,0,0,0.8)',
+          lineHeight: 1,
+          pointerEvents: 'none',
+        }}
+        aria-hidden
+      >
+        {config.label}
+      </div>
+
       {/* Bar (using [Blank] 2.png as background) */}
-      {/* On HP/MP we clip away the bottom-right corner to hide the PNG's
-          built-in "LV:" box (the LV box must appear on the Energy bar only).
-          The clip removes everything past X=84%, Y=52% — i.e. exactly the
-          LV box region — while keeping the large "/" value box (which ends
-          at X=84%) and the whole colored bar (which sits above Y=52%) fully
-          intact. Applied only when type !== 'energy'. */}
+      {/* On HP/MP we clip away ONLY the LV box area (x=84-100%, y=52-100%)
+          to hide the empty LV slot. The label above is NOT affected because
+          it's a sibling, not a child, of this clipped div.
+          Energy bar is NOT clipped (LV number is shown there). */}
       <div
         className="relative"
         style={{
@@ -210,23 +228,6 @@ function SaoBar({
           transition={{ duration: 1.1, ease: 'easeOut', delay: 0.3 }}
           style={{ objectFit: 'fill' }}
         />
-
-        {/* Bar type label (HP/MP/EN) — placed ABOVE the bar (small, top-left) */}
-        <div
-          className="absolute -top-3 left-1 px-1"
-          style={{
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '0.55rem',
-            letterSpacing: '0.25em',
-            color: config.labelColor,
-            textShadow: '0 0 4px rgba(0,0,0,0.9), 0 1px 1px rgba(0,0,0,0.8)',
-            lineHeight: 1,
-          }}
-          aria-hidden
-        >
-          {config.label}
-        </div>
 
         {/* ===== Numeric values around the PNG's existing "/" separator =====
             The PNG already draws the "/" inside the LARGE slot at X≈72.4%.

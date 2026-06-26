@@ -63,3 +63,4 @@ server.log
 /download/
 backups/
 download/
+tool-results/

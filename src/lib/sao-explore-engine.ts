@@ -85,8 +85,9 @@ export function generateSubAreaRun(
     const variants = textDef?.variants ?? ['Ti trovi in una zona.', 'Procedi avanti.', 'Il sentiero continua.'];
     const description = pick(rng, variants);
     // Descrizione lunga (~200 parole) — usa longDesc se disponibile, altrimenti genera
+    // Passa la posizione per garantire un intro unico per ogni zona
     const longDescs = textDef?.longDesc;
-    const longDescription = longDescs ? pick(rng, longDescs) : generateLongDescription(terrain, title, rng);
+    const longDescription = longDescs ? pick(rng, longDescs) : generateLongDescription(terrain, title, rng, position);
 
     zones.push({
       id: `${subAreaDef.id}-zone-${i}`,
@@ -333,9 +334,31 @@ export function getChestLoot(event: ZoneEvent): string | null {
 }
 
 // === GENERATORE DESCRIZIONE LUNGA (~200 parole) ===
-// Genera una descrizione atmosferica di ~200 parole basata sul terreno.
-// Le descrizioni sono composte da frasi che vengono combinate casualmente.
-function generateLongDescription(terrain: TerrainType, title: string, rng: () => number): string {
+// Genera una descrizione atmosferica di ~200 parole basata sul terreno E sulla posizione.
+// Ogni zona (8 per sotto-area) ha un intro unico che la distingue dalle altre,
+// combinato con la descrizione del terreno specifico.
+
+// 8 intro unici, uno per ogni posizione (1-8) nella sotto-area
+const POSITION_INTROS: string[] = [
+  // Position 1 — Inizio
+  "I tuoi primi passi in questa sotto-area. Lo sguardo corre tra i dettagli del paesaggio, mentre la mano stringe l'elsa della spada. Tutto è nuovo, tutto è da scoprire. ",
+  // Position 2 — Avanzamento
+  "Procedi più a fondo, lasciandoti alle spalle il punto di partenza. Il sentiero si fa meno battuto, e l'aria porta odori nuovi. Senti di essere entrato in un territorio meno esplorato. ",
+  // Position 3 — Zona intermedia
+  "Sei ormai nel cuore della prima metà di questa zona. Il paesaggio ti circonda, familiare eppure carico di dettagli che prima avevi trascurato. Ogni passo ti porta più lontano dalla sicurezza. ",
+  // Position 4 — Pre-terminale
+  "Avanzi verso il centro della sotto-area. La luce cambia, e in lontananza intravedi un bagliore azzurro che potrebbe essere un terminale. La tensione sale: sai di essere vicino a un punto di svolta. ",
+  // Position 5 — Terminale (gestito separatamente, ma tenuto per coerenza)
+  "Il terminale di esplorazione si erge davanti a te. ",
+  // Position 6 — Post-terminale
+  "Hai superato il terminale, e il paesaggio cambia nuovamente. Le ombre si allungano, e l'aria si fa più densa. Senti di essere entrato in una zona meno ospitale, dove la prudenza è fondamentale. ",
+  // Position 7 — Avvicinamento finale
+  "Ti avvicini alla fine della sotto-area. Ogni passo è pesante, carico dell'esperienza accumulata. Il paesaggio sembra anticipare la conclusione del tuo viaggio, ma anche nascondere le sfide maggiori. ",
+  // Position 8 — Zona finale
+  "Sei nell'ultima zona di questa sotto-area. Davanti a te si estende il confine, oltre il quale il territorio cambia del tutto. È il momento di raccogliere le forze per l'ultima sfida. ",
+];
+
+function generateLongDescription(terrain: TerrainType, title: string, rng: () => number, position: number = 1): string {
   const terrainPhrases: Record<TerrainType, string[]> = {
     plains: [
       `La pianura si stende davanti a te come un mare d'erba che ondegga dolcemente al vento. Il sole di Aincrad brilla alto nel cielo, tingendo d'oro ogni filo d'erba. In lontananza puoi scorgere le mura della Città degli Inizi, mentre davanti a te il sentiero si perde nell'orizzonte. L'aria è fresca e pulita, carica del profumo della terra bagnata e dei fiori selvatici. Piccoli insetti ronzano tra l'erba alta, e di tanto in tanto un uccello attraversa il cielo azzurro. È un luogo sereno, quasi troppo per un mondo come Aincrad dove la morte è sempre in agguato. Mentre cammini, i tuoi stivali affondano nel terreno soffice, lasciando impronte che il vento cancella rapidamente. Ti guardi intorno, vigile: anche nelle zone più tranquille, un mostro potrebbe nascondersi tra l'erba alta. La spada al tuo fianco è un peso rassicurante, un promemoria che qui nulla è davvero sicuro. Procedi avanti, un passo dopo l'altro, verso l'ignoto che ti attende oltre la prossima collina.`,
@@ -367,5 +390,15 @@ function generateLongDescription(terrain: TerrainType, title: string, rng: () =>
   };
 
   const phrases = terrainPhrases[terrain] ?? terrainPhrases.plains;
-  return pick(rng, phrases);
+  const terrainDesc = pick(rng, phrases);
+
+  // Per il terminale, usa solo la descrizione del terminale (l'intro è ridondante)
+  if (terrain === 'terminal') {
+    return terrainDesc;
+  }
+
+  // Combina l'intro unico (basato su posizione) con la descrizione del terreno
+  // Questo garantisce che ogni zona abbia un testo diverso, anche se il terreno si ripete
+  const intro = POSITION_INTROS[position - 1] ?? POSITION_INTROS[0];
+  return intro + terrainDesc;
 }

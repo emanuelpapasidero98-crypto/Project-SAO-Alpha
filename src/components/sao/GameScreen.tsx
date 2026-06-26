@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState, useCallback } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
+import { useImagePreload, SAO_CRITICAL_IMAGES } from '@/hooks/useImagePreload';
 import SaoHUD, { type BarValue } from './SaoHUD';
 import SaoMainMenu from './SaoMainMenu';
 import SaoNotificationWindow, {
@@ -47,6 +48,8 @@ interface GameScreenProps {
 
 export default function GameScreen({ playerName, gender, isAdmin = false, onExit }: GameScreenProps) {
   const { play } = useSaoSound();
+  // Preload all critical game images at mount to eliminate lag/flicker
+  useImagePreload(SAO_CRITICAL_IMAGES);
   const [stats] = useState<PlayerStats>(getStartingPlayerStats());
   const level = 1;
   // HP/MP/Energy are computed from level + stats using the SAO stats engine

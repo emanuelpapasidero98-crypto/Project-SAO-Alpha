@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSaoSound } from '@/hooks/useSaoSound';
+import { useImagePreload, SAO_CRITICAL_IMAGES } from '@/hooks/useImagePreload';
 
 interface LoginScreenProps {
   onLogin: (isAdmin: boolean) => void;
@@ -30,6 +31,9 @@ interface LoginScreenProps {
  */
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const { play } = useSaoSound();
+  // Start preloading game images during login screen so they're ready
+  // by the time the user enters the game (no lag/flicker on transition)
+  useImagePreload(SAO_CRITICAL_IMAGES);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showError, setShowError] = useState(false);
