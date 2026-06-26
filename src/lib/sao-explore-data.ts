@@ -10,7 +10,7 @@ export const EXPLORE_AREAS: ExploreAreaDef[] = [
     name: 'Grandi Pianure',
     description: 'Le ampie pianure che circondano la Città degli Inizi. Il primo territorio esplorabile di Aincrad.',
     order: 1,
-    subAreaIds: ['pianure-esteriori'],
+    subAreaIds: ['pianure-esteriori', 'mulini-a-vento', 'bosco-rigoglioso'],
   },
 ];
 
@@ -94,6 +94,170 @@ export const EXPLORE_SUBAREAS: SubAreaDef[] = [
           'Il terreno si alza in un altopiano. Da qui puoi vedere tutta la zona circostante.',
           'Sei su un altopiano battuto dal vento. La vista spazia per chilometri.',
           'L\'altopiano offre una vista panoramica sulle pianure sottostanti.',
+        ],
+      },
+    },
+  },
+  {
+    id: 'mulini-a-vento',
+    areaId: 'grandi-pianure',
+    name: 'Zona dei Mulini a Vento',
+    description: 'Una zona collinare punteggiata da vecchi mulini a vento. Le pale girano lentamente nel vento costante.',
+    order: 2,
+    terrainPalette: ['hills', 'plains', 'camp', 'highland', 'ruins', 'clearing'],
+    zoneTexts: {
+      hills: {
+        title: 'Colline dei Mulini',
+        variants: [
+          'Le colline sono costellate di mulini a vento. Le pale scricchiolano nel vento.',
+          'Cammini tra colline dove antichi mulini a vento dominano il paesaggio.',
+          'I mulini a vento girano pigramente sulle colline. L\'aria sa di erba e legno vecchio.',
+        ],
+      },
+      plains: {
+        title: 'Pianura dei Mulini',
+        variants: [
+          'Una pianura aperta con mulini sparsi. Il vento qui è particolarmente forte.',
+          'I mulini a vento si stagliano contro il cielo nella pianura.',
+          'L\'erba della pianura si piega al vento che fa girare i mulini.',
+        ],
+      },
+      camp: {
+        title: 'Campo di Sostegno',
+        variants: [
+          'Trovi un campo di sostegno vicino a un mulino. Qualcuno ha lasciato delle provviste.',
+          'Un piccolo campo tra i mulini. Sembra essere usato dai raccoglitori.',
+          'Un accampamento temporaneo all\'ombra di un grande mulino a vento.',
+        ],
+      },
+      highland: {
+        title: 'Altopiano Ventoso',
+        variants: [
+          'L\'altopiano è battuto da un vento fortissimo. I mulini qui girano vorticosamente.',
+          'Dall\'altopiano vedi tutti i mulini della zona. Il vento ti scompiglia i capelli.',
+          'Sull\'altopiano il vento è così forte che fa vibrare le pale dei mulini.',
+        ],
+      },
+      ruins: {
+        title: 'Mulini in Rovina',
+        variants: [
+          'Mulini abbandonati e in rovina. Le pale spezzate non girano più.',
+          'Tra le rovine di vecchi mulini, il vento fischia attraverso le assi rotte.',
+          'I resti di mulini antichi emergono dall\'erba alta. Chissà chi li ha costruiti.',
+        ],
+      },
+      clearing: {
+        title: 'Radura tra i Mulini',
+        variants: [
+          'Una radura tra i mulini. Il terreno è calpestato da molti passi.',
+          'Ti fermi in una radura. I mulini circostanti creano un muro di legno e tela.',
+          'Una radura circolare attorniata da mulini. È un buon punto di osservazione.',
+        ],
+      },
+      terminal: {
+        title: 'Terminale dei Mulini',
+        variants: [
+          'Un terminale di cristallo brilla vicino a un mulino. Le sue luci riflettono sulle pale.',
+          'Trovi un terminale di esplorazione ai piedi di un mulino. Pulsa di luce azzurra.',
+          'Un pilastro di cristallo tra i mulini. Un punto sicuro nel vento.',
+        ],
+      },
+      river: {
+        title: 'Ruscello dei Mulini',
+        variants: [
+          'Un piccolo ruscello scorre tra i mulini. L\'acqua alimenta alcune delle pale.',
+          'Segui il ruscello che passa tra le colline dei mulini.',
+          'L\'acqua gorgoglia vicino alle fondamenta di un mulino.',
+        ],
+      },
+      sparse_wood: {
+        title: 'Boschetto vicino ai Mulini',
+        variants: [
+          'Un piccolo boschetto cresce vicino ai mulini. Fa da frangivento.',
+          'Alcuni alberi proteggono i mulini dal vento più forte.',
+          'Un boschetto rado ombreggia un gruppo di mulini.',
+        ],
+      },
+    },
+  },
+  {
+    id: 'bosco-rigoglioso',
+    areaId: 'grandi-pianure',
+    name: 'Bosco Rigoglioso',
+    description: 'Un bosco denso e lussureggiante ai margini delle Grandi Pianure. La luce filtra a malapena tra le fronde.',
+    order: 3,
+    terrainPalette: ['sparse_wood', 'river', 'ruins', 'clearing', 'hills', 'camp'],
+    zoneTexts: {
+      sparse_wood: {
+        title: 'Bosco Denso',
+        variants: [
+          'Il bosco si infittisce. Gli alberi sono così vicini che i rami si intrecciano sopra di te.',
+          'Cammini in un bosco rigoglioso. Il canto degli uccelli riempie l\'aria.',
+          'Il sottobosco è rigoglioso e umido. Le foglie formano un tetto verde sopra la tua testa.',
+        ],
+      },
+      river: {
+        title: 'Fiume del Bosco',
+        variants: [
+          'Un fiume scorre attraverso il bosco. L\'acqua è scura per le foglie che la cadono dentro.',
+          'Segui il corso del fiume tra gli alberi. L\'acqua gorgoglia sulle radici sommerse.',
+          'Un ruscello serpeggia nel bosco. Piccoli pesci guizzano sotto la superficie.',
+        ],
+      },
+      ruins: {
+        title: 'Rovine nel Bosco',
+        variants: [
+          'Tra le radici degli alberi spuntano pietre antiche. Il bosco ha inghiottito le rovine.',
+          'Muri coperti di muschio emergono dal terreno del bosco. La natura ha reclamato tutto.',
+          'Cammini tra rovine che il bosco ha avvolto nei secoli. L\'edera copre ogni cosa.',
+        ],
+      },
+      clearing: {
+        title: 'Radura del Bosco',
+        variants: [
+          'Una radura nel cuore del bosco. I raggi di sole creano un cerchio di luce.',
+          'La radura è un rifugio di pace nel bosco fitto. Farfalle danzano tra i fiori.',
+          'Ti fermi in una radura luminosa. Dopo il buio del bosco, la luce è accecante.',
+        ],
+      },
+      hills: {
+        title: 'Colline Boscose',
+        variants: [
+          'Il bosco copre le colline. Il terreno è irregolare e coperto di radici.',
+          'Le colline boscose si alzano dolcemente. Senti il profumo di resina.',
+          'Cammini tra colline coperte di alberi. Il terreno è morbido di foglie secche.',
+        ],
+      },
+      camp: {
+        title: 'Campo nel Bosco',
+        variants: [
+          'Trovi un campo nascosto nel bosco. È ben camuffato tra gli alberi.',
+          'Un accampamento di boscaioli abbandonato. Le asce sono ancora appoggiate a un tronco.',
+          'Un piccolo campo nella radura del bosco. Sembra essere stato usato di recente.',
+        ],
+      },
+      terminal: {
+        title: 'Terminale del Bosco',
+        variants: [
+          'Un terminale di cristallo brilla tra gli alberi. La sua luce è l\'unica cosa artificiale nel bosco.',
+          'Trovi un terminale di esplorazione avvolto dalle radici. Pulsa delicatamente.',
+          'Un pilastro di cristallo nella radura del bosco. La sua luce attira le lucciole.',
+        ],
+      },
+      plains: {
+        title: 'Margine del Bosco',
+        variants: [
+          'Il bosco si dirada verso la pianura. Senti il vento che non entra tra gli alberi.',
+          'Sei al margine del bosco. Davanti a te si apre la pianura luminosa.',
+          'Gli ultimi alberi del bosco lasciano spazio alla pianura.',
+        ],
+      },
+      highland: {
+        title: 'Altopiano Boscato',
+        variants: [
+          'Il bosco copre un altopiano. Da qui puoi vedere la cima degli alberi stendersi a perdita d\'occhio.',
+          'Sull\'altopiano boscato l\'aria è più sottile. Gli alberi sono più bassi qui.',
+          'Un altopiano coperto di bosco. Il vento muove le chiome degli alberi come onde.',
         ],
       },
     },

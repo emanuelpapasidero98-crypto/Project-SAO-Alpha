@@ -113,6 +113,8 @@ export function createInitialExploreState(): ExploreState {
     },
     subAreaProgress: {
       'pianure-esteriori': { status: 'unlocked' },
+      'mulini-a-vento': { status: 'unlocked' },
+      'bosco-rigoglioso': { status: 'unlocked' },
     },
     activeRun: null,
     subAreaCheckpoints: {},
