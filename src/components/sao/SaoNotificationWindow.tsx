@@ -135,29 +135,47 @@ function SaoWindow({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.25 }}
       style={{
         background: 'rgba(2, 8, 20, 0.6)',
         backdropFilter: 'blur(4px)',
       }}
     >
-      {/* Window container — animation from MenuView.qml aniFadeIn:
-          opacity 0→1 (400ms) + y -height→0 (600ms, OutQuart).
-          Sized down to ~520px max-width (was 900px) to feel less bulky. */}
+      {/* CRT TV power-on overlay (slightly slower for notifications) */}
+      <motion.div
+        className="absolute inset-0 z-50 pointer-events-none"
+        style={{ background: '#5CC4F0' }}
+        initial={{ scaleY: 0.005, opacity: 1 }}
+        animate={{ scaleY: [0.005, 0.005, 1, 1], opacity: [1, 1, 1, 0] }}
+        transition={{ duration: 0.8, times: [0, 0.12, 0.6, 1], ease: 'easeOut' }}
+      />
+      {/* CRT TV power-off overlay (on exit) */}
+      <motion.div
+        className="absolute inset-0 z-50 pointer-events-none"
+        style={{ background: '#5CC4F0' }}
+        initial={{ scaleY: 0, opacity: 0 }}
+        exit={{ scaleY: [0, 1, 1, 0.005], opacity: [0, 1, 1, 1] }}
+        transition={{ duration: 0.6, times: [0, 0.1, 0.5, 1], ease: 'easeIn' }}
+      />
+      {/* Window container — TV power-on animation */}
       <motion.div
         className="relative"
         style={{
           width: 'min(520px, 92vw)',
           aspectRatio: '1200 / 858',
         }}
-        initial={{ opacity: 0, y: -250 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -200 }}
+        initial={{ opacity: 0, y: -350, scaleY: 0.005 }}
+        animate={{ opacity: 1, y: 0, scaleY: 1 }}
+        exit={{ opacity: 0, y: -250, scaleY: 0.005 }}
         transition={{
-          opacity: { duration: 0.4, ease: 'easeOut' },
+          opacity: { duration: 0.5, ease: 'easeOut' },
           y: {
-            duration: 0.6,
-            ease: [0.22, 1, 0.36, 1], // OutQuart approximation
+            duration: 0.7,
+            ease: [0.22, 1, 0.36, 1],
+          },
+          scaleY: {
+            duration: 0.4,
+            ease: [0.22, 1, 0.36, 1],
           },
         }}
         onAnimationStart={() => {

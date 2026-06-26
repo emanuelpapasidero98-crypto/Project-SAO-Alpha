@@ -22,6 +22,7 @@ export interface ZoneNode {
   terrain: TerrainType;
   title: string;
   description: string;
+  longDescription?: string; // descrizione lunga (~200 parole) per la UI con effetto digitazione
   events: ZoneEvent[];
   cleared: boolean;
 }
@@ -33,7 +34,7 @@ export interface SubAreaDef {
   description: string;
   order: number;
   terrainPalette: TerrainType[];
-  zoneTexts: Partial<Record<TerrainType, { title: string; variants: [string, string, string] }>>;
+  zoneTexts: Partial<Record<TerrainType, { title: string; variants: [string, string, string]; longDesc?: [string, string, string] }>>;
 }
 
 export interface ExploreAreaDef {

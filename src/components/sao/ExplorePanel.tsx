@@ -582,6 +582,30 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState('');
   const [lightPos, setLightPos] = useState({ x: 50, y: 50 });
+  const [typedText, setTypedText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  // Typewriter effect per la descrizione lunga
+  useEffect(() => {
+    if (!currentZone.longDescription) {
+      setTypedText('');
+      return;
+    }
+    setIsTyping(true);
+    setTypedText('');
+    const text = currentZone.longDescription;
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < text.length) {
+        setTypedText(text.slice(0, i + 1));
+        i++;
+      } else {
+        setIsTyping(false);
+        clearInterval(interval);
+      }
+    }, 15); // 15ms per carattere
+    return () => clearInterval(interval);
+  }, [currentZone.id, currentZone.longDescription]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
@@ -624,7 +648,7 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
       />
 
       {/* Zone title */}
-      <div className="flex items-baseline justify-between mb-3">
+      <div className="flex items-baseline justify-between mb-2">
         <h3
           className="tracking-[0.2em]"
           style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}
@@ -636,7 +660,25 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
         </span>
       </div>
 
-      {/* Description */}
+      {/* Long description with typewriter effect */}
+      {typedText && (
+        <p
+          className="leading-relaxed mb-3"
+          style={{
+            color: 'rgba(251,251,251,0.5)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: '0.7rem',
+            lineHeight: 1.6,
+            minHeight: '4rem',
+          }}
+        >
+          {typedText}
+          {isTyping && <span style={{ color: '#5CC4F0', animation: 'blink 1s infinite' }}>▋</span>}
+        </p>
+      )}
+
+      {/* Short description */}
       <p
         className="leading-relaxed mb-4"
         style={{ color: 'rgba(251,251,251,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem' }}
