@@ -167,6 +167,12 @@ export interface ExploreState {
   secretQuestUnlocked: boolean;
   secretQuestCompleted: boolean;
   reputations: string[];
+  // === FASE C: stato persistente di collezione/cartografia ===
+  discoveredLore: string[];          // ID dei frammenti di lore scoperti
+  mappedTerrains: TerrainType[];     // tipi di terreno visitati almeno una volta
+  visitedLandmarks: EndingType[];    // esiti finali incontrati (per collezione)
+  gatheredResources: Record<string, number>; // forward-compat crafting (herb/mineral/wood → quantità)
+  knownBossPaths: string[];          // subAreaId che hanno generato un finale 'boss' (MAI cancellare)
 }
 
 export const ENCOUNTER_RESOLUTION_MODE: 'priority' | 'independent' = 'priority';
@@ -190,5 +196,11 @@ export function createInitialExploreState(): ExploreState {
     secretQuestUnlocked: false,
     secretQuestCompleted: false,
     reputations: [],
+    // FASE C: collezione/cartografia
+    discoveredLore: [],
+    mappedTerrains: [],
+    visitedLandmarks: [],
+    gatheredResources: {},
+    knownBossPaths: [],
   };
 }

@@ -143,3 +143,24 @@ Stage Summary:
 - File modificati: sao-explore-types.ts, sao-explore-data.ts, sao-explore-engine.ts, ExplorePanel.tsx, GameScreen.tsx, globals.css
 - Note/placeholder: TODO(combat-system) per boss/horde/trapChest/combat/PK/distressNpc; TODO(quest-system) per questNpc; TODO(crafting-system) per gathering
 - Prossimo passo: FASE C (finale, completamento, cartografia, fix typewriter, knownBossPaths)
+
+---
+Task ID: FASE-C
+Agent: main
+Task: Rifinitura esplorazione SAO — FASE C (finale, completamento, cartografia, fix typewriter)
+
+Work Log:
+- C.1: ExploreState esteso con discoveredLore, mappedTerrains, visitedLandmarks, gatheredResources, knownBossPaths (MAI cancellare)
+- C.2: registerDiscovery helper (idempotente) collegato in handleChooseNode (terreno), shrine/vista (lore), gathering (risorse), applyOutcome lore
+- C.3: handleComplete riscritto con 4 esiti (boss/treasure/horde/nothing), registrazione visitedLandmarks, knownBossPaths per boss, applicazione treasure reward
+- C.4: RunSummary component (schermata riepilogo con statistiche: zone visitate, eventi risolti, oggetti trovati, prove superate/fallite, lore; rating testuale; bottone CONTINUA)
+- C.5: CartographyPanel component (terreni mappati 9/9, lore 3/3, finali 4/4, risorse, knownBossPaths; % completamento globale) + bottone CARTOGRAFIA nella vista subareas
+- C.6: FIX typewriter — 8ms per carattere (era 15ms), skip-on-click (onClick sulla card completa il testo), una sola volta per nodo (typedNodesRef Set)
+- tsc filtrato: pulito
+- next build: ok
+
+Stage Summary:
+- Risultati: esplorazione completa con finale a 4 esiti, schermata riepilogo, cartografia/collezione, typewriter ottimizzato
+- File modificati: sao-explore-types.ts, ExplorePanel.tsx (CartographyPanel, RunSummary, registerDiscovery, handleComplete, typewriter fix)
+- Note/placeholder: TODO(combat-system) per boss/horde finali; TODO(crafting-system) per gatheredResources; knownBossPaths sopravvive a riavvii/perdite (MAI cancellare)
+- Tutte le 3 fasi completate: build verde, tsc pulito
