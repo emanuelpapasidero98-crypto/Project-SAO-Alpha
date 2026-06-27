@@ -1,13 +1,21 @@
 // === SAO Exploration Types ===
-// Gerarchia: ExploreArea → SubArea[] → Zone[8]
+// Gerarchia: ExploreArea → SubArea[] → grafo di ZoneNode (layer + connections + fog-of-war)
+
+// === Le 7 statistiche canoniche (per skill check) ===
+export type ExploreStatKey = 'STR' | 'DEX' | 'AGI' | 'VIT' | 'RES' | 'MEN' | 'INT';
 
 export type TerrainType =
   | 'plains' | 'hills' | 'river' | 'sparse_wood' | 'ruins'
   | 'camp' | 'clearing' | 'highland' | 'terminal';
 
+// === Tipi di evento (union estesa con i futuri tipi della Fase B) ===
 export type ZoneEventType =
   | 'chest' | 'trapChest' | 'combat' | 'terminal'
-  | 'questNpc' | 'playerKiller' | 'distressNpc';
+  | 'questNpc' | 'playerKiller' | 'distressNpc'
+  | 'skillCheck' | 'narrative' | 'gathering' | 'shrine' | 'vista' | 'ending';
+
+// === Tipo di finale della sotto-area (4 esiti) ===
+export type EndingType = 'boss' | 'treasure' | 'horde' | 'nothing';
 
 export interface ZoneEvent {
   type: ZoneEventType;
@@ -15,16 +23,90 @@ export interface ZoneEvent {
   payload: Record<string, unknown>;
 }
 
+// === ZoneNode ora è un NODO DI GRAFO ===
 export interface ZoneNode {
   id: string;
-  index: number;      // 0..7
-  position: number;   // 1..8 (per UI e regola "prime 3 zone")
+  depth: number;          // indice del layer (0..depth-1)
+  indexInLayer: number;   // posizione nel layer
+  position: number;       // numero progressivo per UI/lore — mantiene la regola "prime 3 zone"
   terrain: TerrainType;
   title: string;
   description: string;
-  longDescription?: string; // descrizione lunga (~200 parole) per la UI con effetto digitazione
+  longDescription?: string;
   events: ZoneEvent[];
   cleared: boolean;
+  connections: string[];  // ID dei nodi raggiungibili nel layer successivo
+  revealed: boolean;      // fog-of-war: tipo/eventi visibili al giocatore
+  isTerminal: boolean;    // nodo terminale (riposo/checkpoint) — al centro
+  isLandmark: boolean;    // nodo finale (ending) — ultimo layer
+  ending?: EndingType;    // valorizzato solo se isLandmark
+}
+
+// === SubAreaRun: ora basato su grafo ===
+export interface SubAreaRun {
+  subAreaId: string;
+  seed: number;
+  depth: number;                      // numero di layer (lunghezza variabile)
+  nodes: Record<string, ZoneNode>;    // tutti i nodi per ID
+  layers: string[][];                 // ID dei nodi per layer (per il rendering della mappa)
+  currentNodeId: string;
+  visitedNodeIds: string[];           // percorso effettivo del giocatore
+  spawnedTrapChest: boolean;
+  spawnedQuestNpc: boolean;
+  spawnedDistressNpc: boolean;
+  usedTerminal: boolean;
+  tempPartyMemberId: string | null;
+  // statistiche per la schermata di completamento (Fase C)
+  stats: {
+    nodesVisited: number;
+    eventsResolved: number;
+    itemsFound: number;
+    skillChecksPassed: number;
+    skillChecksFailed: number;
+    loreFound: number;
+  };
+}
+
+// === Checkpoint aggiornato (salva il percorso nel grafo) ===
+export interface SubAreaCheckpoint {
+  seed: number;
+  depth: number;
+  currentNodeId: string;
+  visitedNodeIds: string[];
+  spawnedTrapChest: boolean;
+  spawnedQuestNpc: boolean;
+  spawnedDistressNpc: boolean;
+}
+
+// === Esiti di opzioni narrative / skill check (Fase B) ===
+export type ExploreOutcomeType = 'reward' | 'lore' | 'heal' | 'risk' | 'nothing';
+export interface ExploreOutcome {
+  type: ExploreOutcomeType;
+  itemPool?: string;   // chiave di LOOT_TABLES (per 'reward')
+  loreId?: string;     // (per 'lore')
+  text: string;        // testo mostrato al giocatore
+  // 'risk' → TODO(combat-system): innescherà un combattimento
+}
+
+export interface NarrativeOption {
+  label: string;
+  // prova opzionale: se presente, l'opzione fa uno skill check. 'difficulty' è sulla scala
+  // delle 7 statistiche (~1..90); la probabilità di successo è derivata dalla statistica vs
+  // difficulty (vedi skillCheckChance in B.5.1).
+  check?: { stat: ExploreStatKey; difficulty: number };
+  success: ExploreOutcome;
+  failure?: ExploreOutcome; // usato solo se c'è un check
+}
+export interface NarrativeScene {
+  id: string;
+  prompt: string;          // descrizione della situazione
+  options: NarrativeOption[];
+}
+
+export interface LoreFragment {
+  id: string;
+  title: string;
+  text: string;
 }
 
 export interface SubAreaDef {
@@ -43,18 +125,6 @@ export interface ExploreAreaDef {
   description: string;
   order: number;
   subAreaIds: string[];
-}
-
-export interface SubAreaRun {
-  subAreaId: string;
-  seed: number;
-  zones: ZoneNode[];
-  currentZoneIndex: number;
-  spawnedTrapChest: boolean;
-  spawnedQuestNpc: boolean;
-  spawnedDistressNpc: boolean;
-  usedTerminal: boolean;
-  tempPartyMemberId: string | null;
 }
 
 export interface SubAreaProgress {
@@ -89,13 +159,7 @@ export interface ExploreState {
   areaProgress: Record<string, AreaProgress>;
   subAreaProgress: Record<string, SubAreaProgress>;
   activeRun: SubAreaRun | null;
-  subAreaCheckpoints: Record<string, {
-    seed: number;
-    zoneIndex: number;
-    spawnedTrapChest: boolean;
-    spawnedQuestNpc: boolean;
-    spawnedDistressNpc: boolean;
-  }>;
+  subAreaCheckpoints: Record<string, SubAreaCheckpoint>;
   visitedHubs: string[];
   stolenLoot: StolenLootRecord[];
   pendingQuestStubs: PendingQuestStub[];

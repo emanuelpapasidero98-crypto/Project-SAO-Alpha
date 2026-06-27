@@ -57,6 +57,12 @@
   51%, 100% { opacity: 0; }
 }
 
+/* ===== SAO pulse (per nodi mappa raggiungibili/correnti) ===== */
+@keyframes saoPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

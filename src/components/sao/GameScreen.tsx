@@ -482,6 +482,15 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
           play('click', 0.4);
         }}
         cheats={cheats}
+        playerStats={{
+          STR: stats.str,
+          DEX: stats.dex,
+          AGI: stats.agi,
+          VIT: stats.vit,
+          RES: stats.res,
+          MEN: stats.men,
+          INT: stats.int,
+        }}
         onItemFound={(itemId) => {
           // Add found item to inventory
           setItems((prev) => {

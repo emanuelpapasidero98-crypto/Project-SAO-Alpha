@@ -1,7 +1,7 @@
 // === SAO Exploration Data ===
 // Data-driven: aggiungere nuove aree/sotto-aree è solo aggiungere dati qui.
 
-import type { ExploreAreaDef, SubAreaDef, TerrainType } from './sao-explore-types';
+import type { ExploreAreaDef, SubAreaDef, TerrainType, ExploreStatKey, NarrativeScene, LoreFragment } from './sao-explore-types';
 
 // === AREE ===
 export const EXPLORE_AREAS: ExploreAreaDef[] = [
@@ -314,3 +314,76 @@ export const TERRAIN_ADJACENCY: Record<TerrainType, TerrainType[]> = {
   highland: ['hills', 'highland', 'ruins'],
   terminal: [], // gestito separatamente
 };
+
+// === SKILL CHECK: prompt per statistica (testo + esito) ===
+// 'success'/'failure' sono testi; la ricompensa/conseguenza è decisa dall'engine.
+export const SKILL_CHECK_PROMPTS: Record<ExploreStatKey, { prompt: string; success: string; failure: string }[]> = {
+  STR: [
+    { prompt: 'Un masso enorme blocca il sentiero. Forse puoi spostarlo con la forza.', success: 'Con uno sforzo poderoso sposti il masso, liberando il passaggio.', failure: 'Il masso non si muove di un centimetro. Ti procuri solo qualche graffio.' },
+  ],
+  DEX: [
+    { prompt: 'Una vecchia serratura protegge un baule incastrato tra le rocce.', success: 'Le tue dita agili fanno scattare la serratura al primo tentativo.', failure: 'Il meccanismo si inceppa e la serratura si blocca per sempre.' },
+  ],
+  AGI: [
+    { prompt: 'Un crepaccio si apre davanti a te. Dall\'altra parte intravedi qualcosa di luccicante.', success: 'Con un salto agile superi il crepaccio e atterri perfettamente.', failure: 'Il salto non basta: scivoli e devi aggrapparti al bordo, perdendo l\'occasione.' },
+  ],
+  VIT: [
+    { prompt: 'Una nube di spore tossiche avvolge una radura ricca di erbe rare.', success: 'Il tuo fisico resistente sopporta le spore mentre raccogli le erbe.', failure: 'Le spore ti soffocano: devi ritirarti senza raccogliere nulla.' },
+  ],
+  RES: [
+    { prompt: 'Un sentiero gelido sale lungo il fianco di una collina battuta dal vento.', success: 'Sopporti il freddo pungente e raggiungi la cima senza cedere.', failure: 'Il gelo ti sfianca e sei costretto a tornare indietro.' },
+  ],
+  MEN: [
+    { prompt: 'Un\'incisione antica copre una lastra di pietra. Sembra nascondere un significato.', success: 'Concentrandoti, decifri i simboli e comprendi il messaggio nascosto.', failure: 'I simboli restano un mistero indecifrabile.' },
+  ],
+  INT: [
+    { prompt: 'Un congegno meccanico arrugginito custodisce un piccolo scrigno.', success: 'Studi il congegno e ne intuisci il funzionamento, aprendolo.', failure: 'Il congegno è troppo complesso e si blocca definitivamente.' },
+  ],
+};
+
+// === SCENE NARRATIVE (eventi a bivio) ===
+export const NARRATIVE_SCENES: NarrativeScene[] = [
+  {
+    id: 'wounded-traveler',
+    prompt: 'Un viandante ferito è appoggiato a un albero. Ti chiede dell\'acqua e un momento di riposo. I suoi occhi sono sinceri... o almeno sembrano.',
+    options: [
+      { label: 'Aiutalo', success: { type: 'reward', itemPool: 'npc_gift_pool', text: 'Riconoscente, il viandante ti dona qualcosa prima di rimettersi in cammino.' } },
+      { label: 'Ignoralo e prosegui', success: { type: 'nothing', text: 'Tiri dritto. Il viandante ti guarda allontanarti in silenzio.' } },
+      { label: 'Perquisiscilo con la forza', check: { stat: 'STR', difficulty: 16 },
+        success: { type: 'reward', itemPool: 'common', text: 'Lo immobilizzi e prendi ciò che ha. Non è molto, ma è tuo.' },
+        failure: { type: 'risk', text: 'Il viandante si rivela più forte del previsto e reagisce!' } },
+    ],
+  },
+  {
+    id: 'mysterious-altar',
+    prompt: 'Un altare di pietra sorge in una radura silenziosa. Un\'iscrizione promette una "benedizione" a chi vi posa la mano. Ma qualcosa nell\'aria ti mette a disagio.',
+    options: [
+      { label: 'Posa la mano sull\'altare', success: { type: 'heal', text: 'Un calore avvolgente ti pervade. Ti senti ristorato.' } },
+      { label: 'Studia l\'iscrizione prima', check: { stat: 'MEN', difficulty: 12 },
+        success: { type: 'lore', loreId: 'altar-truth', text: 'Decifri l\'iscrizione: rivela un frammento della storia di Aincrad.' },
+        failure: { type: 'nothing', text: 'Non riesci a interpretare i simboli. Lasci l\'altare intatto.' } },
+      { label: 'Allontanati', success: { type: 'nothing', text: 'Decidi di non rischiare. A volte la prudenza è la scelta migliore.' } },
+    ],
+  },
+  {
+    id: 'abandoned-cart',
+    prompt: 'Un carro rovesciato giace sul sentiero, le merci sparse nel fango. Nessuno in vista. Potrebbe esserci ancora qualcosa di utile... o potrebbe essere un\'esca.',
+    options: [
+      { label: 'Fruga tra le merci', check: { stat: 'DEX', difficulty: 12 },
+        success: { type: 'reward', itemPool: 'uncommon', text: 'Tra i rottami trovi qualcosa che vale la pena tenere.' },
+        failure: { type: 'nothing', text: 'Solo merce rovinata e inutile.' } },
+      { label: 'Prosegui senza fermarti', success: { type: 'nothing', text: 'Lasci il carro alle tue spalle.' } },
+    ],
+  },
+];
+
+// === FRAMMENTI DI LORE (cartografia / collezione) ===
+export const LORE_FRAGMENTS: LoreFragment[] = [
+  { id: 'altar-truth', title: 'L\'Altare Dimenticato', text: 'Gli altari delle Grandi Pianure furono eretti dai primi mappatori, che li usavano come punti di ristoro lungo le rotte verso i piani superiori.' },
+  { id: 'windmill-origin', title: 'I Mulini Silenziosi', text: 'I mulini a vento non macinano nulla: sono sensori atmosferici lasciati dal sistema. Le loro pale misurano i venti che annunciano i cambi di zona.' },
+  { id: 'forest-heart', title: 'Il Cuore del Bosco', text: 'Si dice che nel folto del Bosco Rigoglioso cresca un albero più antico di Aincrad stessa, le cui radici toccano il piano sottostante.' },
+];
+
+export function getLoreById(id: string): LoreFragment | undefined {
+  return LORE_FRAGMENTS.find((l) => l.id === id);
+}

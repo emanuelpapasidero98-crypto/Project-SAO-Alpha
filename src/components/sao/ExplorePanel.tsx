@@ -8,14 +8,23 @@ import {
   type ZoneNode,
   type ZoneEvent,
   type ExploreState,
+  type SubAreaCheckpoint,
+  type ExploreStatKey,
+  type ExploreOutcome,
+  type EndingType,
   createInitialExploreState,
 } from '@/lib/sao-explore-types';
 import {
   EXPLORE_AREAS,
   getSubAreasForArea,
   getSubAreaById,
+  SKILL_CHECK_PROMPTS,
+  NARRATIVE_SCENES,
+  LORE_FRAGMENTS,
+  getLoreById,
+  LOOT_TABLES,
 } from '@/lib/sao-explore-data';
-import { generateSubAreaRun, generateSeed, getChestLoot } from '@/lib/sao-explore-engine';
+import { generateSubAreaRun, generateSeed, getChestLoot, revealNeighbors } from '@/lib/sao-explore-engine';
 import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
 import type { Item, EquipmentState } from '@/lib/sao-inventory-types';
 import { BAG_MAX_ITEMS } from '@/lib/sao-inventory-types';
@@ -40,6 +49,8 @@ interface ExplorePanelProps {
   onUnequip?: (slot: string) => void;
   // Cheats
   cheats?: { skipEvents: boolean; immortal: boolean; instakill: boolean; infiniteCol: boolean };
+  // Le 7 statistiche effettive del giocatore (per skill check — Fase B)
+  playerStats?: Partial<Record<ExploreStatKey, number>>;
 }
 
 const EVENT_LABELS: Record<string, { label: string; color: string; icon: string }> = {
@@ -50,9 +61,15 @@ const EVENT_LABELS: Record<string, { label: string; color: string; icon: string 
   questNpc: { label: 'NPC Quest', color: '#3b82f6', icon: '✦' },
   playerKiller: { label: 'Player Killer!', color: '#BE2156', icon: '☠' },
   distressNpc: { label: 'NPC in Difficoltà', color: '#EBA601', icon: '!' },
+  skillCheck: { label: 'Prova', color: '#9b6dff', icon: '◎' },
+  narrative: { label: 'Incontro', color: '#5CC4F0', icon: '❖' },
+  gathering: { label: 'Raccolta', color: '#7FC522', icon: '✿' },
+  shrine: { label: 'Santuario', color: '#EBA601', icon: '⛩' },
+  vista: { label: 'Panorama', color: '#5CC4F0', icon: '⛰' },
+  ending: { label: 'Finale', color: '#FBFBFB', icon: '★' },
 };
 
-export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest, items = [], equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip, cheats }: ExplorePanelProps) {
+export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest, items = [], equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip, cheats, playerStats }: ExplorePanelProps) {
   const { play } = useSaoSound();
   const [exploreState, setExploreState] = useState<ExploreState>(createInitialExploreState);
   const [run, setRun] = useState<SubAreaRun | null>(null);
@@ -62,10 +79,15 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   const [showManagePanel, setShowManagePanel] = useState(false);
   const [foundItem, setFoundItem] = useState<string | null>(null);
   const [showCheckmark, setShowCheckmark] = useState<string | null>(null);
+  // Fase B: nuovi modali + toast
+  const [skillCheckEvent, setSkillCheckEvent] = useState<ZoneEvent | null>(null);
+  const [narrativeEvent, setNarrativeEvent] = useState<ZoneEvent | null>(null);
+  const [chestChoiceEvent, setChestChoiceEvent] = useState<ZoneEvent | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const areaDef = EXPLORE_AREAS.find((a) => a.id === areaId);
   const subAreas = areaDef ? getSubAreasForArea(areaId) : [];
-  const currentZone = run?.zones[run.currentZoneIndex];
+  const currentNode = run ? run.nodes[run.currentNodeId] : null;
   const activeSubAreaDef = activeSubAreaId ? getSubAreaById(activeSubAreaId) : null;
 
   // Sound on open
@@ -119,86 +141,96 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     play('click', 0.5);
   }, [exploreState, play]);
 
-  // Advance zone
-  const handleAdvance = useCallback(() => {
+  // Viaggia verso un nodo connesso (scelta del percorso ai bivi)
+  const handleChooseNode = useCallback((nextNodeId: string) => {
+    if (!run) return;
+    const current = run.nodes[run.currentNodeId];
+    if (!current || !current.connections.includes(nextNodeId)) return;
+
+    // gating: almeno 2 eventi risolti (tranne terminale; il landmark usa handleComplete)
+    if (current.terrain !== 'terminal' && !current.isLandmark && !cheats?.skipEvents) {
+      const resolved = current.events.filter((e) => e.resolved).length;
+      if (resolved < 2) { play('warning', 0.3); return; }
+    }
+
+    const nodes = { ...run.nodes };
+    nodes[run.currentNodeId] = {
+      ...current,
+      cleared: true,
+      events: current.events.map((ev) => ({ ...ev, resolved: true })),
+    };
+    revealNeighbors(nodes, nextNodeId);
+
+    setRun({
+      ...run,
+      nodes,
+      currentNodeId: nextNodeId,
+      visitedNodeIds: [...run.visitedNodeIds, nextNodeId],
+      stats: { ...run.stats, nodesVisited: run.visitedNodeIds.length + 1 },
+    });
+    play('click', 0.3);
+  }, [run, play, cheats]);
+
+  // Completa la sotto-area dal nodo finale (landmark)
+  // Fase A: mostra il checkmark esistente. Fase C: sostituisce con la schermata riepilogo + gestione ending.
+  const handleComplete = useCallback(() => {
     if (!run || !activeSubAreaId) return;
-
-    // Blocca avanzamento se non sono risolti almeno 2 eventi (a meno che skipEvents non sia attivo)
-    const currentZone = run.zones[run.currentZoneIndex];
-    if (currentZone && currentZone.terrain !== 'terminal' && !cheats?.skipEvents) {
-      const resolvedCount = currentZone.events.filter((e) => e.resolved).length;
-      if (resolvedCount < 2) {
-        play('warning', 0.3);
-        return;
-      }
-    }
-
-    const updatedZones = run.zones.map((z, i) =>
-      i === run.currentZoneIndex
-        ? { ...z, cleared: true, events: z.events.map((ev) => ({ ...ev, resolved: true })) }
-        : z,
-    );
-    const nextIndex = run.currentZoneIndex + 1;
-
-    if (nextIndex >= 8) {
-      // Completed!
-      setRun({ ...run, zones: updatedZones, currentZoneIndex: 7 });
-      setExploreState((prev) => ({
-        ...prev,
-        subAreaProgress: {
-          ...prev.subAreaProgress,
-          [activeSubAreaId]: { status: 'completed' },
-        },
-        activeRun: null,
-      }));
-      setShowCheckmark(activeSubAreaId);
-      play('present', 0.5);
-      setTimeout(() => {
-        setShowCheckmark(null);
-        setView('subareas');
-        setRun(null);
-        setActiveSubAreaId(null);
-      }, 2500);
-    } else {
-      setRun({ ...run, zones: updatedZones, currentZoneIndex: nextIndex });
-      play('click', 0.3);
-    }
-  }, [run, activeSubAreaId, play, cheats]);
+    const current = run.nodes[run.currentNodeId];
+    if (!current?.isLandmark) return;
+    setExploreState((prev) => ({
+      ...prev,
+      subAreaProgress: { ...prev.subAreaProgress, [activeSubAreaId]: { status: 'completed' } },
+      activeRun: null,
+    }));
+    setShowCheckmark(activeSubAreaId);
+    play('present', 0.5);
+    setTimeout(() => {
+      setShowCheckmark(null);
+      setView('subareas');
+      setRun(null);
+      setActiveSubAreaId(null);
+    }, 2500);
+  }, [run, activeSubAreaId, play]);
 
   // Resolve event — marks the event as resolved so it can't be clicked again.
   // EXCEPTION: terminal events are NEVER marked as resolved (reusable — can be
   // clicked multiple times to access rest/checkpoint/manage bag repeatedly).
+  // skillCheck/narrative/chest (Fase B) si auto-marcano risolti nelle rispettive risoluzioni,
+  // quindi NON passano dal blocco generico di marcatura a monte (come terminal).
   const handleResolveEvent = useCallback((event: ZoneEvent) => {
     if (event.resolved) return;
     if (!run) return;
+    const current = run.nodes[run.currentNodeId];
+    if (!current) return;
 
-    // Terminal events are reusable — don't mark as resolved
-    if (event.type !== 'terminal') {
-      const updatedZones = run.zones.map((z, i) => {
-        if (i !== run.currentZoneIndex) return z;
-        return {
-          ...z,
-          events: z.events.map((ev) =>
-            ev === event ? { ...ev, resolved: true } : ev
-          ),
-        };
-      });
-      setRun({ ...run, zones: updatedZones });
+    // Tipi che NON vengono marcati risolti qui (gestiti dalle loro risoluzioni)
+    const selfResolvedTypes = new Set(['terminal', 'skillCheck', 'narrative', 'chest']);
+    if (!selfResolvedTypes.has(event.type)) {
+      const nodes = { ...run.nodes };
+      nodes[run.currentNodeId] = {
+        ...current,
+        events: current.events.map((ev) => (ev === event ? { ...ev, resolved: true } : ev)),
+      };
+      setRun({ ...run, nodes, stats: { ...run.stats, eventsResolved: run.stats.eventsResolved + 1 } });
     }
 
     switch (event.type) {
       case 'chest': {
-        const itemId = getChestLoot(event);
-        if (itemId) {
-          const item = SAMPLE_ITEMS.find((i) => i.id === itemId);
-          if (item) {
-            setFoundItem(item.name);
-            onItemFound?.(itemId);
-            play('present', 0.4);
-          }
-        } else {
+        // Forziere con micro-scelta: apri il modale (NON marcare risolto qui)
+        if (event.payload.empty) {
+          // Forziere vuoto → salta la scelta, mostra direttamente
           setFoundItem('Forziere vuoto...');
           play('click', 0.3);
+          // marca risolto ora
+          const nodes = { ...run.nodes };
+          nodes[run.currentNodeId] = {
+            ...current,
+            events: current.events.map((ev) => (ev === event ? { ...ev, resolved: true } : ev)),
+          };
+          setRun({ ...run, nodes, stats: { ...run.stats, eventsResolved: run.stats.eventsResolved + 1 } });
+        } else {
+          setChestChoiceEvent(event);
+          play('popupPanel', 0.4);
         }
         break;
       }
@@ -217,8 +249,167 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
         // TODO(quest-system)
         play('message', 0.4);
         break;
+      case 'skillCheck':
+        // Apri modale skill check (la risoluzione marca risolto)
+        setSkillCheckEvent(event);
+        play('popupPanel', 0.4);
+        break;
+      case 'narrative':
+        // Apri modale narrativa (la risoluzione marca risolto)
+        setNarrativeEvent(event);
+        play('popupPanel', 0.4);
+        break;
+      case 'gathering': {
+        const t = event.payload.resourceType as string;
+        const n = event.payload.amount as number;
+        const labels: Record<string, string> = { herb: 'erbe', mineral: 'minerali', wood: 'legno' };
+        showToast(`Hai raccolto ${n}× ${labels[t] ?? t}.`);
+        play('present', 0.3);
+        break;
+      }
+      case 'shrine': {
+        showToast('Preghi al santuario. Una sensazione di pace ti pervade.');
+        play('welcome', 0.3);
+        break;
+      }
+      case 'vista': {
+        // VISTA: rivela i nodi 2 layer più avanti (fog)
+        const nodes = { ...run.nodes };
+        const cur = nodes[run.currentNodeId];
+        let frontier = [...cur.connections];
+        for (let step = 0; step < 2; step++) {
+          const nextFrontier: string[] = [];
+          for (const id of frontier) {
+            if (nodes[id]) {
+              nodes[id].revealed = true;
+              nextFrontier.push(...nodes[id].connections);
+            }
+          }
+          frontier = nextFrontier;
+        }
+        setRun({ ...run, nodes });
+        showToast('Dal punto panoramico scorgi il sentiero più avanti.');
+        play('system', 0.3);
+        break;
+      }
+      case 'ending':
+        // Gestito da handleComplete (Fase C)
+        break;
     }
-  }, [run, onItemFound, play]);
+  }, [run, onItemFound, play, showToast]);
+
+  // === FASE B: skill check + narrativa + forziere con micro-scelta ===
+
+  // PROBABILITÀ DI SUCCESSO — unico punto da tarare. statValue e difficulty sono sulla stessa
+  // scala delle 7 statistiche (~1..90). Se statValue === difficulty → 50%. Ogni punto di scarto
+  // sposta ±3%. Clamp 10%..95% (mai vittoria/sconfitta automatica).
+  function skillCheckChance(statValue: number, difficulty: number): number {
+    const raw = 0.5 + (statValue - difficulty) * 0.03;
+    return Math.max(0.10, Math.min(0.95, raw));
+  }
+
+  // helper: pesca un item ID da una pool di LOOT_TABLES (usa Math.random: è una ricompensa runtime)
+  function pickFromPool(poolKey: string): string | undefined {
+    const pool = (LOOT_TABLES as Record<string, string[]>)[poolKey] ?? LOOT_TABLES.common;
+    if (!pool.length) return undefined;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // helper: mostra un toast non-bloccante (scompare dopo 2.5s)
+  const showToast = useCallback((text: string) => {
+    setToast(text);
+    setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  // Risolve uno skill check: singolo tiro a runtime (anti-save-scumming)
+  const resolveSkillCheck = useCallback((event: ZoneEvent, stat: ExploreStatKey, difficulty: number, rewardPool: string) => {
+    const value = playerStats?.[stat] ?? 1;
+    const chance = skillCheckChance(value, difficulty);
+    const success = Math.random() < chance;
+
+    if (run) {
+      const current = run.nodes[run.currentNodeId];
+      const nodes = { ...run.nodes };
+      nodes[run.currentNodeId] = {
+        ...current,
+        events: current.events.map((ev) => ev === event ? { ...ev, resolved: true, payload: { ...ev.payload, success, chance } } : ev),
+      };
+      setRun({
+        ...run, nodes, stats: {
+          ...run.stats,
+          eventsResolved: run.stats.eventsResolved + 1,
+          skillChecksPassed: run.stats.skillChecksPassed + (success ? 1 : 0),
+          skillChecksFailed: run.stats.skillChecksFailed + (success ? 0 : 1),
+        },
+      });
+    }
+
+    if (success) {
+      const itemId = pickFromPool(rewardPool);
+      if (itemId) {
+        const item = SAMPLE_ITEMS.find((i) => i.id === itemId);
+        if (item) {
+          onItemFound?.(item.id);
+          setRun((prev) => prev ? { ...prev, stats: { ...prev.stats, itemsFound: prev.stats.itemsFound + 1 } } : prev);
+          showToast(`Prova superata! Ottieni: ${item.name}`);
+        } else {
+          showToast('Prova superata!');
+        }
+      } else {
+        showToast('Prova superata!');
+      }
+      play('present', 0.4);
+    } else {
+      showToast('Prova fallita.');
+      play('alert', 0.3);
+    }
+  }, [run, playerStats, onItemFound, play, showToast]);
+
+  // Applica un ExploreOutcome (per narrativa e forziere)
+  const applyOutcome = useCallback((outcome: ExploreOutcome) => {
+    switch (outcome.type) {
+      case 'reward': {
+        if (outcome.itemPool) {
+          const itemId = pickFromPool(outcome.itemPool);
+          if (itemId) {
+            const item = SAMPLE_ITEMS.find((i) => i.id === itemId);
+            if (item) {
+              onItemFound?.(item.id);
+              setRun((prev) => prev ? { ...prev, stats: { ...prev.stats, itemsFound: prev.stats.itemsFound + 1 } } : prev);
+            }
+          }
+        }
+        showToast(outcome.text);
+        play('present', 0.4);
+        break;
+      }
+      case 'lore': {
+        if (outcome.loreId) {
+          setRun((prev) => prev ? { ...prev, stats: { ...prev.stats, loreFound: prev.stats.loreFound + 1 } } : prev);
+        }
+        showToast(outcome.text);
+        play('system', 0.4);
+        break;
+      }
+      case 'heal': {
+        onRest?.();
+        showToast(outcome.text);
+        play('welcome', 0.4);
+        break;
+      }
+      case 'risk': {
+        showToast(outcome.text + ' (Combattimento — TODO)');
+        play('alert', 0.4);
+        // TODO(combat-system): innesca combattimento
+        break;
+      }
+      case 'nothing':
+      default:
+        showToast(outcome.text);
+        play('click', 0.3);
+        break;
+    }
+  }, [onItemFound, onRest, play, showToast]);
 
   const handleTerminalRest = useCallback(() => {
     onRest?.();
@@ -234,11 +425,13 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
         ...prev.subAreaCheckpoints,
         [activeSubAreaId]: {
           seed: run.seed,
-          zoneIndex: run.currentZoneIndex,
+          depth: run.depth,
+          currentNodeId: run.currentNodeId,
+          visitedNodeIds: run.visitedNodeIds,
           spawnedTrapChest: run.spawnedTrapChest,
           spawnedQuestNpc: run.spawnedQuestNpc,
           spawnedDistressNpc: run.spawnedDistressNpc,
-        },
+        } satisfies SubAreaCheckpoint,
       },
     }));
     play('system', 0.4);
@@ -345,7 +538,10 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           )}
 
           {/* === EXPLORING === */}
-          {view === 'exploring' && run && currentZone && activeSubAreaDef && (
+          {view === 'exploring' && run && currentNode && activeSubAreaDef && (() => {
+            const resolvedCount = currentNode.events.filter((e) => e.resolved).length;
+            const gatingOk = currentNode.terrain === 'terminal' || currentNode.isLandmark || resolvedCount >= 2 || !!cheats?.skipEvents;
+            return (
             <motion.div
               className="h-full flex flex-col items-center justify-center px-6 py-16 overflow-y-auto sao-scroll"
               initial={{ opacity: 0 }}
@@ -360,32 +556,14 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                 {activeSubAreaDef.name.toUpperCase()}
               </p>
 
-              {/* Zone path */}
-              <div className="flex items-center justify-center gap-1 mb-6">
-                {run.zones.map((zone, i) => (
-                  <div key={zone.id} className="flex items-center">
-                    <div
-                      className="flex items-center justify-center"
-                      style={{
-                        width: '28px', height: '28px', borderRadius: '50%',
-                        background: zone.cleared ? 'rgba(127,197,34,0.3)' : i === run.currentZoneIndex ? 'rgba(43,115,179,0.8)' : 'rgba(48,48,48,0.2)',
-                        border: `2px solid ${zone.cleared ? 'rgba(127,197,34,0.6)' : i === run.currentZoneIndex ? '#2B73B3' : 'rgba(43,115,179,0.2)'}`,
-                        color: zone.cleared ? '#3a7a0c' : i === run.currentZoneIndex ? '#FBFBFB' : 'rgba(251,251,251,0.3)',
-                        fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 400, fontSize: '0.6rem',
-                      }}
-                    >
-                      {zone.position}
-                    </div>
-                    {i < 7 && <div style={{ width: '20px', height: '2px', background: zone.cleared ? 'rgba(127,197,34,0.4)' : 'rgba(43,115,179,0.15)' }} />}
-                  </div>
-                ))}
-              </div>
+              {/* Mini-mappa a grafo con fog-of-war */}
+              <ExploreMap run={run} onChooseNode={handleChooseNode} gatingOk={gatingOk} />
 
-              {/* Current zone card — same style as SubAreaCard (white borders, VR hover) */}
-              <ZoneCard currentZone={currentZone} run={run} onResolveEvent={handleResolveEvent} onAdvance={handleAdvance} cheats={cheats} />
+              {/* Current node card — same style as SubAreaCard (white borders, VR hover) */}
+              <ZoneCard currentNode={currentNode} run={run} onResolveEvent={handleResolveEvent} onChooseNode={handleChooseNode} onComplete={handleComplete} cheats={cheats} />
             </motion.div>
-          )}
+            );
+          })()}
 
           {/* === COMPLETION CHECKMARK (non-invasive) === */}
           <AnimatePresence>
@@ -505,9 +683,415 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* === FASE B: SKILL CHECK MODAL === */}
+          <AnimatePresence>
+            {skillCheckEvent && (
+              <SkillCheckModal
+                event={skillCheckEvent}
+                playerStats={playerStats}
+                onResolve={(s, d, p) => resolveSkillCheck(skillCheckEvent, s, d, p)}
+                onClose={() => setSkillCheckEvent(null)}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* === FASE B: NARRATIVE MODAL === */}
+          <AnimatePresence>
+            {narrativeEvent && (
+              <NarrativeModal
+                event={narrativeEvent}
+                playerStats={playerStats}
+                onChoose={(optionIndex) => {
+                  const scene = NARRATIVE_SCENES.find((s) => s.id === narrativeEvent.payload.sceneId);
+                  if (!scene || !run) return;
+                  const opt = scene.options[optionIndex];
+                  if (!opt) return;
+
+                  // Se l'opzione ha un check: risolvi come skill check
+                  let success = true;
+                  if (opt.check) {
+                    const value = playerStats?.[opt.check.stat] ?? 1;
+                    const chance = skillCheckChance(value, opt.check.difficulty);
+                    success = Math.random() < chance;
+                  }
+
+                  // marca risolto + aggiorna stats
+                  const current = run.nodes[run.currentNodeId];
+                  const nodes = { ...run.nodes };
+                  nodes[run.currentNodeId] = {
+                    ...current,
+                    events: current.events.map((ev) => ev === narrativeEvent ? { ...ev, resolved: true } : ev),
+                  };
+                  setRun({
+                    ...run, nodes, stats: {
+                      ...run.stats,
+                      eventsResolved: run.stats.eventsResolved + 1,
+                      skillChecksPassed: run.stats.skillChecksPassed + (opt.check && success ? 1 : 0),
+                      skillChecksFailed: run.stats.skillChecksFailed + (opt.check && !success ? 1 : 0),
+                    },
+                  });
+
+                  // applica l'esito
+                  const outcome = success ? opt.success : (opt.failure ?? opt.success);
+                  applyOutcome(outcome);
+
+                  setNarrativeEvent(null);
+                }}
+                onClose={() => setNarrativeEvent(null)}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* === FASE B: CHEST CHOICE MODAL === */}
+          <AnimatePresence>
+            {chestChoiceEvent && (
+              <ChestChoiceModal
+                event={chestChoiceEvent}
+                onOpenNow={() => {
+                  if (!run) return;
+                  const event = chestChoiceEvent;
+                  const trapped = !!event.payload.trapped;
+                  const trapTriggered = trapped && Math.random() < 0.5;
+
+                  // marca risolto
+                  const current = run.nodes[run.currentNodeId];
+                  const nodes = { ...run.nodes };
+                  nodes[run.currentNodeId] = {
+                    ...current,
+                    events: current.events.map((ev) => ev === event ? { ...ev, resolved: true } : ev),
+                  };
+                  setRun({ ...run, nodes, stats: { ...run.stats, eventsResolved: run.stats.eventsResolved + 1 } });
+
+                  if (trapTriggered) {
+                    showToast('Trappola! Scatta un meccanismo ostile. (Combattimento — TODO)');
+                    play('alert', 0.4);
+                    // TODO(combat-system): innesca combattimento trappola
+                  } else {
+                    const itemId = getChestLoot(event);
+                    if (itemId) {
+                      const item = SAMPLE_ITEMS.find((i) => i.id === itemId);
+                      if (item) {
+                        setFoundItem(item.name);
+                        onItemFound?.(itemId);
+                        setRun((prev) => prev ? { ...prev, stats: { ...prev.stats, itemsFound: prev.stats.itemsFound + 1 } } : prev);
+                        play('present', 0.4);
+                      }
+                    }
+                  }
+                  setChestChoiceEvent(null);
+                }}
+                onInspect={() => {
+                  if (!run) return;
+                  const event = chestChoiceEvent;
+                  const trapped = !!event.payload.trapped;
+                  // DEX check difficoltà 12
+                  const value = playerStats?.DEX ?? 1;
+                  const chance = skillCheckChance(value, 12);
+                  const success = Math.random() < chance;
+
+                  // marca risolto
+                  const current = run.nodes[run.currentNodeId];
+                  const nodes = { ...run.nodes };
+                  nodes[run.currentNodeId] = {
+                    ...current,
+                    events: current.events.map((ev) => ev === event ? { ...ev, resolved: true } : ev),
+                  };
+                  setRun({
+                    ...run, nodes, stats: {
+                      ...run.stats,
+                      eventsResolved: run.stats.eventsResolved + 1,
+                      skillChecksPassed: run.stats.skillChecksPassed + (success ? 1 : 0),
+                      skillChecksFailed: run.stats.skillChecksFailed + (success ? 0 : 1),
+                    },
+                  });
+
+                  if (success) {
+                    // Disinnesca la trappola (se presente) e ottieni l'item in sicurezza
+                    const itemId = getChestLoot(event);
+                    if (itemId) {
+                      const item = SAMPLE_ITEMS.find((i) => i.id === itemId);
+                      if (item) {
+                        setFoundItem(`${item.name}${trapped ? ' (trappola disinnesata)' : ''}`);
+                        onItemFound?.(itemId);
+                        setRun((prev) => prev ? { ...prev, stats: { ...prev.stats, itemsFound: prev.stats.itemsFound + 1 } } : prev);
+                        play('present', 0.4);
+                      }
+                    }
+                  } else if (trapped) {
+                    // Fallimento su trapped → la trappola scatta
+                    showToast('Ispezione fallita! La trappola scatta. (Combattimento — TODO)');
+                    play('alert', 0.4);
+                    // TODO(combat-system)
+                  } else {
+                    // Forziere non intrappolato, ispezione fallita ma niente trappola
+                    const itemId = getChestLoot(event);
+                    if (itemId) {
+                      const item = SAMPLE_ITEMS.find((i) => i.id === itemId);
+                      if (item) {
+                        setFoundItem(item.name);
+                        onItemFound?.(itemId);
+                        setRun((prev) => prev ? { ...prev, stats: { ...prev.stats, itemsFound: prev.stats.itemsFound + 1 } } : prev);
+                        play('present', 0.4);
+                      }
+                    }
+                  }
+                  setChestChoiceEvent(null);
+                }}
+                onClose={() => setChestChoiceEvent(null)}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* === FASE B: TOAST (non-bloccante) === */}
+          <AnimatePresence>
+            {toast && <ExploreToast text={toast} />}
+          </AnimatePresence>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/* ---------- Skill Check Modal (Fase B) ---------- */
+
+function SkillCheckModal({ event, playerStats, onResolve, onClose }: {
+  event: ZoneEvent;
+  playerStats?: Partial<Record<ExploreStatKey, number>>;
+  onResolve: (stat: ExploreStatKey, difficulty: number, rewardPool: string) => void;
+  onClose: () => void;
+}) {
+  const stat = event.payload.stat as ExploreStatKey;
+  const difficulty = event.payload.difficulty as number;
+  const promptIdx = event.payload.promptIdx as number;
+  const rewardPool = event.payload.rewardPool as string;
+  const def = SKILL_CHECK_PROMPTS[stat]?.[promptIdx];
+  const value = playerStats?.[stat] ?? 1;
+  const done = !!event.resolved;
+  const success = event.payload.success as boolean | undefined;
+
+  // PROBABILITÀ DI SUCCESSO (replicata per la UI — unico punto da tarare)
+  function chanceFn(sv: number, diff: number): number {
+    const raw = 0.5 + (sv - diff) * 0.03;
+    return Math.max(0.10, Math.min(0.95, raw));
+  }
+  const chance = Math.round(chanceFn(value, difficulty) * 100);
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ background: 'rgba(2,8,20,0.85)', backdropFilter: 'blur(6px)' }}
+    >
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="glass-panel p-6" style={{ minWidth: 'min(440px, 90vw)', borderColor: 'rgba(155,109,255,0.5)' }}
+      >
+        <h3 className="tracking-[0.3em] text-center mb-4" style={{ color: '#9b6dff', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '1rem' }}>
+          PROVA — {stat}
+        </h3>
+        {!done ? (
+          <>
+            <p className="mb-4 text-center" style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.85rem', lineHeight: 1.6 }}>
+              {def?.prompt}
+            </p>
+            <div className="flex justify-center gap-4 mb-4" style={{ fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.7rem', letterSpacing: '0.1em' }}>
+              <span style={{ color: 'rgba(251,251,251,0.6)' }}>STATISTICA: <span style={{ color: '#9b6dff' }}>{stat} {value}</span></span>
+              <span style={{ color: 'rgba(251,251,251,0.6)' }}>DIFFICOLTÀ: <span style={{ color: '#EBA601' }}>{difficulty}</span></span>
+              <span style={{ color: 'rgba(251,251,251,0.6)' }}>PROBABILITÀ: <span style={{ color: '#7FC522' }}>{chance}%</span></span>
+            </div>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => onResolve(stat, difficulty, rewardPool)}
+                className="px-5 py-2"
+                style={{
+                  background: 'linear-gradient(135deg, #9b6dff 0%, #6b3fcc 100%)',
+                  boxShadow: '0 0 20px rgba(155,109,255,0.5), inset 0 0 8px rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+                  color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em', cursor: 'pointer',
+                }}
+              >
+                TENTA {stat}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mb-4 text-center" style={{ color: success ? '#7FC522' : '#BE2156', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.9rem', lineHeight: 1.6 }}>
+              {success ? def?.success : def?.failure}
+            </p>
+            <div className="flex justify-center">
+              <button
+                onClick={onClose}
+                className="px-5 py-2"
+                style={{
+                  background: 'rgba(43,115,179,0.8)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+                  color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em', cursor: 'pointer',
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ---------- Narrative Modal (Fase B) ---------- */
+
+function NarrativeModal({ event, playerStats, onChoose, onClose }: {
+  event: ZoneEvent;
+  playerStats?: Partial<Record<ExploreStatKey, number>>;
+  onChoose: (optionIndex: number) => void;
+  onClose: () => void;
+}) {
+  const scene = NARRATIVE_SCENES.find((s) => s.id === event.payload.sceneId);
+  if (!scene) return null;
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ background: 'rgba(2,8,20,0.85)', backdropFilter: 'blur(6px)' }}
+    >
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="glass-panel p-6" style={{ minWidth: 'min(480px, 92vw)', maxWidth: '600px', borderColor: 'rgba(43,115,179,0.5)' }}
+      >
+        <h3 className="tracking-[0.3em] text-center mb-4" style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '1rem' }}>
+          INCONTRO
+        </h3>
+        <p className="mb-5" style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.85rem', lineHeight: 1.7 }}>
+          {scene.prompt}
+        </p>
+        <div className="flex flex-col gap-2">
+          {scene.options.map((opt, idx) => (
+            <button
+              key={idx}
+              onClick={() => onChoose(idx)}
+              className="px-4 py-2.5 text-left"
+              style={{
+                background: 'rgba(43,115,179,0.15)',
+                border: '1px solid rgba(43,115,179,0.4)',
+                clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+                color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem', cursor: 'pointer',
+              }}
+            >
+              {opt.label}
+              {opt.check && (
+                <span style={{ color: '#9b6dff', marginLeft: '8px', fontSize: '0.7rem' }}>
+                  [{opt.check.stat} {opt.check.difficulty}]
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ---------- Chest Choice Modal (Fase B) ---------- */
+
+function ChestChoiceModal({ event, onOpenNow, onInspect, onClose }: {
+  event: ZoneEvent;
+  onOpenNow: () => void;
+  onInspect: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ background: 'rgba(2,8,20,0.85)', backdropFilter: 'blur(6px)' }}
+    >
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="glass-panel p-6" style={{ minWidth: 'min(420px, 90vw)', borderColor: 'rgba(235,166,1,0.5)' }}
+      >
+        <h3 className="tracking-[0.3em] text-center mb-3" style={{ color: '#EBA601', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '1rem' }}>
+          FORZIERE
+        </h3>
+        <p className="mb-5 text-center" style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.85rem', lineHeight: 1.6 }}>
+          Un forziere riposa davanti a te. Potrebbe contenere un tesoro... o nascondere una trappola.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onOpenNow}
+            className="px-4 py-2.5"
+            style={{
+              background: 'linear-gradient(135deg, #EBA601 0%, #b07d00 100%)',
+              boxShadow: '0 0 16px rgba(235,166,1,0.4)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+              color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', letterSpacing: '0.15em', cursor: 'pointer',
+            }}
+          >
+            APRI SUBITO
+          </button>
+          <button
+            onClick={onInspect}
+            className="px-4 py-2.5"
+            style={{
+              background: 'rgba(92,196,240,0.15)',
+              border: '1px solid rgba(92,196,240,0.4)',
+              clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+              color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', letterSpacing: '0.15em', cursor: 'pointer',
+            }}
+          >
+            ISPEZIONA [DEX 12]
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2"
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(48,48,48,0.4)',
+              color: 'rgba(251,251,251,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.15em', cursor: 'pointer',
+            }}
+          >
+            LASCIA
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ---------- Explore Toast (Fase B) ---------- */
+
+function ExploreToast({ text }: { text: string }) {
+  return (
+    <motion.div
+      className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div
+        className="px-5 py-2.5"
+        style={{
+          background: 'rgba(8, 22, 40, 0.92)',
+          border: '1px solid rgba(92,196,240,0.4)',
+          clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        }}
+      >
+        <p style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem', letterSpacing: '0.05em', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+          {text}
+        </p>
+      </div>
+    </motion.div>
   );
 }
 
@@ -588,13 +1172,79 @@ function TerminalButton({ label, color, onClick }: { label: string; color: strin
   );
 }
 
+/* ---------- ExploreMap: mini-mappa a grafo con fog-of-war ---------- */
+
+function ExploreMap({ run, onChooseNode, gatingOk }: {
+  run: SubAreaRun;
+  onChooseNode: (nodeId: string) => void;
+  gatingOk: boolean; // true se il nodo corrente ha già ≥2 eventi risolti (o terminale/cheat)
+}) {
+  const current = run.nodes[run.currentNodeId];
+  const reachable = new Set(current?.connections ?? []);
+
+  return (
+    <div className="flex flex-col items-center gap-1.5 mb-6">
+      {run.layers.map((layerIds, d) => (
+        <div key={d} className="flex items-center justify-center gap-3">
+          {layerIds.map((id) => {
+            const node = run.nodes[id];
+            const isCurrent = id === run.currentNodeId;
+            const isReach = reachable.has(id) && gatingOk;
+            const fog = !node.revealed;
+
+            let bg = 'rgba(48,48,48,0.18)';
+            let border = 'rgba(43,115,179,0.2)';
+            let color = 'rgba(251,251,251,0.3)';
+            let glyph: string = String(node.position);
+
+            if (node.cleared) {
+              bg = 'rgba(127,197,34,0.3)'; border = 'rgba(127,197,34,0.6)'; color = '#3a7a0c'; glyph = '✓';
+            } else if (isCurrent) {
+              bg = 'rgba(43,115,179,0.85)'; border = '#2B73B3'; color = '#FBFBFB';
+            } else if (isReach) {
+              bg = 'rgba(92,196,240,0.25)'; border = '#5CC4F0'; color = '#5CC4F0';
+            } else if (fog) {
+              glyph = '?'; color = 'rgba(251,251,251,0.25)';
+            }
+            if (node.isTerminal && !node.cleared) glyph = '◈';
+            if (node.isLandmark && !node.cleared) glyph = fog ? '?' : '★';
+
+            return (
+              <button
+                key={id}
+                type="button"
+                disabled={!isReach}
+                onClick={isReach ? () => onChooseNode(id) : undefined}
+                className="flex items-center justify-center transition-all"
+                style={{
+                  width: '30px', height: '30px', borderRadius: '50%',
+                  background: bg, border: `2px solid ${border}`, color,
+                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem',
+                  cursor: isReach ? 'pointer' : 'default',
+                  boxShadow: isCurrent ? '0 0 14px rgba(43,115,179,0.6)' : isReach ? '0 0 10px rgba(92,196,240,0.5)' : 'none',
+                  animation: isReach ? 'saoPulse 1.6s ease-in-out infinite' : isCurrent ? 'saoPulse 2.4s ease-in-out infinite' : 'none',
+                }}
+                aria-label={fog ? 'Zona sconosciuta' : node.title}
+                title={fog ? '???' : node.title}
+              >
+                {glyph}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ---------- Zone Card with VR hover (same style as SubAreaCard) ---------- */
 
-function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
-  currentZone: ZoneNode;
+function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, cheats }: {
+  currentNode: ZoneNode;
   run: SubAreaRun;
   onResolveEvent: (event: ZoneEvent) => void;
-  onAdvance: () => void;
+  onChooseNode: (nodeId: string) => void;
+  onComplete: () => void;
   cheats?: { skipEvents: boolean; immortal: boolean; instakill: boolean; infiniteCol: boolean };
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -607,13 +1257,13 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
 
   // Typewriter effect per la descrizione lunga
   useEffect(() => {
-    if (!currentZone.longDescription) {
+    if (!currentNode.longDescription) {
       setTypedText('');
       return;
     }
     setIsTyping(true);
     setTypedText('');
-    const text = currentZone.longDescription;
+    const text = currentNode.longDescription;
     let i = 0;
     const interval = setInterval(() => {
       if (i < text.length) {
@@ -625,7 +1275,7 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
       }
     }, 15); // 15ms per carattere
     return () => clearInterval(interval);
-  }, [currentZone.id, currentZone.longDescription]);
+  }, [currentNode.id, currentNode.longDescription]);
 
   // Throttled mouse-move handler — uses RAF to coalesce events to 1 per frame
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -649,8 +1299,18 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
     });
   };
 
-  const resolvedCount = currentZone.events.filter((e) => e.resolved).length;
-  const canAdvance = currentZone.terrain === 'terminal' || resolvedCount >= 2 || !!cheats?.skipEvents;
+  const resolvedCount = currentNode.events.filter((e) => e.resolved).length;
+  const gatingOk = currentNode.terrain === 'terminal' || currentNode.isLandmark || resolvedCount >= 2 || !!cheats?.skipEvents;
+  const connections = currentNode.connections;
+
+  // Etichetta dinamica per il bottone del landmark in base all'esito (Fase C arricchirà)
+  const landmarkLabel: Record<string, string> = {
+    boss: 'AFFRONTA IL BOSS →',
+    treasure: 'RIVENDICA IL TESORO →',
+    horde: 'RESPINGI L\'ORDA →',
+    nothing: 'RAGGIUNGI IL CONFINE →',
+  };
+  const landmarkAccent = currentNode.ending === 'boss' || currentNode.ending === 'horde' ? '#BE2156' : undefined;
 
   return (
     <div
@@ -686,10 +1346,10 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
           className="tracking-[0.2em]"
           style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}
         >
-          ZONA {currentZone.position} — {currentZone.title}
+          ZONA {currentNode.position} — {currentNode.title}
         </h3>
         <span style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em' }}>
-          {currentZone.terrain.toUpperCase()}
+          {currentNode.terrain.toUpperCase()}
         </span>
       </div>
 
@@ -726,13 +1386,13 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
           opacity: 0.9,
         }}
       >
-        {currentZone.description}
+        {currentNode.description}
       </p>
 
       {/* Events — displayed as small square cards (same style as character panel equipment slots) */}
-      {currentZone.events.length > 0 ? (
+      {currentNode.events.length > 0 ? (
         <div className="grid grid-cols-6 gap-1.5 mb-4 max-w-md">
-          {currentZone.events.map((event, idx) => {
+          {currentNode.events.map((event, idx) => {
             const meta = EVENT_LABELS[event.type] || { label: event.type, color: '#999', icon: '?' };
             return (
               <EventSquareCard
@@ -753,9 +1413,10 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
         </p>
       )}
 
-      {/* Advance button + event counter */}
-      <div className="flex justify-between items-center">
-        {currentZone.terrain !== 'terminal' && (
+      {/* Destination chooser: dipende dal numero di connections del nodo */}
+      <div className="flex flex-col gap-2">
+        {/* contatore eventi (niente su terminale/landmark) */}
+        {currentNode.terrain !== 'terminal' && !currentNode.isLandmark && (
           <span
             style={{
               color: resolvedCount >= 2 ? 'rgba(127, 197, 34, 0.6)' : 'rgba(235, 166, 1, 0.6)',
@@ -763,31 +1424,90 @@ function ZoneCard({ currentZone, run, onResolveEvent, onAdvance, cheats }: {
               fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em',
             }}
           >
-            EVENTI: {resolvedCount}/{currentZone.events.length}
-            {resolvedCount < 2 ? ' (MIN 2)' : ''}
+            EVENTI: {resolvedCount}/{currentNode.events.length}{resolvedCount < 2 ? ' (MIN 2)' : ''}
           </span>
         )}
-        <button
-          onClick={onAdvance}
-          className="px-5 py-2 ml-auto"
-          style={{
-            background: canAdvance
-              ? 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)'
-              : 'rgba(48, 48, 48, 0.3)',
-            boxShadow: canAdvance
-              ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
-              : 'none',
-            border: '1px solid rgba(255,255,255,0.3)',
-            clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
-            color: '#FBFBFB',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
-            cursor: canAdvance ? 'pointer' : 'not-allowed',
-            opacity: canAdvance ? 1 : 0.5,
-          }}
-        >
-          {run.currentZoneIndex === 7 ? 'COMPLETA →' : 'AVANZA →'}
-        </button>
+
+        {/* NODO FINALE → completa */}
+        {currentNode.isLandmark ? (
+          <button
+            onClick={onComplete}
+            className="px-5 py-2 ml-auto"
+            style={{
+              background: landmarkAccent
+                ? `linear-gradient(135deg, #BE2156 0%, #8a1640 100%)`
+                : 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)',
+              boxShadow: landmarkAccent
+                ? '0 0 20px rgba(190,33,86,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
+                : '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
+              color: '#FBFBFB',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
+              cursor: 'pointer',
+            }}
+          >
+            {(currentNode.ending ? landmarkLabel[currentNode.ending] : 'AFFRONTA IL DESTINO →')}
+          </button>
+        ) : connections.length <= 1 ? (
+          /* un solo percorso → bottone AVANZA classico */
+          <button
+            onClick={() => gatingOk && connections[0] && onChooseNode(connections[0])}
+            disabled={!gatingOk}
+            className="px-5 py-2 ml-auto"
+            style={{
+              background: gatingOk
+                ? 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)'
+                : 'rgba(48, 48, 48, 0.3)',
+              boxShadow: gatingOk
+                ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
+                : 'none',
+              border: '1px solid rgba(255,255,255,0.3)',
+              clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
+              color: '#FBFBFB',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
+              cursor: gatingOk ? 'pointer' : 'not-allowed',
+              opacity: gatingOk ? 1 : 0.5,
+            }}
+          >
+            AVANZA →
+          </button>
+        ) : (
+          /* BIVIO: un bottone per destinazione, mostra il terreno (rivelato) */
+          <div className="flex flex-wrap gap-2 justify-end">
+            {connections.map((cid) => {
+              const dest = run.nodes[cid];
+              const label = dest?.revealed ? (dest.title?.toUpperCase() ?? '???') : '???';
+              return (
+                <button
+                  key={cid}
+                  onClick={() => gatingOk && onChooseNode(cid)}
+                  disabled={!gatingOk}
+                  className="px-4 py-2"
+                  style={{
+                    background: gatingOk
+                      ? 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)'
+                      : 'rgba(48, 48, 48, 0.3)',
+                    boxShadow: gatingOk
+                      ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
+                      : 'none',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
+                    color: '#FBFBFB',
+                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                    fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.15em',
+                    cursor: gatingOk ? 'pointer' : 'not-allowed',
+                    opacity: gatingOk ? 1 : 0.5,
+                  }}
+                >
+                  VAI: {label} →
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
