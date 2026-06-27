@@ -113,3 +113,33 @@ Stage Summary:
   - Assunzioni applicate: A1 (gerarchia 3 livelli), A2 (cap 2 prime 3 zone), A3 (priority mode default), A4 (flag per-run), A5 (quest differito), A6 (rarity + loot tables), A7 (dungeon 5ª sotto-area = solo dato), A8 (reputazione = solo flag)
   - Persist: non implementato (no Zustand) — stato in useState,非 persistito. TODO futuro.
   - Asset WARNING: non trovato asset grafico WARNING nel repo → placeholder testuale con colore #BE2156 da sostituire quando fornito
+
+---
+Task ID: FASE-A-B
+Agent: main
+Task: Rifinitura esplorazione SAO — FASE A (grafo) + FASE B (eventi ricchi)
+
+Work Log:
+- Verifiche 0.1: [A] stato locale in ExplorePanel (useState), nessuno store Zustand, persist NON necessaria; [B] knownBossPaths NON esiste, va aggiunto in Fase C; [C] playerStats da GameScreen (stats già presenti, mappate lowercase→uppercase)
+- Backup creato: BACKUP_20260627_071905 (3 posizioni: backups/, download/, /tmp)
+- FASE A completata:
+  - sao-explore-types.ts: ZoneNode→grafo (depth, connections, revealed, isTerminal, isLandmark, ending), SubAreaRun→nodes/layers/currentNodeId/visitedNodeIds/stats, SubAreaCheckpoint nuova shape
+  - sao-explore-engine.ts: generateSubAreaRun con grafo a layer (7-9 depth), rollZoneEvents con danger scaling, revealNeighbors, makeEnding, FIX makeDistressNpc (rng)
+  - ExplorePanel.tsx: ExploreMap (mini-mappa con fog-of-war), handleChooseNode + handleComplete, ZoneCard con chooser di destinazione, keyframe saoPulse
+  - globals.css: keyframe saoPulse
+- FASE B completata:
+  - Tipi: ExploreStatKey, ExploreOutcome, NarrativeOption, NarrativeScene, LoreFragment
+  - Dati: SKILL_CHECK_PROMPTS (7 stat), NARRATIVE_SCENES (3 scene), LORE_FRAGMENTS (3 lore)
+  - Engine: makeSkillCheck, makeNarrative, makeGathering, makeShrine, makeVista, makeChest con trappola, rollZoneEvents con discovery estesi
+  - UI: SkillCheckModal, NarrativeModal, ChestChoiceModal, ExploreToast, skillCheckChance, resolveSkillCheck, applyOutcome, vista reveal 2 layer
+  - GameScreen passa playerStats a ExplorePanel
+- tsc filtrato: pulito
+- next build: ok
+- Test visivo Fase A: ✓ verificato (7 layer, terminale ◈ al centro, fog-of-war, bivi)
+- Test visivo Fase B: non completato (dev server crasha con browser headless per WebGL context loss — problema di test, non di codice)
+
+Stage Summary:
+- Risultati: esplorazione ramificata con grafo + fog-of-war + tensione + 6 nuovi tipi di evento + modali + toast
+- File modificati: sao-explore-types.ts, sao-explore-data.ts, sao-explore-engine.ts, ExplorePanel.tsx, GameScreen.tsx, globals.css
+- Note/placeholder: TODO(combat-system) per boss/horde/trapChest/combat/PK/distressNpc; TODO(quest-system) per questNpc; TODO(crafting-system) per gathering
+- Prossimo passo: FASE C (finale, completamento, cartografia, fix typewriter, knownBossPaths)
