@@ -39,6 +39,8 @@ interface SaoHUDProps {
   energy?: BarValue;
   level?: number;
   playerName?: string;
+  /** Quando true, il componente è position:relative invece di fixed (per uso dentro altri container) */
+  embedded?: boolean;
 }
 
 const DEFAULT_HP: BarValue = { current: 300, max: 300 };
@@ -68,6 +70,7 @@ export default function SaoHUD({
   energy = DEFAULT_ENERGY,
   level = DEFAULT_LEVEL,
   playerName,
+  embedded = false,
 }: SaoHUDProps) {
   const { play } = useSaoSound();
   const [mounted, setMounted] = useState(false);
@@ -80,10 +83,10 @@ export default function SaoHUD({
 
   return (
     <motion.div
-      className="fixed top-4 left-4 z-30 select-none"
-      initial={{ opacity: 0, x: -30, y: -10 }}
-      animate={{ opacity: 1, x: 0, y: 0 }}
-      transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
+      className={embedded ? "relative z-30 select-none" : "fixed top-4 left-4 z-30 select-none"}
+      initial={embedded ? false : { opacity: 0, x: -30, y: -10 }}
+      animate={embedded ? {} : { opacity: 1, x: 0, y: 0 }}
+      transition={embedded ? {} : { duration: 0.6, ease: 'easeOut', delay: 0.2 }}
     >
       <div className="relative flex flex-col gap-[2px]">
         <SaoBar

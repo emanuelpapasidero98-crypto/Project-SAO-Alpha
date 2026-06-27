@@ -29,7 +29,7 @@ import { generateSubAreaRun, generateSeed, getChestLoot, revealNeighbors } from 
 import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
 import type { Item, EquipmentState } from '@/lib/sao-inventory-types';
 import { BAG_MAX_ITEMS } from '@/lib/sao-inventory-types';
-import type { BarValue } from './SaoHUD';
+import SaoHUD, { type BarValue } from './SaoHUD';
 import ItemDetailModal from './ItemDetailModal';
 
 /**
@@ -1595,7 +1595,7 @@ function RunSummary({ run, ending, onContinue }: {
   );
 }
 
-/* ---------- ExploreHUD: barre HP/MP/Energia compatte con VR hover ---------- */
+/* ---------- ExploreHUD: barre HP/MP/Energia IDENTICHE al game screen, con VR hover ---------- */
 
 function ExploreHUD({ hp, mp, energy, level, playerName }: {
   hp?: BarValue; mp?: BarValue; energy?: BarValue; level?: number; playerName?: string;
@@ -1613,7 +1613,7 @@ function ExploreHUD({ hp, mp, energy, level, playerName }: {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       setHover({
-        tilt: `perspective(600px) rotateX(${-(py - 0.5) * 6}deg) rotateY(${(px - 0.5) * 6}deg)`,
+        tilt: `perspective(800px) rotateX(${-(py - 0.5) * 8}deg) rotateY(${(px - 0.5) * 8}deg) scale3d(1.02, 1.02, 1.02)`,
         lightX: px * 100,
         lightY: py * 100,
       });
@@ -1621,18 +1621,12 @@ function ExploreHUD({ hp, mp, energy, level, playerName }: {
     });
   };
 
-  const bars = [
-    { label: 'HP', value: hp, color: '#7FC522' },
-    { label: 'MP', value: mp, color: '#2B73B3' },
-    { label: 'EN', value: energy, color: '#EBA601' },
-  ];
-
   return (
     <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
-      className="fixed top-4 right-4 z-30 select-none"
+      className="fixed top-4 left-4 z-30 select-none"
       style={{
         transform: hover?.tilt,
         transformStyle: 'preserve-3d',
@@ -1640,109 +1634,18 @@ function ExploreHUD({ hp, mp, energy, level, playerName }: {
         willChange: hover ? 'transform' : 'auto',
       }}
     >
-      {/* VR glow */}
+      {/* VR glow following cursor */}
       <div
         className="absolute inset-0 pointer-events-none transition-opacity duration-300"
         style={{
           opacity: hover ? 1 : 0,
-          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.12) 0%, transparent 60%)`,
+          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.15) 0%, transparent 50%)`,
           mixBlendMode: 'screen',
+          zIndex: 10,
         }}
       />
-      {playerName && (
-        <div
-          className="truncate text-center mb-1"
-          style={{
-            color: '#FBFBFB',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '0.6rem',
-            letterSpacing: '0.3em',
-            textShadow: '0 0 8px rgba(92,196,240,0.6), 0 1px 2px rgba(0,0,0,0.9)',
-          }}
-        >
-          {playerName.toUpperCase()}
-        </div>
-      )}
-      <div className="flex flex-col gap-1">
-        {bars.map(({ label, value, color }) => {
-          const current = value?.current ?? 0;
-          const max = value?.max ?? 1;
-          const pct = Math.max(0, Math.min(1, current / max));
-          return (
-            <div key={label} className="relative" style={{ width: '180px' }}>
-              {/* Label */}
-              <span
-                className="absolute left-1"
-                style={{
-                  top: '-0.5rem',
-                  color,
-                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                  fontWeight: 400,
-                  fontSize: '0.45rem',
-                  letterSpacing: '0.2em',
-                  textShadow: '0 0 4px rgba(0,0,0,0.9)',
-                  zIndex: 2,
-                  pointerEvents: 'none',
-                }}
-              >
-                {label}
-              </span>
-              {/* Bar background */}
-              <div
-                className="relative overflow-hidden"
-                style={{
-                  height: '14px',
-                  background: 'rgba(8,22,40,0.8)',
-                  border: '1px solid rgba(43,115,179,0.3)',
-                  clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)',
-                }}
-              >
-                {/* Bar fill */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: `${pct * 100}%`,
-                    background: `linear-gradient(90deg, ${color}aa, ${color})`,
-                    boxShadow: `0 0 8px ${color}66`,
-                    transition: 'width 0.4s ease-out',
-                  }}
-                />
-                {/* Value text */}
-                <span
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{
-                    color: '#FBFBFB',
-                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400,
-                    fontSize: '0.5rem',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.95)',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {current}/{max}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {level !== undefined && (
-        <div
-          className="text-right mt-1"
-          style={{
-            color: '#EBA601',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '0.5rem',
-            letterSpacing: '0.2em',
-            textShadow: '0 0 6px rgba(235,166,1,0.4), 0 1px 2px rgba(0,0,0,0.9)',
-          }}
-        >
-          LV {level}
-        </div>
-      )}
+      {/* Reuse the EXACT same SaoHUD component from the game screen (PNG bars) */}
+      <SaoHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} embedded />
     </div>
   );
 }
