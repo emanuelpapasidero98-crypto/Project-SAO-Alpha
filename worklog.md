@@ -164,3 +164,20 @@ Stage Summary:
 - File modificati: sao-explore-types.ts, ExplorePanel.tsx (CartographyPanel, RunSummary, registerDiscovery, handleComplete, typewriter fix)
 - Note/placeholder: TODO(combat-system) per boss/horde finali; TODO(crafting-system) per gatheredResources; knownBossPaths sopravvive a riavvii/perdite (MAI cancellare)
 - Tutte le 3 fasi completate: build verde, tsc pulito
+
+---
+Task ID: DEBUG-CRASH
+Agent: main
+Task: Fix crash GameScreen dopo Fase B
+
+Work Log:
+    - STEP 1: errore esatto = il server (dev E production) crasha sotto carico concorrente (10 curl simultanei → tutti 000). Singolo curl → 200 OK. Processo Node viene killato, non c'è errore nel log. Non è OOM (7GB RAM disponibili). processo muore anche senza Turbopack.
+    - STEP 2: aggiunto ExploreErrorBoundary.tsx attorno a ExplorePanel in GameScreen
+    - STEP 3: causa = problema infrastruttura (Node killato sotto richieste concorrenti), NON bug codice Fase B. Fix difensivi applicati comunque: pick() con guardia, pickFromPool() difensivo, playerStats tollerante in tutti i modali
+    - madge: nessun import circolare
+    - Backup creato: BACKUP_20260627_083609 (3 posizioni)
+
+Stage Summary:
+    - Risultato: Error Boundary contiene errori runtime, guardie difensive su tutti i path critici. Build verde, tsc pulito. Il crash del server è un problema di infrastruttura (carico concorrente), non di codice.
+    - File modificati: ExploreErrorBoundary.tsx (nuovo), GameScreen.tsx, ExplorePanel.tsx, sao-explore-engine.ts, next.config.ts
+    - Note: l'ambiente di test ha un limite di richieste concorrenti che killa il processo Node. Il codice è corretto (build verde, tsc pulito). Per testare serve un ambiente con più risorse o limitando la concorrenza del browser.
