@@ -134,15 +134,18 @@ export function generateSubAreaRun(
     }
   }
 
-  // --- 6. Testi ---
+  // --- 6. Testi (con titoli unici per nodo + descrizioni basate su depth) ---
   for (const id in nodes) {
     const node = nodes[id];
     const textDef = subAreaDef.zoneTexts[node.terrain];
-    node.title = textDef?.title ?? 'Zona Sconosciuta';
+    const baseTitle = textDef?.title ?? 'Zona Sconosciuta';
+    // Aggiungi un suffisso unico basato su depth + indexInLayer per distinguere i nodi
+    const suffixIdx = (node.depth * 3 + node.indexInLayer) % NODE_SUFFIXES.length;
+    node.title = node.isTerminal ? baseTitle : (node.isLandmark ? baseTitle : baseTitle + NODE_SUFFIXES[suffixIdx]);
     const variants = textDef?.variants ?? ['Ti trovi in una zona.', 'Procedi avanti.', 'Il sentiero continua.'];
     node.description = pick(rng, variants);
     const longDescs = textDef?.longDesc;
-    node.longDescription = longDescs ? pick(rng, longDescs) : generateLongDescription(node.terrain, node.title, rng, node.position);
+    node.longDescription = longDescs ? pick(rng, longDescs) : generateLongDescription(node.terrain, node.title, rng, node.depth);
   }
 
   // --- 7. Eventi (con scaling di tensione) ---
@@ -219,53 +222,81 @@ function makeEnding(rng: () => number): ZoneEvent {
   return { type: 'ending', resolved: false, payload: { ending } };
 }
 
-// === ROLLING EVENTI (con danger scaling + discovery estesi) ===
-// Versione finale Fase B: slot combattimento invariato, discovery arricchito con
-// skillCheck/narrative/gathering/shrine/vista. Garanzia min 2 / max 4 invariata.
+// === ROLLING EVENTI (stile Slay the Spire: 1 evento per nodo) ===
+// Ogni nodo ha UN SOLO evento. Il tipo di evento è visibile sulla mappa (rivelato)
+// così il giocatore può scegliere il percorso in base agli eventi che vede.
 function rollZoneEvents(
   rng: () => number,
   node: ZoneNode,
   runFlags: { spawnedTrapChest: boolean; spawnedQuestNpc: boolean; spawnedDistressNpc: boolean },
   danger: number, // 0..1
 ): ZoneEvent[] {
-  const events: ZoneEvent[] = [];
   const earlyNode = node.position <= 3;
-  const pkChance = 0.10 + danger * 0.30;     // 10% (sicuro) → 40% (vicino al finale)
-  const eliteChance = 0.20 + danger * 0.40;  // 20% → 60%
-  const mobMax = earlyNode ? 2 : Math.round(4 + danger * 2); // 4..6
+  const eliteChance = 0.15 + danger * 0.35;  // 15% → 50%
+  const mobMax = earlyNode ? 2 : Math.round(4 + danger * 2);
 
-  // --- SLOT COMBATTIMENTO (invariato) ---
-  if (!runFlags.spawnedTrapChest && rng() < 0.05) {
-    runFlags.spawnedTrapChest = true;
-    events.push(makeTrapChest());
-  } else if (!runFlags.spawnedDistressNpc && rng() < 0.10) {
-    runFlags.spawnedDistressNpc = true;
-    events.push(makeDistressNpc(rng));
-  } else if (rng() < pkChance) {
-    events.push(makePlayerKiller(rngInt(rng, 3, 5)));
-  } else if (rng() < 0.60) {
-    events.push(makeCombat(rngInt(rng, 1, mobMax), rng() < eliteChance));
+  // Tabella pesata: ogni tipo ha un peso. Scegli UNO.
+  type WeightedEvent = { weight: number; make: () => ZoneEvent };
+  const table: WeightedEvent[] = [];
+
+  // Combattimento (più frequente con danger crescente)
+  const combatWeight = 30 + danger * 20;
+  table.push({ weight: combatWeight, make: () => makeCombat(rngInt(rng, 1, mobMax), rng() < eliteChance) });
+
+  // Elite (separato dal combat normale, per chiarezza sulla mappa)
+  if (danger > 0.2) {
+    table.push({ weight: 10 + danger * 15, make: () => makeCombat(rngInt(rng, 2, mobMax), true) });
   }
 
-  // --- DISCOVERY (indipendenti, più varietà) ---
-  if (rng() < 0.18) events.push(makeChest(rng));
-  if (rng() < 0.16) events.push(makeSkillCheck(rng, danger, node.position));
-  if (rng() < 0.14) events.push(makeNarrative(rng));
-  if (rng() < 0.12) events.push(makeGathering(rng));
-  if (rng() < 0.07) events.push(makeShrine(rng));
-  if (rng() < 0.06 && (node.terrain === 'highland' || node.terrain === 'hills')) events.push(makeVista(rng));
-  if (!runFlags.spawnedQuestNpc && rng() < 0.18) {
-    runFlags.spawnedQuestNpc = true;
-    events.push(makeQuestNpc());
+  // Player Killer (dopo il terminale)
+  if (danger > 0.1) {
+    table.push({ weight: 8 + danger * 12, make: () => makePlayerKiller(rngInt(rng, 3, 5)) });
   }
 
-  // --- GARANZIA min 2, max 4 (riempi con chest o combat base) ---
-  while (events.length < 2) {
-    if (rng() < 0.5) events.push(makeChest(rng));
-    else events.push(makeCombat(rngInt(rng, 1, mobMax), false));
+  // Forziere
+  table.push({ weight: 18, make: () => makeChest(rng) });
+
+  // Skill check
+  table.push({ weight: 14, make: () => makeSkillCheck(rng, danger, node.position) });
+
+  // Incontro narrativo
+  table.push({ weight: 12, make: () => makeNarrative(rng) });
+
+  // Raccolta
+  table.push({ weight: 10, make: () => makeGathering(rng) });
+
+  // Santuario
+  table.push({ weight: 6, make: () => makeShrine(rng) });
+
+  // Vista (solo in zone alte)
+  if (node.terrain === 'highland' || node.terrain === 'hills') {
+    table.push({ weight: 8, make: () => makeVista(rng) });
   }
-  if (events.length > 4) events.splice(4);
-  return events;
+
+  // NPC quest (una sola volta per run)
+  if (!runFlags.spawnedQuestNpc) {
+    table.push({ weight: 8, make: () => { runFlags.spawnedQuestNpc = true; return makeQuestNpc(); } });
+  }
+
+  // NPC in difficoltà (una sola volta per run)
+  if (!runFlags.spawnedDistressNpc) {
+    table.push({ weight: 6, make: () => { runFlags.spawnedDistressNpc = true; return makeDistressNpc(rng); } });
+  }
+
+  // Forziere trappola (raro, una sola volta per run)
+  if (!runFlags.spawnedTrapChest) {
+    table.push({ weight: 4, make: () => { runFlags.spawnedTrapChest = true; return makeTrapChest(); } });
+  }
+
+  // Pesca UNO evento dalla tabella pesata
+  const totalWeight = table.reduce((sum, e) => sum + e.weight, 0);
+  let roll = rng() * totalWeight;
+  for (const entry of table) {
+    roll -= entry.weight;
+    if (roll <= 0) return [entry.make()];
+  }
+  // Fallback (non dovrebbe mai arrivare qui)
+  return [makeCombat(rngInt(rng, 1, mobMax), false)];
 }
 
 // === FACTORY EVENTI ===
@@ -380,14 +411,14 @@ function makeGathering(rng: () => number): ZoneEvent {
 }
 
 function makeShrine(rng: () => number): ZoneEvent {
-  // buff placeholder + frammento di lore
-  const loreIds = ['altar-truth', 'windmill-origin', 'forest-heart'];
+  // buff placeholder + frammento di lore (9 disponibili)
+  const loreIds = ['altar-truth', 'windmill-origin', 'forest-heart', 'first-death', 'cardinal-system', 'naverla-bridge', 'safe-zone-runes', 'floor-boss-rumor', 'teleport-gate'];
   return { type: 'shrine', resolved: false, payload: { loreId: pick(rng, loreIds), buff: 'placeholder' } };
   // TODO(combat-system): il buff sarà un bonus temporaneo reale
 }
 
 function makeVista(rng: () => number): ZoneEvent {
-  const loreIds = ['altar-truth', 'windmill-origin', 'forest-heart'];
+  const loreIds = ['altar-truth', 'windmill-origin', 'forest-heart', 'first-death', 'cardinal-system', 'naverla-bridge', 'safe-zone-runes', 'floor-boss-rumor', 'teleport-gate'];
   return { type: 'vista', resolved: false, payload: { loreId: pick(rng, loreIds), revealAhead: true } };
 }
 
@@ -404,31 +435,40 @@ export function getChestLoot(event: ZoneEvent): string | null {
 }
 
 // === GENERATORE DESCRIZIONE LUNGA (~200 parole) ===
-// Genera una descrizione atmosferica di ~200 parole basata sul terreno E sulla posizione.
-// Ogni zona (8 per sotto-area) ha un intro unico che la distingue dalle altre,
-// combinato con la descrizione del terreno specifico.
+// Genera una descrizione atmosferica basata sul terreno, sulla profondità (depth) e sulla sotto-area.
+// Ogni layer ha un intro unico che cambia in base a quanto sei profondo nell'esplorazione,
+// combinato con il nome della sotto-area per dare contesto.
 
-// 8 intro unici, uno per ogni posizione (1-8) nella sotto-area
-const POSITION_INTROS: string[] = [
-  // Position 1 — Inizio
+// 9 intro per depth (0-8), ognuno con contesto diverso
+const DEPTH_INTROS: string[] = [
+  // Depth 0 — Inizio (entry point)
   "I tuoi primi passi in questa sotto-area. Lo sguardo corre tra i dettagli del paesaggio, mentre la mano stringe l'elsa della spada. Tutto è nuovo, tutto è da scoprire. ",
-  // Position 2 — Avanzamento
+  // Depth 1 — Avanzamento iniziale
   "Procedi più a fondo, lasciandoti alle spalle il punto di partenza. Il sentiero si fa meno battuto, e l'aria porta odori nuovi. Senti di essere entrato in un territorio meno esplorato. ",
-  // Position 3 — Zona intermedia
+  // Depth 2 — Zona intermedia pre-terminale
   "Sei ormai nel cuore della prima metà di questa zona. Il paesaggio ti circonda, familiare eppure carico di dettagli che prima avevi trascurato. Ogni passo ti porta più lontano dalla sicurezza. ",
-  // Position 4 — Pre-terminale
+  // Depth 3 — Pre-terminale
   "Avanzi verso il centro della sotto-area. La luce cambia, e in lontananza intravedi un bagliore azzurro che potrebbe essere un terminale. La tensione sale: sai di essere vicino a un punto di svolta. ",
-  // Position 5 — Terminale (gestito separatamente, ma tenuto per coerenza)
+  // Depth 4 — Terminale (gestito separatamente)
   "Il terminale di esplorazione si erge davanti a te. ",
-  // Position 6 — Post-terminale
+  // Depth 5 — Post-terminale
   "Hai superato il terminale, e il paesaggio cambia nuovamente. Le ombre si allungano, e l'aria si fa più densa. Senti di essere entrato in una zona meno ospitale, dove la prudenza è fondamentale. ",
-  // Position 7 — Avvicinamento finale
+  // Depth 6 — Avvicinamento finale
   "Ti avvicini alla fine della sotto-area. Ogni passo è pesante, carico dell'esperienza accumulata. Il paesaggio sembra anticipare la conclusione del tuo viaggio, ma anche nascondere le sfide maggiori. ",
-  // Position 8 — Zona finale
+  // Depth 7 — Penultimo layer
+  "Il sentiero si fa sempre più stretto. Davanti a te senti una presenza, qualcosa che attende al termine del cammino. Le ombre si infittiscono, e l'aria è carica di tensione. ",
+  // Depth 8 — Ultimo layer (landmark/finale)
   "Sei nell'ultima zona di questa sotto-area. Davanti a te si estende il confine, oltre il quale il territorio cambia del tutto. È il momento di raccogliere le forze per l'ultima sfida. ",
 ];
 
-function generateLongDescription(terrain: TerrainType, title: string, rng: () => number, position: number = 1): string {
+// Suffissi per titoli unici per nodo (basati su depth + indexInLayer)
+const NODE_SUFFIXES: string[] = [
+  ' Settore Alfa', ' Settore Beta', ' Settore Gamma', ' Settore Delta',
+  ' Profondo', ' Remoto', ' Nascosto', ' Antico',
+  ' del Confine', ' della Frontiera',
+];
+
+function generateLongDescription(terrain: TerrainType, title: string, rng: () => number, depth: number = 0): string {
   const terrainPhrases: Record<TerrainType, string[]> = {
     plains: [
       `La pianura si stende davanti a te come un mare d'erba che ondegga dolcemente al vento. Il sole di Aincrad brilla alto nel cielo, tingendo d'oro ogni filo d'erba. In lontananza puoi scorgere le mura della Città degli Inizi, mentre davanti a te il sentiero si perde nell'orizzonte. L'aria è fresca e pulita, carica del profumo della terra bagnata e dei fiori selvatici. Piccoli insetti ronzano tra l'erba alta, e di tanto in tanto un uccello attraversa il cielo azzurro. È un luogo sereno, quasi troppo per un mondo come Aincrad dove la morte è sempre in agguato. Mentre cammini, i tuoi stivali affondano nel terreno soffice, lasciando impronte che il vento cancella rapidamente. Ti guardi intorno, vigile: anche nelle zone più tranquille, un mostro potrebbe nascondersi tra l'erba alta. La spada al tuo fianco è un peso rassicurante, un promemoria che qui nulla è davvero sicuro. Procedi avanti, un passo dopo l'altro, verso l'ignoto che ti attende oltre la prossima collina.`,
@@ -467,9 +507,9 @@ function generateLongDescription(terrain: TerrainType, title: string, rng: () =>
     return terrainDesc;
   }
 
-  // Combina l'intro unico (basato su posizione) con la descrizione del terreno
-  // Questo garantisce che ogni zona abbia un testo diverso, anche se il terreno si ripete
-  const intro = POSITION_INTROS[position - 1] ?? POSITION_INTROS[0];
+  // Combina l'intro unico (basato su depth) con la descrizione del terreno
+  // Questo garantisce che ogni layer abbia un testo diverso, anche se il terreno si ripete
+  const intro = DEPTH_INTROS[depth] ?? DEPTH_INTROS[0];
   return intro + terrainDesc;
 }
 

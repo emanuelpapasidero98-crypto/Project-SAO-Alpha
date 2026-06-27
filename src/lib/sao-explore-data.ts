@@ -382,6 +382,12 @@ export const LORE_FRAGMENTS: LoreFragment[] = [
   { id: 'altar-truth', title: 'L\'Altare Dimenticato', text: 'Gli altari delle Grandi Pianure furono eretti dai primi mappatori, che li usavano come punti di ristoro lungo le rotte verso i piani superiori.' },
   { id: 'windmill-origin', title: 'I Mulini Silenziosi', text: 'I mulini a vento non macinano nulla: sono sensori atmosferici lasciati dal sistema. Le loro pale misurano i venti che annunciano i cambi di zona.' },
   { id: 'forest-heart', title: 'Il Cuore del Bosco', text: 'Si dice che nel folto del Bosco Rigoglioso cresca un albero più antico di Aincrad stessa, le cui radici toccano il piano sottostante.' },
+  { id: 'first-death', title: 'La Prima Vittima', text: 'Il primo giocatore a morire nelle Grandi Pianure cadde in una trappola che sembrava un forziere comune. Da allora, i veterani ispezionano sempre prima di aprire.' },
+  { id: 'cardinal-system', title: 'Il Sistema Cardinal', text: 'Cardinal non è solo l\'amministratore: è l\'IA che genera proceduralmente ogni dungeon, ogni mostro, ogni tesoro. Nessuno sa quale sia il suo vero obiettivo.' },
+  { id: 'naverla-bridge', title: 'Il Ponte di Naverla', text: 'Un ponte di pietra spezzato attraversa il fiume centrale. Si dice che un tempo collegasse la Città degli Inizi a un avamposto ora perduto.' },
+  { id: 'safe-zone-runes', title: 'Le Rune di Zona Sicura', text: 'I terminali di esplorazione portano incise rune antiche: sono i sigilli che impediscono ai mostri di avvicinarsi. Chi le ha incise è un mistero.' },
+  { id: 'floor-boss-rumor', title: 'La Diceria del Boss', text: 'Si mormora che il boss del primo piano si nasconda in una fortezza oltre il Bosco Rigoglioso. Nessuno che lo ha affrontato è tornato per raccontarlo.' },
+  { id: 'teleport-gate', title: 'I Cancelli di Teletrasporto', text: 'I terminali non sono solo punti di riposo: sono frammenti di una rete di teletrasporto che Cardinal un giorno attiverà per collegare tutti i piani.' },
 ];
 
 export function getLoreById(id: string): LoreFragment | undefined {

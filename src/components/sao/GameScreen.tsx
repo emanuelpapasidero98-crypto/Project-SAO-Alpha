@@ -494,6 +494,11 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
           MEN: stats.men,
           INT: stats.int,
         }}
+        hp={hp}
+        mp={mp}
+        energy={energy}
+        level={level}
+        playerName={playerName}
         onItemFound={(itemId) => {
           // Add found item to inventory
           setItems((prev) => {

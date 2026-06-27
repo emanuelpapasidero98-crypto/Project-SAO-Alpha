@@ -29,6 +29,7 @@ import { generateSubAreaRun, generateSeed, getChestLoot, revealNeighbors } from 
 import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
 import type { Item, EquipmentState } from '@/lib/sao-inventory-types';
 import { BAG_MAX_ITEMS } from '@/lib/sao-inventory-types';
+import type { BarValue } from './SaoHUD';
 import ItemDetailModal from './ItemDetailModal';
 
 /**
@@ -52,6 +53,12 @@ interface ExplorePanelProps {
   cheats?: { skipEvents: boolean; immortal: boolean; instakill: boolean; infiniteCol: boolean };
   // Le 7 statistiche effettive del giocatore (per skill check — Fase B)
   playerStats?: Partial<Record<ExploreStatKey, number>>;
+  // Barre HP/MP/Energia da mostrare in esplorazione (alto destra, VR hover)
+  hp?: BarValue;
+  mp?: BarValue;
+  energy?: BarValue;
+  level?: number;
+  playerName?: string;
 }
 
 const EVENT_LABELS: Record<string, { label: string; color: string; icon: string }> = {
@@ -91,7 +98,7 @@ function pickFromPool(poolKey: string): string | undefined {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest, items = [], equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip, cheats, playerStats }: ExplorePanelProps) {
+export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest, items = [], equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip, cheats, playerStats, hp, mp, energy, level, playerName }: ExplorePanelProps) {
   const { play } = useSaoSound();
   const [exploreState, setExploreState] = useState<ExploreState>(createInitialExploreState);
   const [run, setRun] = useState<SubAreaRun | null>(null);
@@ -202,7 +209,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     // gating: almeno 2 eventi risolti (tranne terminale; il landmark usa handleComplete)
     if (current.terrain !== 'terminal' && !current.isLandmark && !cheats?.skipEvents) {
       const resolved = current.events.filter((e) => e.resolved).length;
-      if (resolved < 2) { play('warning', 0.3); return; }
+      if (resolved < 1) { play('warning', 0.3); return; }
     }
 
     const nodes = { ...run.nodes };
@@ -493,6 +500,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
 
   const handleTerminalCheckpoint = useCallback(() => {
     if (!run || !activeSubAreaId) return;
+    // Salva la posizione corrente come checkpoint
     setExploreState((prev) => ({
       ...prev,
       subAreaCheckpoints: {
@@ -510,6 +518,11 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     }));
     play('system', 0.4);
     setShowTerminal(false);
+    // Teletrasporto: esci dall'esplorazione e torna alla selezione sotto-aree.
+    // La posizione è salvata: quando il giocatore ritorna, riprende da qui.
+    setView('subareas');
+    setRun(null);
+    setActiveSubAreaId(null);
   }, [run, activeSubAreaId, play]);
 
   return (
@@ -630,8 +643,11 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           {/* === EXPLORING === */}
           {view === 'exploring' && run && currentNode && activeSubAreaDef && (() => {
             const resolvedCount = currentNode.events.filter((e) => e.resolved).length;
-            const gatingOk = currentNode.terrain === 'terminal' || currentNode.isLandmark || resolvedCount >= 2 || !!cheats?.skipEvents;
+            const gatingOk = currentNode.terrain === 'terminal' || currentNode.isLandmark || resolvedCount >= 1 || !!cheats?.skipEvents;
             return (
+            <>
+            {/* HUD barre HP/MP/Energia (alto destra, VR hover) */}
+            <ExploreHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} />
             <motion.div
               className="h-full flex flex-col items-center justify-center px-6 py-16 overflow-y-auto sao-scroll"
               initial={{ opacity: 0 }}
@@ -652,6 +668,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
               {/* Current node card — same style as SubAreaCard (white borders, VR hover) */}
               <ZoneCard currentNode={currentNode} run={run} onResolveEvent={handleResolveEvent} onChooseNode={handleChooseNode} onComplete={handleComplete} cheats={cheats} />
             </motion.div>
+            </>
             );
           })()}
 
@@ -839,6 +856,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
             {chestChoiceEvent && (
               <ChestChoiceModal
                 event={chestChoiceEvent}
+                playerStats={playerStats}
                 onOpenNow={() => {
                   if (!run) return;
                   const event = chestChoiceEvent;
@@ -1120,12 +1138,19 @@ function NarrativeModal({ event, playerStats, onChoose, onClose }: {
 
 /* ---------- Chest Choice Modal (Fase B) ---------- */
 
-function ChestChoiceModal({ event, onOpenNow, onInspect, onClose }: {
+function ChestChoiceModal({ event, playerStats, onOpenNow, onInspect, onClose }: {
   event: ZoneEvent;
+  playerStats?: Partial<Record<ExploreStatKey, number>>;
   onOpenNow: () => void;
   onInspect: () => void;
   onClose: () => void;
 }) {
+  const DEX_REQUIRED = 12;
+  const statsMap = (playerStats ?? {}) as Record<string, number>;
+  const dexValue = statsMap.DEX ?? 1;
+  const canInspect = dexValue >= DEX_REQUIRED;
+  const inspectChance = canInspect ? Math.round(skillCheckChance(dexValue, DEX_REQUIRED) * 100) : 0;
+
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -1158,17 +1183,28 @@ function ChestChoiceModal({ event, onOpenNow, onInspect, onClose }: {
             APRI SUBITO
           </button>
           <button
-            onClick={onInspect}
+            onClick={canInspect ? onInspect : undefined}
+            disabled={!canInspect}
             className="px-4 py-2.5"
             style={{
-              background: 'rgba(92,196,240,0.15)',
-              border: '1px solid rgba(92,196,240,0.4)',
+              background: canInspect ? 'rgba(92,196,240,0.15)' : 'rgba(48,48,48,0.15)',
+              border: `1px solid ${canInspect ? 'rgba(92,196,240,0.4)' : 'rgba(190,33,86,0.3)'}`,
               clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-              color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', letterSpacing: '0.15em', cursor: 'pointer',
+              color: canInspect ? '#5CC4F0' : 'rgba(190,33,86,0.6)',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', letterSpacing: '0.15em',
+              cursor: canInspect ? 'pointer' : 'not-allowed',
+              opacity: canInspect ? 1 : 0.6,
             }}
           >
-            ISPEZIONA [DEX 12]
+            {canInspect
+              ? `ISPEZIONA [DEX ${dexValue}/${DEX_REQUIRED}] — ${inspectChance}%`
+              : `ISPEZIONA [DEX ${dexValue}/${DEX_REQUIRED}] — BLOCCATO`}
           </button>
+          {!canInspect && (
+            <p className="text-center" style={{ color: 'rgba(190,33,86,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem', letterSpacing: '0.1em' }}>
+              Destrezza insufficiente. Ti servono almeno {DEX_REQUIRED} punti DEX.
+            </p>
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2"
@@ -1559,42 +1595,233 @@ function RunSummary({ run, ending, onContinue }: {
   );
 }
 
+/* ---------- ExploreHUD: barre HP/MP/Energia compatte con VR hover ---------- */
+
+function ExploreHUD({ hp, mp, energy, level, playerName }: {
+  hp?: BarValue; mp?: BarValue; energy?: BarValue; level?: number; playerName?: string;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<{ tilt: string; lightX: number; lightY: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setHover({
+        tilt: `perspective(600px) rotateX(${-(py - 0.5) * 6}deg) rotateY(${(px - 0.5) * 6}deg)`,
+        lightX: px * 100,
+        lightY: py * 100,
+      });
+      rafRef.current = null;
+    });
+  };
+
+  const bars = [
+    { label: 'HP', value: hp, color: '#7FC522' },
+    { label: 'MP', value: mp, color: '#2B73B3' },
+    { label: 'EN', value: energy, color: '#EBA601' },
+  ];
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
+      className="fixed top-4 right-4 z-30 select-none"
+      style={{
+        transform: hover?.tilt,
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.15s ease-out',
+        willChange: hover ? 'transform' : 'auto',
+      }}
+    >
+      {/* VR glow */}
+      <div
+        className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+        style={{
+          opacity: hover ? 1 : 0,
+          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.12) 0%, transparent 60%)`,
+          mixBlendMode: 'screen',
+        }}
+      />
+      {playerName && (
+        <div
+          className="truncate text-center mb-1"
+          style={{
+            color: '#FBFBFB',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: '0.6rem',
+            letterSpacing: '0.3em',
+            textShadow: '0 0 8px rgba(92,196,240,0.6), 0 1px 2px rgba(0,0,0,0.9)',
+          }}
+        >
+          {playerName.toUpperCase()}
+        </div>
+      )}
+      <div className="flex flex-col gap-1">
+        {bars.map(({ label, value, color }) => {
+          const current = value?.current ?? 0;
+          const max = value?.max ?? 1;
+          const pct = Math.max(0, Math.min(1, current / max));
+          return (
+            <div key={label} className="relative" style={{ width: '180px' }}>
+              {/* Label */}
+              <span
+                className="absolute left-1"
+                style={{
+                  top: '-0.5rem',
+                  color,
+                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                  fontWeight: 400,
+                  fontSize: '0.45rem',
+                  letterSpacing: '0.2em',
+                  textShadow: '0 0 4px rgba(0,0,0,0.9)',
+                  zIndex: 2,
+                  pointerEvents: 'none',
+                }}
+              >
+                {label}
+              </span>
+              {/* Bar background */}
+              <div
+                className="relative overflow-hidden"
+                style={{
+                  height: '14px',
+                  background: 'rgba(8,22,40,0.8)',
+                  border: '1px solid rgba(43,115,179,0.3)',
+                  clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)',
+                }}
+              >
+                {/* Bar fill */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: `${pct * 100}%`,
+                    background: `linear-gradient(90deg, ${color}aa, ${color})`,
+                    boxShadow: `0 0 8px ${color}66`,
+                    transition: 'width 0.4s ease-out',
+                  }}
+                />
+                {/* Value text */}
+                <span
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{
+                    color: '#FBFBFB',
+                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                    fontWeight: 400,
+                    fontSize: '0.5rem',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.95)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {current}/{max}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {level !== undefined && (
+        <div
+          className="text-right mt-1"
+          style={{
+            color: '#EBA601',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: '0.5rem',
+            letterSpacing: '0.2em',
+            textShadow: '0 0 6px rgba(235,166,1,0.4), 0 1px 2px rgba(0,0,0,0.9)',
+          }}
+        >
+          LV {level}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- ExploreMap: mini-mappa a grafo con fog-of-war ---------- */
 
 function ExploreMap({ run, onChooseNode, gatingOk }: {
   run: SubAreaRun;
   onChooseNode: (nodeId: string) => void;
-  gatingOk: boolean; // true se il nodo corrente ha già ≥2 eventi risolti (o terminale/cheat)
+  gatingOk: boolean; // true se il nodo corrente ha l'evento risolto (o terminale/cheat)
 }) {
   const current = run.nodes[run.currentNodeId];
   const reachable = new Set(current?.connections ?? []);
 
+  // Mappa tipo evento → glyph + colore (per icone sulla mappa)
+  const eventGlyph: Record<string, { icon: string; color: string }> = {
+    chest: { icon: '◆', color: '#EBA601' },
+    trapChest: { icon: '⚠', color: '#BE2156' },
+    combat: { icon: '⚔', color: '#cc2233' },
+    terminal: { icon: '◈', color: '#5CC4F0' },
+    questNpc: { icon: '✦', color: '#3b82f6' },
+    playerKiller: { icon: '☠', color: '#BE2156' },
+    distressNpc: { icon: '!', color: '#EBA601' },
+    skillCheck: { icon: '◎', color: '#9b6dff' },
+    narrative: { icon: '❖', color: '#5CC4F0' },
+    gathering: { icon: '✿', color: '#7FC522' },
+    shrine: { icon: '⛩', color: '#EBA601' },
+    vista: { icon: '⛰', color: '#5CC4F0' },
+    ending: { icon: '★', color: '#FBFBFB' },
+  };
+
   return (
-    <div className="flex flex-col items-center gap-1.5 mb-6">
+    <div className="flex flex-col items-center gap-2 mb-6">
       {run.layers.map((layerIds, d) => (
-        <div key={d} className="flex items-center justify-center gap-3">
+        <div key={d} className="flex items-center justify-center gap-4">
           {layerIds.map((id) => {
             const node = run.nodes[id];
             const isCurrent = id === run.currentNodeId;
             const isReach = reachable.has(id) && gatingOk;
             const fog = !node.revealed;
 
+            // Determina il glyph: se rivelato, mostra l'icona dell'evento
             let bg = 'rgba(48,48,48,0.18)';
             let border = 'rgba(43,115,179,0.2)';
             let color = 'rgba(251,251,251,0.3)';
-            let glyph: string = String(node.position);
+            let glyph = '?';
+            let glyphColor = color;
 
             if (node.cleared) {
-              bg = 'rgba(127,197,34,0.3)'; border = 'rgba(127,197,34,0.6)'; color = '#3a7a0c'; glyph = '✓';
+              bg = 'rgba(127,197,34,0.2)'; border = 'rgba(127,197,34,0.4)'; color = '#3a7a0c'; glyph = '✓'; glyphColor = '#7FC522';
             } else if (isCurrent) {
               bg = 'rgba(43,115,179,0.85)'; border = '#2B73B3'; color = '#FBFBFB';
-            } else if (isReach) {
-              bg = 'rgba(92,196,240,0.25)'; border = '#5CC4F0'; color = '#5CC4F0';
+              // Mostra l'icona evento anche sul nodo corrente
+              const ev = node.events[0];
+              if (ev) {
+                const eg = eventGlyph[ev.type];
+                if (eg) { glyph = eg.icon; glyphColor = eg.color; }
+              }
             } else if (fog) {
-              glyph = '?'; color = 'rgba(251,251,251,0.25)';
+              glyph = '?'; color = 'rgba(251,251,251,0.25)'; glyphColor = color;
+            } else {
+              // Rivelato ma non corrente: mostra l'icona dell'evento
+              const ev = node.events[0];
+              if (ev) {
+                const eg = eventGlyph[ev.type];
+                if (eg) {
+                  glyph = eg.icon;
+                  glyphColor = eg.color;
+                  if (isReach) {
+                    bg = `${eg.color}22`; border = eg.color; color = eg.color;
+                  } else {
+                    bg = 'rgba(48,48,48,0.15)'; border = 'rgba(43,115,179,0.15)'; color = 'rgba(251,251,251,0.4)';
+                  }
+                }
+              }
             }
-            if (node.isTerminal && !node.cleared) glyph = '◈';
-            if (node.isLandmark && !node.cleared) glyph = fog ? '?' : '★';
+            // Override per terminal/landmark
+            if (node.isTerminal && !node.cleared) { glyph = '◈'; glyphColor = '#5CC4F0'; }
+            if (node.isLandmark && !node.cleared) { glyph = fog ? '?' : '★'; glyphColor = '#FBFBFB'; }
 
             return (
               <button
@@ -1604,17 +1831,18 @@ function ExploreMap({ run, onChooseNode, gatingOk }: {
                 onClick={isReach ? () => onChooseNode(id) : undefined}
                 className="flex items-center justify-center transition-all"
                 style={{
-                  width: '30px', height: '30px', borderRadius: '50%',
-                  background: bg, border: `2px solid ${border}`, color,
-                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem',
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  background: bg, border: `2px solid ${border}`,
                   cursor: isReach ? 'pointer' : 'default',
                   boxShadow: isCurrent ? '0 0 14px rgba(43,115,179,0.6)' : isReach ? '0 0 10px rgba(92,196,240,0.5)' : 'none',
                   animation: isReach ? 'saoPulse 1.6s ease-in-out infinite' : isCurrent ? 'saoPulse 2.4s ease-in-out infinite' : 'none',
                 }}
-                aria-label={fog ? 'Zona sconosciuta' : node.title}
-                title={fog ? '???' : node.title}
+                aria-label={fog ? 'Zona sconosciuta' : (node.events[0] ? (EVENT_LABELS[node.events[0].type]?.label ?? node.title) : node.title)}
+                title={fog ? '???' : (node.events[0] && !node.cleared ? `${node.title} — ${EVENT_LABELS[node.events[0].type]?.label ?? ''}` : node.title)}
               >
-                {glyph}
+                <span style={{ color: glyphColor, fontSize: '0.85rem', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400 }}>
+                  {glyph}
+                </span>
               </button>
             );
           })}
@@ -1701,7 +1929,7 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
   };
 
   const resolvedCount = currentNode.events.filter((e) => e.resolved).length;
-  const gatingOk = currentNode.terrain === 'terminal' || currentNode.isLandmark || resolvedCount >= 2 || !!cheats?.skipEvents;
+  const gatingOk = currentNode.terrain === 'terminal' || currentNode.isLandmark || resolvedCount >= 1 || !!cheats?.skipEvents;
   const connections = currentNode.connections;
 
   // Etichetta dinamica per il bottone del landmark in base all'esito (Fase C arricchirà)
@@ -1821,12 +2049,12 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
         {currentNode.terrain !== 'terminal' && !currentNode.isLandmark && (
           <span
             style={{
-              color: resolvedCount >= 2 ? 'rgba(127, 197, 34, 0.6)' : 'rgba(235, 166, 1, 0.6)',
+              color: resolvedCount >= 1 ? 'rgba(127, 197, 34, 0.6)' : 'rgba(235, 166, 1, 0.6)',
               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
               fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em',
             }}
           >
-            EVENTI: {resolvedCount}/{currentNode.events.length}{resolvedCount < 2 ? ' (MIN 2)' : ''}
+            EVENTI: {resolvedCount}/{currentNode.events.length}{resolvedCount < 1 ? ' (RISOLVI)' : ''}
           </span>
         )}
 
@@ -1853,14 +2081,19 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
             {(currentNode.ending ? landmarkLabel[currentNode.ending] : 'AFFRONTA IL DESTINO →')}
           </button>
         ) : connections.length <= 1 ? (
-          /* un solo percorso → bottone AVANZA classico */
+          /* un solo percorso → bottone AVANZA con icona evento */
+          (() => {
+            const dest = run.nodes[connections[0]];
+            const destEvent = dest?.revealed ? dest?.events[0] : null;
+            const destMeta = destEvent ? EVENT_LABELS[destEvent.type] : null;
+            return (
           <button
             onClick={() => gatingOk && connections[0] && onChooseNode(connections[0])}
             disabled={!gatingOk}
             className="px-5 py-2 ml-auto"
             style={{
               background: gatingOk
-                ? 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)'
+                ? (destMeta ? `linear-gradient(135deg, ${destMeta.color}cc 0%, ${destMeta.color}66 100%)` : 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)')
                 : 'rgba(48, 48, 48, 0.3)',
               boxShadow: gatingOk
                 ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
@@ -1874,14 +2107,19 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
               opacity: gatingOk ? 1 : 0.5,
             }}
           >
-            AVANZA →
+            {destMeta ? `${destMeta.icon} ${destMeta.label.toUpperCase()} →` : 'AVANZA →'}
           </button>
+            );
+          })()
         ) : (
-          /* BIVIO: un bottone per destinazione, mostra il terreno (rivelato) */
+          /* BIVIO: un bottone per destinazione, mostra icona + tipo evento (stile Slay the Spire) */
           <div className="flex flex-wrap gap-2 justify-end">
             {connections.map((cid) => {
               const dest = run.nodes[cid];
-              const label = dest?.revealed ? (dest.title?.toUpperCase() ?? '???') : '???';
+              const destEvent = dest?.revealed ? dest?.events[0] : null;
+              const destMeta = destEvent ? EVENT_LABELS[destEvent.type] : null;
+              const label = dest?.revealed ? (destMeta ? `${destMeta.icon} ${destMeta.label.toUpperCase()}` : (dest.title?.toUpperCase() ?? '???')) : '???';
+              const accentColor = destMeta?.color ?? '#5CC4F0';
               return (
                 <button
                   key={cid}
@@ -1890,21 +2128,21 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
                   className="px-4 py-2"
                   style={{
                     background: gatingOk
-                      ? 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)'
+                      ? `linear-gradient(135deg, ${accentColor}cc 0%, ${accentColor}44 100%)`
                       : 'rgba(48, 48, 48, 0.3)',
                     boxShadow: gatingOk
-                      ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
+                      ? `0 0 16px ${accentColor}44, inset 0 0 8px rgba(255,255,255,0.2)`
                       : 'none',
-                    border: '1px solid rgba(255,255,255,0.3)',
+                    border: `1px solid ${gatingOk ? accentColor + '88' : 'rgba(255,255,255,0.2)'}`,
                     clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
                     color: '#FBFBFB',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.15em',
+                    fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.1em',
                     cursor: gatingOk ? 'pointer' : 'not-allowed',
                     opacity: gatingOk ? 1 : 0.5,
                   }}
                 >
-                  VAI: {label} →
+                  {label} →
                 </button>
               );
             })}
