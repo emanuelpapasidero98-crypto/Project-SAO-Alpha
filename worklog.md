@@ -200,3 +200,26 @@ Stage Summary:
     - Soluzione operativa: il codice è corretto e pronto. Per testare serve un ambiente con più memoria (almeno 16GB) o ridurre il numero di asset serviti contemporaneamente.
     - Nota: Error Boundary + guardie difensive della sessione precedente: MANTENUTE (utili comunque come rete di sicurezza).
     - Conclusioni: Tutte le 3 fasi (A, B, C) sono complete e corrette. Il codice compila, il build è verde, il tsc è pulito. Il problema è esclusivamente ambientale.
+
+---
+Task ID: FIX-TDZ
+Agent: main
+Task: Fix TDZ 'showToast' in ExplorePanel (+ audit ordinamento callback Fase B/C)
+
+Work Log:
+    - Causa: TDZ — showToast referenziato (deps array di handleResolveEvent, riga 360) prima della dichiarazione (riga 384). handleResolveEvent dichiarato a riga 253, showToast a riga 384 → l'array deps veniva valutato al mount mentre showToast era ancora nella zona morta.
+    - FIX 1: spostato showToast (e confermato toast state già in cima) sopra handleResolveEvent — ora showToast è a riga 140, subito dopo registerDiscovery (riga 120)
+    - FIX 2: skillCheckChance e pickFromPool portate a livello di modulo (righe 78 e 85, fuori dal componente) — escono completamente dal problema TDZ
+    - AUDIT: verificato che ogni callback sia dichiarato dopo le sue dipendenze:
+      - showToast: dichiarato riga 140, consumer riga 389 → OK
+      - registerDiscovery: dichiarato riga 120, consumer riga 230 → OK
+      - resolveSkillCheck/applyOutcome/handleResolveEvent/handleChooseNode/handleComplete/handleTerminalCheckpoint: nessun TDZ
+    - Backup: BACKUP_20260627_092528 (3 posizioni)
+    - tsc filtrato: pulito; next build: verde
+    - Consegna: archivio SAO_PROGETTO_20260627_093010.tar.gz in download/ (push GitHub fallito: token non valido)
+
+Stage Summary:
+    - Risultato atteso: GameScreen si monta senza ReferenceError; esplorazione e toast funzionanti
+    - File modificati: src/components/sao/ExplorePanel.tsx
+    - Verifica runtime: a carico dell'utente in locale
+    - Commit: 15f414f (locale, non pushato — token scaduto)
