@@ -655,13 +655,12 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
 
               {/* === COLONNA CENTRO: mappa grande (dal basso verso l'alto) === */}
               <div className="flex-1 flex items-center justify-center min-w-0">
-                <ExploreMap run={run} onChooseNode={handleChooseNode} gatingOk={gatingOk} large />
+                <ExploreMap run={run} onChooseNode={handleChooseNode} onResolveCurrentEvent={() => { if (currentNode.events[0] && !currentNode.events[0].resolved) handleResolveEvent(currentNode.events[0]); }} gatingOk={gatingOk} large />
               </div>
 
-              {/* === COLONNA DESTRA: ZoneCard (corrente) + SideCard (sotto-area) === */}
-              <div className="flex flex-col gap-3 items-end" style={{ width: '340px', minWidth: '340px', maxHeight: '85vh', overflowY: 'auto' }}>
+              {/* === COLONNA DESTRA: ZoneCard (corrente, auto-adattante) === */}
+              <div className="flex flex-col items-end" style={{ width: '340px', minWidth: '340px', maxHeight: '85vh', overflowY: 'auto' }}>
                 <ZoneCard currentNode={currentNode} run={run} onResolveEvent={handleResolveEvent} onChooseNode={handleChooseNode} onComplete={handleComplete} cheats={cheats} />
-                <ExploreSideCard subAreaDef={activeSubAreaDef} currentNode={currentNode} run={run} />
               </div>
             </div>
             </>
@@ -1747,9 +1746,10 @@ function ExploreSideCard({ subAreaDef, currentNode, run }: {
 
 /* ---------- ExploreMap: mini-mappa a grafo con fog-of-war + linee percorso ---------- */
 
-function ExploreMap({ run, onChooseNode, gatingOk, large = false }: {
+function ExploreMap({ run, onChooseNode, onResolveCurrentEvent, gatingOk, large = false }: {
   run: SubAreaRun;
   onChooseNode: (nodeId: string) => void;
+  onResolveCurrentEvent: () => void;
   gatingOk: boolean;
   large?: boolean;
 }) {
@@ -1810,14 +1810,20 @@ function ExploreMap({ run, onChooseNode, gatingOk, large = false }: {
               const y2 = `${yFromTop2}%`;
               const isPathVisited = visitedSet.has(id) && visitedSet.has(cid);
               const isReachable = id === run.currentNodeId && reachable.has(cid);
+              const lineColor = isPathVisited ? '#7FC522' : isReachable ? '#5CC4F0' : 'rgba(43,115,179,0.15)';
+              const lineW = isPathVisited ? 2.5 : isReachable ? 2.5 : 1;
+              const lineOpacity = isPathVisited ? 0.8 : isReachable ? 0.7 : 0.25;
               return (
-                <line
+                <motion.line
                   key={`${id}-${cid}`}
                   x1={x1} y1={y1} x2={x2} y2={y2}
-                  stroke={isPathVisited ? '#7FC522' : isReachable ? '#5CC4F0' : 'rgba(43,115,179,0.15)'}
-                  strokeWidth={isPathVisited ? 2.5 : isReachable ? 2 : 1}
-                  strokeDasharray={isReachable ? '4 4' : 'none'}
-                  opacity={isPathVisited ? 0.8 : isReachable ? 0.6 : 0.3}
+                  stroke={lineColor}
+                  strokeWidth={lineW}
+                  strokeDasharray={isReachable ? '6 4' : 'none'}
+                  opacity={lineOpacity}
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: lineOpacity }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
                 />
               );
             });
@@ -1834,6 +1840,10 @@ function ExploreMap({ run, onChooseNode, gatingOk, large = false }: {
               const isCurrent = id === run.currentNodeId;
               const isReach = reachable.has(id) && gatingOk;
               const fog = !node.revealed;
+              // Il nodo corrente è cliccabile per risolvere l'evento (se non risolto)
+              const currentEventResolved = isCurrent && node.events.length > 0 && node.events.every(e => e.resolved);
+              const canClickCurrent = isCurrent && !currentEventResolved && !node.isLandmark && node.terrain !== 'terminal';
+              const canClickTerminal = isCurrent && node.terrain === 'terminal';
 
               let bg = 'rgba(48,48,48,0.18)';
               let border = 'rgba(43,115,179,0.2)';
@@ -1866,13 +1876,17 @@ function ExploreMap({ run, onChooseNode, gatingOk, large = false }: {
                 <button
                   key={id}
                   type="button"
-                  disabled={!isReach}
-                  onClick={isReach ? () => onChooseNode(id) : undefined}
+                  disabled={!isReach && !canClickCurrent && !canClickTerminal}
+                  onClick={() => {
+                    if (canClickCurrent) { onResolveCurrentEvent(); }
+                    else if (canClickTerminal) { onResolveCurrentEvent(); }
+                    else if (isReach) { onChooseNode(id); }
+                  }}
                   className="flex items-center justify-center transition-all"
                   style={{
                     width: `${nodeSize}px`, height: `${nodeSize}px`, borderRadius: '50%',
                     background: bg, border: `2px solid ${border}`,
-                    cursor: isReach ? 'pointer' : 'default',
+                    cursor: (isReach || canClickCurrent || canClickTerminal) ? 'pointer' : 'default',
                     boxShadow: isCurrent ? '0 0 16px rgba(43,115,179,0.7)' : isReach ? '0 0 12px rgba(92,196,240,0.6)' : 'none',
                     animation: isReach ? 'saoPulse 1.6s ease-in-out infinite' : isCurrent ? 'saoPulse 2.4s ease-in-out infinite' : 'none',
                   }}
@@ -1981,19 +1995,21 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
   };
   const landmarkAccent = currentNode.ending === 'boss' || currentNode.ending === 'horde' ? '#BE2156' : undefined;
 
+  const textBorder = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 4px rgba(0,0,0,0.9)';
+
   return (
     <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
       onClick={skipTyping}
-      className="relative w-full max-w-2xl overflow-hidden"
+      className="relative overflow-hidden glass-panel"
       style={{
-        padding: '24px',
+        width: '100%',
+        padding: '20px',
         transform: hover?.tilt,
         transformStyle: 'preserve-3d',
-        transition: 'transform 0.15s ease-out',
-        background: 'rgba(8, 22, 40, 0.85)',
+        transition: 'transform 0.15s ease-out, height 0.4s ease-out',
         border: '2px solid rgba(251, 251, 251, 0.5)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
         clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
@@ -2014,11 +2030,11 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
       <div className="flex items-baseline justify-between mb-2">
         <h3
           className="tracking-[0.2em]"
-          style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.1rem' }}
+          style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.95rem', textShadow: textBorder }}
         >
           ZONA {currentNode.position} — {currentNode.title}
         </h3>
-        <span style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em' }}>
+        <span style={{ color: 'rgba(92,196,240,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.5rem', letterSpacing: '0.15em', textShadow: textBorder }}>
           {currentNode.terrain.toUpperCase()}
         </span>
       </div>
@@ -2034,7 +2050,7 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
             fontSize: '0.85rem',
             lineHeight: 1.8,
             minHeight: '4rem',
-            textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.7)',
+            textShadow: textBorder,
             letterSpacing: '0.01em',
           }}
         >
@@ -2043,16 +2059,16 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
         </p>
       )}
 
-      {/* Short description — white SAO-style, slightly larger */}
+      {/* Short description — white SAO-style, with black border */}
       <p
         className="leading-relaxed mb-4"
         style={{
           color: '#FBFBFB',
           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
           fontWeight: 400,
-          fontSize: '0.85rem',
+          fontSize: '0.8rem',
           lineHeight: 1.6,
-          textShadow: '0 1px 3px rgba(0,0,0,0.95)',
+          textShadow: textBorder,
           opacity: 0.9,
         }}
       >
