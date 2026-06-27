@@ -650,20 +650,19 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
             {/* HUD barre HP/MP/Energia (alto sinistra, compatte, VR hover per-barra) */}
             <ExploreHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} />
 
-            {/* Layout: mappa centrata a sinistra + card espandibile a destra */}
+            {/* Layout: mappa centrata grande + pannello destro con ZoneCard + SideCard */}
             <div className="h-full flex items-center justify-center gap-4 px-4 pt-16 pb-4 overflow-y-auto sao-scroll">
 
-              {/* === COLONNA CENTRO-SINISTRA: mappa grande + zone card === */}
-              <div className="flex-1 flex flex-col items-center justify-center min-w-0">
-                {/* Mini-mappa a grafo GRANDE con linee percorso + fog-of-war */}
+              {/* === COLONNA CENTRO: mappa grande (dal basso verso l'alto) === */}
+              <div className="flex-1 flex items-center justify-center min-w-0">
                 <ExploreMap run={run} onChooseNode={handleChooseNode} gatingOk={gatingOk} large />
-
-                {/* Current node card */}
-                <ZoneCard currentNode={currentNode} run={run} onResolveEvent={handleResolveEvent} onChooseNode={handleChooseNode} onComplete={handleComplete} cheats={cheats} />
               </div>
 
-              {/* === COLONNA DESTRA: card espandibile con descrizione sotto-area === */}
-              <ExploreSideCard subAreaDef={activeSubAreaDef} currentNode={currentNode} run={run} />
+              {/* === COLONNA DESTRA: ZoneCard (corrente) + SideCard (sotto-area) === */}
+              <div className="flex flex-col gap-3 items-end" style={{ width: '340px', minWidth: '340px', maxHeight: '85vh', overflowY: 'auto' }}>
+                <ZoneCard currentNode={currentNode} run={run} onResolveEvent={handleResolveEvent} onChooseNode={handleChooseNode} onComplete={handleComplete} cheats={cheats} />
+                <ExploreSideCard subAreaDef={activeSubAreaDef} currentNode={currentNode} run={run} />
+              </div>
             </div>
             </>
             );
@@ -1787,7 +1786,7 @@ function ExploreMap({ run, onChooseNode, gatingOk, large = false }: {
 
   return (
     <div className="relative flex flex-col items-center mb-6" style={{ padding: '8px' }}>
-      {/* SVG layer per le linee di collegamento (path) */}
+      {/* SVG layer per le linee di collegamento (path) — invertito (basso→alto) */}
       <svg
         className="absolute inset-0 pointer-events-none"
         width="100%"
@@ -1796,18 +1795,19 @@ function ExploreMap({ run, onChooseNode, gatingOk, large = false }: {
       >
         {run.layers.slice(0, -1).map((layerIds, d) => {
           const nextLayer = run.layers[d + 1];
+          // Inverti Y: layer 0 in basso, layer N-1 in alto
+          const yFromTop1 = (run.depth - 1 - d) / run.depth * 100;       // nodo sorgente
+          const yFromTop2 = (run.depth - 1 - (d + 1)) / run.depth * 100; // nodo destinazione
           return layerIds.map((id) => {
             const node = run.nodes[id];
             if (!node || !node.revealed) return null;
             return node.connections.map((cid) => {
               const target = run.nodes[cid];
               if (!target || !target.revealed) return null;
-              // Calcola posizioni approssimative per le linee
               const x1 = `${(node.indexInLayer + 0.5) / Math.max(1, layerIds.length) * 100}%`;
-              const y1 = `${(d + 0.5) / run.depth * 100}%`;
+              const y1 = `${yFromTop1}%`;
               const x2 = `${(target.indexInLayer + 0.5) / Math.max(1, nextLayer.length) * 100}%`;
-              const y2 = `${(d + 1.5) / run.depth * 100}%`;
-              // Linea evidenziata se il percorso è stato visitato
+              const y2 = `${yFromTop2}%`;
               const isPathVisited = visitedSet.has(id) && visitedSet.has(cid);
               const isReachable = id === run.currentNodeId && reachable.has(cid);
               return (
@@ -1825,8 +1825,9 @@ function ExploreMap({ run, onChooseNode, gatingOk, large = false }: {
         })}
       </svg>
 
-      <div className="relative flex flex-col items-center" style={{ gap: layerGap, zIndex: 2 }}>
-        {run.layers.map((layerIds, d) => (
+      {/* Nodi: invertiti (layer 0 = in basso, layer N-1 = in alto) */}
+      <div className="relative flex flex-col-reverse items-center" style={{ gap: layerGap, zIndex: 2 }}>
+        {[...run.layers].map((layerIds, d) => (
           <div key={d} className={`flex items-center justify-center ${nodeGap}`}>
             {layerIds.map((id) => {
               const node = run.nodes[id];
