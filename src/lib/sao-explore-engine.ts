@@ -12,7 +12,7 @@ import type {
   ExploreStatKey,
 } from './sao-explore-types';
 import { ENCOUNTER_RESOLUTION_MODE } from './sao-explore-types';
-import { TERRAIN_ADJACENCY, LOOT_TABLES, SKILL_CHECK_PROMPTS, NARRATIVE_SCENES } from './sao-explore-data';
+import { TERRAIN_ADJACENCY, LOOT_TABLES } from './sao-explore-data';
 
 // === Costanti lunghezza variabile ===
 const MIN_DEPTH = 7;   // lunghezza minima (numero di layer)
@@ -153,6 +153,7 @@ export function generateSubAreaRun(
     spawnedTrapChest: checkpoint?.spawnedTrapChest ?? false,
     spawnedQuestNpc: checkpoint?.spawnedQuestNpc ?? false,
     spawnedDistressNpc: checkpoint?.spawnedDistressNpc ?? false,
+    spawnedOpulentChest: false,
   };
   for (let d = 0; d < depth; d++) {
     for (const id of layers[d]) {
@@ -222,97 +223,80 @@ function makeEnding(rng: () => number): ZoneEvent {
   return { type: 'ending', resolved: false, payload: { ending } };
 }
 
-// === ROLLING EVENTI (stile Slay the Spire: 1 evento per nodo) ===
-// Ogni nodo ha UN SOLO evento. Il tipo di evento è visibile sulla mappa (rivelato)
-// così il giocatore può scegliere il percorso in base agli eventi che vede.
+// === ROLLING EVENTI (probabilita canoniche SAO, 1 evento per nodo) ===
 function rollZoneEvents(
   rng: () => number,
   node: ZoneNode,
-  runFlags: { spawnedTrapChest: boolean; spawnedQuestNpc: boolean; spawnedDistressNpc: boolean },
-  danger: number, // 0..1
+  runFlags: { spawnedTrapChest: boolean; spawnedQuestNpc: boolean; spawnedDistressNpc: boolean; spawnedOpulentChest: boolean },
+  danger: number,
 ): ZoneEvent[] {
   const earlyNode = node.position <= 3;
-  const eliteChance = 0.15 + danger * 0.35;  // 15% → 50%
-  const mobMax = earlyNode ? 2 : Math.round(4 + danger * 2);
+  const mobMax = earlyNode ? 2 : 5;
+  const eliteChance = 0.30;
 
-  // Tabella pesata: ogni tipo ha un peso. Scegli UNO.
+  // Tabella pesata con probabilita canoniche
   type WeightedEvent = { weight: number; make: () => ZoneEvent };
   const table: WeightedEvent[] = [];
 
-  // Combattimento (più frequente con danger crescente)
-  const combatWeight = 30 + danger * 20;
-  table.push({ weight: combatWeight, make: () => makeCombat(rngInt(rng, 1, mobMax), rng() < eliteChance) });
+  // [60%] Combattimento (ripetibile)
+  table.push({ weight: 60, make: () => makeCombat(rngInt(rng, 1, mobMax), rng() < eliteChance) });
 
-  // Elite (separato dal combat normale, per chiarezza sulla mappa)
-  if (danger > 0.2) {
-    table.push({ weight: 10 + danger * 15, make: () => makeCombat(rngInt(rng, 2, mobMax), true) });
+  // [30%] Player Killer (ripetibile, dopo il terminale)
+  if (danger > 0) {
+    table.push({ weight: 30, make: () => makePlayerKiller(rngInt(rng, 3, 5)) });
   }
 
-  // Player Killer (dopo il terminale)
-  if (danger > 0.1) {
-    table.push({ weight: 8 + danger * 12, make: () => makePlayerKiller(rngInt(rng, 3, 5)) });
+  // [20%] Forziere (ripetibile)
+  table.push({ weight: 20, make: () => makeChest(rng) });
+
+  // [20%] Forziere Opulento (una sola volta per sotto-area)
+  if (!runFlags.spawnedOpulentChest) {
+    table.push({ weight: 20, make: () => { runFlags.spawnedOpulentChest = true; return makeOpulentChest(); } });
   }
 
-  // Forziere
-  table.push({ weight: 18, make: () => makeChest(rng) });
-
-  // Skill check
-  table.push({ weight: 14, make: () => makeSkillCheck(rng, danger, node.position) });
-
-  // Incontro narrativo
-  table.push({ weight: 12, make: () => makeNarrative(rng) });
-
-  // Raccolta
-  table.push({ weight: 10, make: () => makeGathering(rng) });
-
-  // Santuario
-  table.push({ weight: 6, make: () => makeShrine(rng) });
-
-  // Vista (solo in zone alte)
-  if (node.terrain === 'highland' || node.terrain === 'hills') {
-    table.push({ weight: 8, make: () => makeVista(rng) });
-  }
-
-  // NPC quest (una sola volta per run)
-  if (!runFlags.spawnedQuestNpc) {
-    table.push({ weight: 8, make: () => { runFlags.spawnedQuestNpc = true; return makeQuestNpc(); } });
-  }
-
-  // NPC in difficoltà (una sola volta per run)
-  if (!runFlags.spawnedDistressNpc) {
-    table.push({ weight: 6, make: () => { runFlags.spawnedDistressNpc = true; return makeDistressNpc(rng); } });
-  }
-
-  // Forziere trappola (raro, una sola volta per run)
+  // [5%] Forziere Trappola (una sola volta per sotto-area)
   if (!runFlags.spawnedTrapChest) {
-    table.push({ weight: 4, make: () => { runFlags.spawnedTrapChest = true; return makeTrapChest(); } });
+    table.push({ weight: 5, make: () => { runFlags.spawnedTrapChest = true; return makeTrapChest(); } });
   }
 
-  // Pesca UNO evento dalla tabella pesata
+  // [20%] NPC Quest (una sola volta per sotto-area)
+  if (!runFlags.spawnedQuestNpc) {
+    table.push({ weight: 20, make: () => { runFlags.spawnedQuestNpc = true; return makeQuestNpc(); } });
+  }
+
+  // [10%] NPC in difficolta (una sola volta per sotto-area)
+  if (!runFlags.spawnedDistressNpc) {
+    table.push({ weight: 10, make: () => { runFlags.spawnedDistressNpc = true; return makeDistressNpc(rng); } });
+  }
+
+  // Pesca UNO evento
   const totalWeight = table.reduce((sum, e) => sum + e.weight, 0);
   let roll = rng() * totalWeight;
   for (const entry of table) {
     roll -= entry.weight;
     if (roll <= 0) return [entry.make()];
   }
-  // Fallback (non dovrebbe mai arrivare qui)
   return [makeCombat(rngInt(rng, 1, mobMax), false)];
 }
 
-// === FACTORY EVENTI ===
+// === FACTORY EVENTI (solo canonici SAO) ===
 
-// Forziere con micro-scelta (trappola deterministica, rilevabile con DEX)
+// [20%] Forziere: 1 oggetto comune (25% vuoto). Mai item di missione.
 function makeChest(rng: () => number): ZoneEvent {
   const isEmpty = rng() < 0.25;
-  if (isEmpty) return { type: 'chest', resolved: false, payload: { empty: true, trapped: false } };
-  const itemId = pick(rng, LOOT_TABLES.chest_pool);
-  const trapped = rng() < 0.20; // 20% nasconde una trappola (rilevabile con DEX)
-  return { type: 'chest', resolved: false, payload: { itemId, empty: false, trapped } };
+  if (isEmpty) return { type: 'chest', resolved: false, payload: { empty: true } };
+  // Pool: solo oggetti comuni (mai item missione)
+  const itemId = pick(rng, LOOT_TABLES.common);
+  return { type: 'chest', resolved: false, payload: { itemId, empty: false } };
 }
 
+// [5%] Forziere Trappola: 3 Mob + 1 Elite. No escape. 2 oggetti rari se sopravvivi.
 function makeTrapChest(): ZoneEvent {
-  // 3 Mob + 1 Elite (capitano). 5 item rari se sopravvivi.
-  const rewards = LOOT_TABLES.trap_chest_pool.slice(0, 5);
+  const rewards = [];
+  const pool = LOOT_TABLES.rare;
+  for (let i = 0; i < 2 && pool.length > 0; i++) {
+    rewards.push(pool[Math.floor(Math.random() * pool.length)]);
+  }
   return {
     type: 'trapChest',
     resolved: false,
@@ -321,11 +305,25 @@ function makeTrapChest(): ZoneEvent {
       eliteCount: 1,
       noEscape: true,
       rewards,
-      // TODO(combat-system): startCombat con composizione fissa
+      // TODO(combat-system): WARNING + startCombat
     },
   };
 }
 
+// [20%] Forziere Opulento: serratura, serve Chiave/Chiave Universale oppure DEX
+function makeOpulentChest(): ZoneEvent {
+  return {
+    type: 'opulentChest',
+    resolved: false,
+    payload: {
+      locked: true,
+      // TODO(item-system): serve oggetto 'Chiave' o 'Chiave Universale'
+      // Oppure DEX check per scassinarlo
+    },
+  };
+}
+
+// [60%] Combattimento: 1-5 mob (max 2 nelle prime 3 zone), 30% elite
 function makeCombat(count: number, hasElite: boolean): ZoneEvent {
   return {
     type: 'combat',
@@ -338,6 +336,7 @@ function makeCombat(count: number, hasElite: boolean): ZoneEvent {
   };
 }
 
+// [30%] Player Killer: 3-5 PK. Se vincono rubano tutta la borsa.
 function makePlayerKiller(count: number): ZoneEvent {
   return {
     type: 'playerKiller',
@@ -345,28 +344,28 @@ function makePlayerKiller(count: number): ZoneEvent {
     payload: {
       pkCount: count,
       // TODO(combat-system): startCombat con NPC ostili
-      // Se player perde: svuota Borsa → StolenLootRecord
+      // Se player perde: svuota Borsa -> StolenLootRecord (quest a tempo 24h)
+      // 1% drop: Lettera del capo -> quest segreta Cavalieri sotto una Luna nera
     },
   };
 }
 
-// FIX determinismo: ora usa rng (prima usava Math.random, bug per checkpoint)
+// [10%] NPC in difficolta: attaccato da 2 mob. Salva -> dono. 5% si unisce al party.
 function makeDistressNpc(rng: () => number): ZoneEvent {
-  const wantsToJoin = rng() < 0.05; // deterministico, coerente coi checkpoint
+  const wantsToJoin = rng() < 0.05;
   return {
     type: 'distressNpc',
     resolved: false,
     payload: {
-      mobCount: 2, // NPC attaccato da 2 mob
+      mobCount: 2,
       wantsToJoin,
       giftPool: LOOT_TABLES.npc_gift_pool,
       // TODO(combat-system): startCombat per salvare NPC
-      // Se salvi: dono 1 item a tutti i party members
-      // 5%: NPC chiede di unirsi → tempPartyMemberId
     },
   };
 }
 
+// [20%] NPC Quest: quest procedurale
 function makeQuestNpc(): ZoneEvent {
   return {
     type: 'questNpc',
@@ -377,49 +376,6 @@ function makeQuestNpc(): ZoneEvent {
       placeholder: true,
     },
   };
-}
-
-// === FACTORY EVENTI FASE B ===
-
-// SKILL CHECK ambientale: stat + difficoltà decisi in generazione (deterministico);
-// la prova viene risolta a runtime nella UI (Fase B.5), NON in generazione.
-function makeSkillCheck(rng: () => number, danger: number, position: number): ZoneEvent {
-  const stats: ExploreStatKey[] = ['STR', 'DEX', 'AGI', 'VIT', 'RES', 'MEN', 'INT'];
-  const stat = pick(rng, stats);
-  const prompts = SKILL_CHECK_PROMPTS[stat];
-  const promptIdx = Math.floor(rng() * prompts.length);
-  // difficoltà sulla scala delle 7 statistiche (~1..90): cresce con posizione e tensione (tunable)
-  const difficulty = 10 + Math.round(position) + Math.round(danger * 8);
-  return {
-    type: 'skillCheck',
-    resolved: false,
-    payload: { stat, difficulty, promptIdx, rewardPool: danger > 0.5 ? 'rare' : 'uncommon' },
-  };
-}
-
-function makeNarrative(rng: () => number): ZoneEvent {
-  const scene = pick(rng, NARRATIVE_SCENES);
-  return { type: 'narrative', resolved: false, payload: { sceneId: scene.id } };
-}
-
-function makeGathering(rng: () => number): ZoneEvent {
-  const resources = ['herb', 'mineral', 'wood'] as const;
-  const resourceType = pick(rng, resources);
-  const amount = rngInt(rng, 1, 3);
-  return { type: 'gathering', resolved: false, payload: { resourceType, amount } };
-  // TODO(crafting-system): le risorse alimenteranno il crafting futuro
-}
-
-function makeShrine(rng: () => number): ZoneEvent {
-  // buff placeholder + frammento di lore (9 disponibili)
-  const loreIds = ['altar-truth', 'windmill-origin', 'forest-heart', 'first-death', 'cardinal-system', 'naverla-bridge', 'safe-zone-runes', 'floor-boss-rumor', 'teleport-gate'];
-  return { type: 'shrine', resolved: false, payload: { loreId: pick(rng, loreIds), buff: 'placeholder' } };
-  // TODO(combat-system): il buff sarà un bonus temporaneo reale
-}
-
-function makeVista(rng: () => number): ZoneEvent {
-  const loreIds = ['altar-truth', 'windmill-origin', 'forest-heart', 'first-death', 'cardinal-system', 'naverla-bridge', 'safe-zone-runes', 'floor-boss-rumor', 'teleport-gate'];
-  return { type: 'vista', resolved: false, payload: { loreId: pick(rng, loreIds), revealAhead: true } };
 }
 
 // === HELPER: genera seed casuale ===

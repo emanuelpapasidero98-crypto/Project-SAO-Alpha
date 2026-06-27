@@ -65,16 +65,12 @@ interface ExplorePanelProps {
 const EVENT_LABELS: Record<string, { label: string; color: string; icon: string }> = {
   chest: { label: 'Forziere', color: '#EBA601', icon: '◆' },
   trapChest: { label: 'Forziere Trappola!', color: '#BE2156', icon: '⚠' },
+  opulentChest: { label: 'Forziere Opulento', color: '#9b6dff', icon: '◈' },
   combat: { label: 'Nemici', color: '#cc2233', icon: '⚔' },
-  terminal: { label: 'Terminale', color: '#5CC4F0', icon: '◈' },
+  terminal: { label: 'Terminale', color: '#5CC4F0', icon: '⌬' },
   questNpc: { label: 'NPC Quest', color: '#3b82f6', icon: '✦' },
   playerKiller: { label: 'Player Killer!', color: '#BE2156', icon: '☠' },
   distressNpc: { label: 'NPC in Difficoltà', color: '#EBA601', icon: '!' },
-  skillCheck: { label: 'Prova', color: '#9b6dff', icon: '◎' },
-  narrative: { label: 'Incontro', color: '#5CC4F0', icon: '❖' },
-  gathering: { label: 'Raccolta', color: '#7FC522', icon: '✿' },
-  shrine: { label: 'Santuario', color: '#EBA601', icon: '⛩' },
-  vista: { label: 'Panorama', color: '#5CC4F0', icon: '⛰' },
   ending: { label: 'Finale', color: '#FBFBFB', icon: '★' },
 };
 
@@ -283,10 +279,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   }, [run, activeSubAreaId, onItemFound, play]);
 
   // Resolve event — marks the event as resolved so it can't be clicked again.
-  // EXCEPTION: terminal events are NEVER marked as resolved (reusable — can be
-  // clicked multiple times to access rest/checkpoint/manage bag repeatedly).
-  // skillCheck/narrative/chest (Fase B) si auto-marcano risolti nelle rispettive risoluzioni,
-  // quindi NON passano dal blocco generico di marcatura a monte (come terminal).
+  // EXCEPTION: terminal events are NEVER marked as resolved (reusable).
   const handleResolveEvent = useCallback((event: ZoneEvent) => {
     if (event.resolved) return;
     if (!run) return;
@@ -294,7 +287,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     if (!current) return;
 
     // Tipi che NON vengono marcati risolti qui (gestiti dalle loro risoluzioni)
-    const selfResolvedTypes = new Set(['terminal', 'skillCheck', 'narrative', 'chest']);
+    const selfResolvedTypes = new Set(['terminal', 'chest', 'opulentChest']);
     if (!selfResolvedTypes.has(event.type)) {
       const nodes = { ...run.nodes };
       nodes[run.currentNodeId] = {
@@ -306,22 +299,34 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
 
     switch (event.type) {
       case 'chest': {
-        // Forziere con micro-scelta: apri il modale (NON marcare risolto qui)
-        if (event.payload.empty) {
-          // Forziere vuoto → salta la scelta, mostra direttamente
+        const itemId = getChestLoot(event);
+        if (itemId) {
+          const item = SAMPLE_ITEMS.find((i) => i.id === itemId);
+          if (item) {
+            setFoundItem(item.name);
+            onItemFound?.(itemId);
+            play('present', 0.4);
+          }
+        } else {
           setFoundItem('Forziere vuoto...');
           play('click', 0.3);
-          // marca risolto ora
-          const nodes = { ...run.nodes };
-          nodes[run.currentNodeId] = {
-            ...current,
-            events: current.events.map((ev) => (ev === event ? { ...ev, resolved: true } : ev)),
-          };
-          setRun({ ...run, nodes, stats: { ...run.stats, eventsResolved: run.stats.eventsResolved + 1 } });
-        } else {
-          setChestChoiceEvent(event);
-          play('popupPanel', 0.4);
         }
+        // marca risolto ora
+        const nodes = { ...run.nodes };
+        nodes[run.currentNodeId] = {
+          ...current,
+          events: current.events.map((ev) => (ev === event ? { ...ev, resolved: true } : ev)),
+        };
+        setRun({ ...run, nodes, stats: { ...run.stats, eventsResolved: run.stats.eventsResolved + 1 } });
+        break;
+      }
+      case 'opulentChest': {
+        // Forziere opulento: serve Chiave/Chiave Universale oppure DEX
+        // TODO(item-system): controlla se il giocatore ha una Chiave
+        // Per ora: placeholder, mostra notifica
+        showToast('Forziere opulento. Serve una Chiave o abbastanza Destrezza per scassinarlo.');
+        play('alert', 0.3);
+        // NON marcare risolto (richiede chiave/DEX)
         break;
       }
       case 'terminal':
@@ -339,62 +344,11 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
         // TODO(quest-system)
         play('message', 0.4);
         break;
-      case 'skillCheck':
-        // Apri modale skill check (la risoluzione marca risolto)
-        setSkillCheckEvent(event);
-        play('popupPanel', 0.4);
-        break;
-      case 'narrative':
-        // Apri modale narrativa (la risoluzione marca risolto)
-        setNarrativeEvent(event);
-        play('popupPanel', 0.4);
-        break;
-      case 'gathering': {
-        const t = event.payload.resourceType as string;
-        const n = event.payload.amount as number;
-        const labels: Record<string, string> = { herb: 'erbe', mineral: 'minerali', wood: 'legno' };
-        showToast(`Hai raccolto ${n}× ${labels[t] ?? t}.`);
-        // FASE C: registra la risorsa nella cartografia
-        registerDiscovery({ resource: { type: t, n } });
-        play('present', 0.3);
-        break;
-      }
-      case 'shrine': {
-        const loreId = event.payload.loreId as string;
-        showToast('Preghi al santuario. Una sensazione di pace ti pervade.');
-        // FASE C: registra loreId in discoveredLore
-        if (loreId) registerDiscovery({ lore: loreId });
-        play('welcome', 0.3);
-        break;
-      }
-      case 'vista': {
-        const loreId = event.payload.loreId as string;
-        // VISTA: rivela i nodi 2 layer più avanti (fog)
-        const nodes = { ...run.nodes };
-        const cur = nodes[run.currentNodeId];
-        let frontier = [...cur.connections];
-        for (let step = 0; step < 2; step++) {
-          const nextFrontier: string[] = [];
-          for (const id of frontier) {
-            if (nodes[id]) {
-              nodes[id].revealed = true;
-              nextFrontier.push(...nodes[id].connections);
-            }
-          }
-          frontier = nextFrontier;
-        }
-        setRun({ ...run, nodes });
-        showToast('Dal punto panoramico scorgi il sentiero più avanti.');
-        // FASE C: registra loreId in discoveredLore
-        if (loreId) registerDiscovery({ lore: loreId });
-        play('system', 0.3);
-        break;
-      }
       case 'ending':
-        // Gestito da handleComplete (Fase C)
+        // Gestito da handleComplete
         break;
     }
-  }, [run, onItemFound, play, showToast, registerDiscovery]);
+  }, [run, onItemFound, play, showToast]);
 
   // === FASE B: skill check + narrativa + forziere con micro-scelta ===
 
@@ -2075,136 +2029,7 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
         {currentNode.description}
       </p>
 
-      {/* Events — displayed as small square cards (same style as character panel equipment slots) */}
-      {currentNode.events.length > 0 ? (
-        <div className="grid grid-cols-6 gap-1.5 mb-4 max-w-md">
-          {currentNode.events.map((event, idx) => {
-            const meta = EVENT_LABELS[event.type] || { label: event.type, color: '#999', icon: '?' };
-            return (
-              <EventSquareCard
-                key={idx}
-                label={meta.label}
-                color={meta.color}
-                icon={meta.icon}
-                resolved={event.resolved}
-                isTerminal={event.type === 'terminal'}
-                onClick={() => onResolveEvent(event)}
-              />
-            );
-          })}
-        </div>
-      ) : (
-        <p className="mb-4" style={{ color: 'rgba(251,251,251,0.25)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.15em' }}>
-          ZONA DI PASSAGGIO. NESSUN EVENTO.
-        </p>
-      )}
-
-      {/* Destination chooser: dipende dal numero di connections del nodo */}
-      <div className="flex flex-col gap-2">
-        {/* contatore eventi (niente su terminale/landmark) */}
-        {currentNode.terrain !== 'terminal' && !currentNode.isLandmark && (
-          <span
-            style={{
-              color: resolvedCount >= 1 ? 'rgba(127, 197, 34, 0.6)' : 'rgba(235, 166, 1, 0.6)',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em',
-            }}
-          >
-            EVENTI: {resolvedCount}/{currentNode.events.length}{resolvedCount < 1 ? ' (RISOLVI)' : ''}
-          </span>
-        )}
-
-        {/* NODO FINALE → completa */}
-        {currentNode.isLandmark ? (
-          <button
-            onClick={onComplete}
-            className="px-5 py-2 ml-auto"
-            style={{
-              background: landmarkAccent
-                ? `linear-gradient(135deg, #BE2156 0%, #8a1640 100%)`
-                : 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)',
-              boxShadow: landmarkAccent
-                ? '0 0 20px rgba(190,33,86,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
-                : '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
-              color: '#FBFBFB',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
-              cursor: 'pointer',
-            }}
-          >
-            {(currentNode.ending ? landmarkLabel[currentNode.ending] : 'AFFRONTA IL DESTINO →')}
-          </button>
-        ) : connections.length <= 1 ? (
-          /* un solo percorso → bottone AVANZA con icona evento */
-          (() => {
-            const dest = run.nodes[connections[0]];
-            const destEvent = dest?.revealed ? dest?.events[0] : null;
-            const destMeta = destEvent ? EVENT_LABELS[destEvent.type] : null;
-            return (
-          <button
-            onClick={() => gatingOk && connections[0] && onChooseNode(connections[0])}
-            disabled={!gatingOk}
-            className="px-5 py-2 ml-auto"
-            style={{
-              background: gatingOk
-                ? (destMeta ? `linear-gradient(135deg, ${destMeta.color}cc 0%, ${destMeta.color}66 100%)` : 'linear-gradient(135deg, #5CC4F0 0%, #2B73B3 60%, #0682BE 100%)')
-                : 'rgba(48, 48, 48, 0.3)',
-              boxShadow: gatingOk
-                ? '0 0 20px rgba(43,115,179,0.5), inset 0 0 8px rgba(255,255,255,0.2)'
-                : 'none',
-              border: '1px solid rgba(255,255,255,0.3)',
-              clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
-              color: '#FBFBFB',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em',
-              cursor: gatingOk ? 'pointer' : 'not-allowed',
-              opacity: gatingOk ? 1 : 0.5,
-            }}
-          >
-            {destMeta ? `${destMeta.icon} ${destMeta.label.toUpperCase()} →` : 'AVANZA →'}
-          </button>
-            );
-          })()
-        ) : (
-          /* BIVIO: un bottone per destinazione, mostra icona + tipo evento (stile Slay the Spire) */
-          <div className="flex flex-wrap gap-2 justify-end">
-            {connections.map((cid) => {
-              const dest = run.nodes[cid];
-              const destEvent = dest?.revealed ? dest?.events[0] : null;
-              const destMeta = destEvent ? EVENT_LABELS[destEvent.type] : null;
-              const label = dest?.revealed ? (destMeta ? `${destMeta.icon} ${destMeta.label.toUpperCase()}` : (dest.title?.toUpperCase() ?? '???')) : '???';
-              const accentColor = destMeta?.color ?? '#5CC4F0';
-              return (
-                <button
-                  key={cid}
-                  onClick={() => gatingOk && onChooseNode(cid)}
-                  disabled={!gatingOk}
-                  className="px-4 py-2"
-                  style={{
-                    background: gatingOk
-                      ? `linear-gradient(135deg, ${accentColor}cc 0%, ${accentColor}44 100%)`
-                      : 'rgba(48, 48, 48, 0.3)',
-                    boxShadow: gatingOk
-                      ? `0 0 16px ${accentColor}44, inset 0 0 8px rgba(255,255,255,0.2)`
-                      : 'none',
-                    border: `1px solid ${gatingOk ? accentColor + '88' : 'rgba(255,255,255,0.2)'}`,
-                    clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
-                    color: '#FBFBFB',
-                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.1em',
-                    cursor: gatingOk ? 'pointer' : 'not-allowed',
-                    opacity: gatingOk ? 1 : 0.5,
-                  }}
-                >
-                  {label} →
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* La card mostra SOLO la descrizione. Eventi e navigazione si gestiscono dalla mappa. */}
     </div>
   );
 }

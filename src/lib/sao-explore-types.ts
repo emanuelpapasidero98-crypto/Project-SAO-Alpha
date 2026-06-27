@@ -8,11 +8,10 @@ export type TerrainType =
   | 'plains' | 'hills' | 'river' | 'sparse_wood' | 'ruins'
   | 'camp' | 'clearing' | 'highland' | 'terminal';
 
-// === Tipi di evento (union estesa con i futuri tipi della Fase B) ===
+// === Tipi di evento (solo quelli canonici SAO) ===
 export type ZoneEventType =
-  | 'chest' | 'trapChest' | 'combat' | 'terminal'
-  | 'questNpc' | 'playerKiller' | 'distressNpc'
-  | 'skillCheck' | 'narrative' | 'gathering' | 'shrine' | 'vista' | 'ending';
+  | 'chest' | 'trapChest' | 'opulentChest' | 'combat' | 'terminal'
+  | 'questNpc' | 'playerKiller' | 'distressNpc' | 'ending';
 
 // === Tipo di finale della sotto-area (4 esiti) ===
 export type EndingType = 'boss' | 'treasure' | 'horde' | 'nothing';
