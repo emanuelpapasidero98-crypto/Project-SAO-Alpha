@@ -241,13 +241,21 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     const ending = current.ending ?? 'nothing';
 
     // registra l'esito nella collezione + boss path (MAI cancellare knownBossPaths)
+    // + registra tutte le zone visitate nella cartografia
     setExploreState((prev) => {
       const next = { ...prev };
       if (!next.visitedLandmarks.includes(ending)) {
         next.visitedLandmarks = [...next.visitedLandmarks, ending];
       }
       if (ending === 'boss' && !next.knownBossPaths.includes(activeSubAreaId)) {
-        next.knownBossPaths = [...next.knownBossPaths, activeSubAreaId]; // MAI cancellare
+        next.knownBossPaths = [...next.knownBossPaths, activeSubAreaId];
+      }
+      // Registra i terreni di tutte le zone visitate nella cartografia
+      for (const vid of run.visitedNodeIds) {
+        const vNode = run.nodes[vid];
+        if (vNode && !next.mappedTerrains.includes(vNode.terrain)) {
+          next.mappedTerrains = [...next.mappedTerrains, vNode.terrain];
+        }
       }
       next.subAreaProgress = { ...next.subAreaProgress, [activeSubAreaId]: { status: 'completed' } };
       next.activeRun = null;
@@ -455,10 +463,17 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
 
   const handleTerminalCheckpoint = useCallback(() => {
     if (!run || !activeSubAreaId) return;
-    // Salva la posizione corrente come checkpoint
-    setExploreState((prev) => ({
-      ...prev,
-      subAreaCheckpoints: {
+    // Salva la posizione corrente come checkpoint + registra zone visitate nella cartografia
+    setExploreState((prev) => {
+      const next = { ...prev };
+      // Registra i terreni di tutte le zone visitate nella cartografia
+      for (const vid of run.visitedNodeIds) {
+        const vNode = run.nodes[vid];
+        if (vNode && !next.mappedTerrains.includes(vNode.terrain)) {
+          next.mappedTerrains = [...next.mappedTerrains, vNode.terrain];
+        }
+      }
+      next.subAreaCheckpoints = {
         ...prev.subAreaCheckpoints,
         [activeSubAreaId]: {
           seed: run.seed,
@@ -469,8 +484,9 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           spawnedQuestNpc: run.spawnedQuestNpc,
           spawnedDistressNpc: run.spawnedDistressNpc,
         } satisfies SubAreaCheckpoint,
-      },
-    }));
+      };
+      return next;
+    });
     play('system', 0.4);
     setShowTerminal(false);
     // Teletrasporto: esci dall'esplorazione e torna alla selezione sotto-aree.
@@ -1698,7 +1714,7 @@ function ExploreSideCard({ subAreaDef, currentNode, run }: {
   );
 }
 
-/* ---------- ExploreMap: mini-mappa a grafo con fog-of-war + linee percorso ---------- */
+/* ---------- ExploreMap: mappa a grafo con posizionamento assoluto + linee precise ---------- */
 
 function ExploreMap({ run, onChooseNode, onResolveCurrentEvent, gatingOk, large = false }: {
   run: SubAreaRun;
@@ -1711,155 +1727,131 @@ function ExploreMap({ run, onChooseNode, onResolveCurrentEvent, gatingOk, large 
   const reachable = new Set(current?.connections ?? []);
   const visitedSet = new Set(run.visitedNodeIds);
 
-  // Mappa tipo evento → glyph + colore
   const eventGlyph: Record<string, { icon: string; color: string }> = {
     chest: { icon: '◆', color: '#EBA601' },
     trapChest: { icon: '⚠', color: '#BE2156' },
+    opulentChest: { icon: '◈', color: '#9b6dff' },
     combat: { icon: '⚔', color: '#cc2233' },
-    terminal: { icon: '◈', color: '#5CC4F0' },
+    terminal: { icon: '⌬', color: '#5CC4F0' },
     questNpc: { icon: '✦', color: '#3b82f6' },
     playerKiller: { icon: '☠', color: '#BE2156' },
     distressNpc: { icon: '!', color: '#EBA601' },
-    skillCheck: { icon: '◎', color: '#9b6dff' },
-    narrative: { icon: '❖', color: '#5CC4F0' },
-    gathering: { icon: '✿', color: '#7FC522' },
-    shrine: { icon: '⛩', color: '#EBA601' },
-    vista: { icon: '⛰', color: '#5CC4F0' },
     ending: { icon: '★', color: '#FBFBFB' },
   };
 
   const textBorder = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 4px rgba(0,0,0,0.9)';
-  const nodeSize = large ? 44 : 36;
-  const layerGap = large ? '56px' : '40px';
-  const nodeGap = large ? 'gap-5' : 'gap-4';
 
-  // Calcola dimensioni SVG per le linee
+  const NODE_SIZE = large ? 56 : 40;
+  const NODE_GAP = large ? 60 : 40;
+  const LAYER_GAP = large ? 100 : 70;
+
   const maxLayerWidth = Math.max(...run.layers.map(l => l.length));
-  const svgWidth = maxLayerWidth * (nodeSize + 20);
-  const svgHeight = run.depth * parseInt(layerGap);
+  const mapWidth = Math.max(maxLayerWidth * NODE_SIZE + (maxLayerWidth - 1) * NODE_GAP, 200);
+  const mapHeight = run.depth * LAYER_GAP;
+
+  const nodePositions: Record<string, { x: number; y: number }> = {};
+  run.layers.forEach((layerIds, d) => {
+    const y = (run.depth - 1 - d) * LAYER_GAP + LAYER_GAP / 2;
+    const layerWidth = layerIds.length * NODE_SIZE + (layerIds.length - 1) * NODE_GAP;
+    const startX = (mapWidth - layerWidth) / 2;
+    layerIds.forEach((id, k) => {
+      nodePositions[id] = { x: startX + k * (NODE_SIZE + NODE_GAP) + NODE_SIZE / 2, y };
+    });
+  });
 
   return (
-    <div className="relative flex flex-col items-center mb-6" style={{ padding: '8px' }}>
-      {/* SVG layer per le linee di collegamento (path) — invertito (basso→alto) */}
-      <svg
-        className="absolute inset-0 pointer-events-none"
-        width="100%"
-        height="100%"
-        style={{ zIndex: 1 }}
-      >
-        {run.layers.slice(0, -1).map((layerIds, d) => {
-          const nextLayer = run.layers[d + 1];
-          // Inverti Y: layer 0 in basso, layer N-1 in alto
-          const yFromTop1 = (run.depth - 1 - d) / run.depth * 100;       // nodo sorgente
-          const yFromTop2 = (run.depth - 1 - (d + 1)) / run.depth * 100; // nodo destinazione
-          return layerIds.map((id) => {
+    <div className="relative" style={{ width: `${mapWidth}px`, height: `${mapHeight}px`, margin: '0 auto' }}>
+      <svg className="absolute inset-0 pointer-events-none" width={mapWidth} height={mapHeight} style={{ zIndex: 1 }}>
+        {run.layers.slice(0, -1).map((layerIds, d) =>
+          layerIds.map((id) => {
             const node = run.nodes[id];
-            if (!node || !node.revealed) return null;
+            const pos1 = nodePositions[id];
+            if (!pos1) return null;
             return node.connections.map((cid) => {
               const target = run.nodes[cid];
-              if (!target || !target.revealed) return null;
-              const x1 = `${(node.indexInLayer + 0.5) / Math.max(1, layerIds.length) * 100}%`;
-              const y1 = `${yFromTop1}%`;
-              const x2 = `${(target.indexInLayer + 0.5) / Math.max(1, nextLayer.length) * 100}%`;
-              const y2 = `${yFromTop2}%`;
+              const pos2 = nodePositions[cid];
+              if (!pos2) return null;
               const isPathVisited = visitedSet.has(id) && visitedSet.has(cid);
               const isReachable = id === run.currentNodeId && reachable.has(cid);
-              const lineColor = isPathVisited ? '#7FC522' : isReachable ? '#5CC4F0' : 'rgba(43,115,179,0.15)';
-              const lineW = isPathVisited ? 2.5 : isReachable ? 2.5 : 1;
-              const lineOpacity = isPathVisited ? 0.8 : isReachable ? 0.7 : 0.25;
+              const isRevealed = node.revealed && target.revealed;
+              if (!isRevealed && !isPathVisited) return null;
+              const lineColor = isPathVisited ? '#7FC522' : isReachable ? '#5CC4F0' : 'rgba(43,115,179,0.2)';
+              const lineW = isPathVisited ? 3 : isReachable ? 2.5 : 1.5;
+              const lineOpacity = isPathVisited ? 0.8 : isReachable ? 0.6 : 0.3;
               return (
-                <motion.line
-                  key={`${id}-${cid}`}
-                  x1={x1} y1={y1} x2={x2} y2={y2}
-                  stroke={lineColor}
-                  strokeWidth={lineW}
-                  strokeDasharray={isReachable ? '6 4' : 'none'}
-                  opacity={lineOpacity}
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: lineOpacity }}
-                  transition={{ duration: 0.6, ease: 'easeOut' }}
-                />
+                <motion.line key={`${id}-${cid}`} x1={pos1.x} y1={pos1.y} x2={pos2.x} y2={pos2.y}
+                  stroke={lineColor} strokeWidth={lineW} strokeDasharray={isReachable ? '6 4' : 'none'} opacity={lineOpacity}
+                  initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: lineOpacity }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }} />
               );
             });
-          });
-        })}
+          })
+        )}
       </svg>
 
-      {/* Nodi: invertiti (layer 0 = in basso, layer N-1 = in alto) */}
-      <div className="relative flex flex-col-reverse items-center" style={{ gap: layerGap, zIndex: 2 }}>
-        {[...run.layers].map((layerIds, d) => (
-          <div key={d} className={`flex items-center justify-center ${nodeGap}`}>
-            {layerIds.map((id) => {
-              const node = run.nodes[id];
-              const isCurrent = id === run.currentNodeId;
-              const isReach = reachable.has(id) && gatingOk;
-              const fog = !node.revealed;
-              // Il nodo corrente è cliccabile per risolvere l'evento (se non risolto)
-              const currentEventResolved = isCurrent && node.events.length > 0 && node.events.every(e => e.resolved);
-              const canClickCurrent = isCurrent && !currentEventResolved && !node.isLandmark && node.terrain !== 'terminal';
-              const canClickTerminal = isCurrent && node.terrain === 'terminal';
+      {run.layers.map((layerIds, d) =>
+        layerIds.map((id) => {
+          const node = run.nodes[id];
+          const pos = nodePositions[id];
+          if (!pos) return null;
+          const isCurrent = id === run.currentNodeId;
+          const isReach = reachable.has(id) && gatingOk;
+          const isVisited = visitedSet.has(id);
+          const fog = !node.revealed;
+          const eventKnown = isCurrent || node.cleared || isVisited;
+          const currentEventResolved = isCurrent && node.events.length > 0 && node.events.every(e => e.resolved);
+          const canClickCurrent = isCurrent && !currentEventResolved && !node.isLandmark && node.terrain !== 'terminal';
+          const canClickTerminal = isCurrent && node.terrain === 'terminal';
 
-              let bg = 'rgba(48,48,48,0.18)';
-              let border = 'rgba(43,115,179,0.2)';
-              let glyph = '?';
-              let glyphColor = 'rgba(251,251,251,0.3)';
+          let bg = 'rgba(48,48,48,0.18)';
+          let border = 'rgba(43,115,179,0.2)';
+          let glyph = '?';
+          let glyphColor = 'rgba(251,251,251,0.3)';
 
-              if (node.cleared) {
-                bg = 'rgba(127,197,34,0.2)'; border = 'rgba(127,197,34,0.4)'; glyph = '✓'; glyphColor = '#7FC522';
-              } else if (isCurrent) {
-                bg = 'rgba(43,115,179,0.85)'; border = '#2B73B3'; glyphColor = '#FBFBFB';
-                const ev = node.events[0];
-                if (ev) { const eg = eventGlyph[ev.type]; if (eg) { glyph = eg.icon; glyphColor = eg.color; } }
-              } else if (fog) {
-                glyph = '?'; glyphColor = 'rgba(251,251,251,0.25)';
-              } else {
-                const ev = node.events[0];
-                if (ev) {
-                  const eg = eventGlyph[ev.type];
-                  if (eg) {
-                    glyph = eg.icon; glyphColor = eg.color;
-                    if (isReach) { bg = `${eg.color}22`; border = eg.color; }
-                    else { bg = 'rgba(48,48,48,0.15)'; border = 'rgba(43,115,179,0.15)'; }
-                  }
-                }
-              }
-              if (node.isTerminal && !node.cleared) { glyph = '◈'; glyphColor = '#5CC4F0'; }
-              if (node.isLandmark && !node.cleared) { glyph = fog ? '?' : '★'; glyphColor = '#FBFBFB'; }
+          if (node.cleared) { bg = 'rgba(127,197,34,0.2)'; border = 'rgba(127,197,34,0.4)'; glyph = '✓'; glyphColor = '#7FC522'; }
+          else if (isCurrent) {
+            bg = 'rgba(43,115,179,0.85)'; border = '#2B73B3';
+            const ev = node.events[0];
+            if (ev) { const eg = eventGlyph[ev.type]; if (eg) { glyph = eg.icon; glyphColor = eg.color; } }
+            else { glyphColor = '#FBFBFB'; }
+          } else if (fog) { glyph = '?'; glyphColor = 'rgba(251,251,251,0.2)'; }
+          else if (eventKnown) {
+            const ev = node.events[0];
+            if (ev) { const eg = eventGlyph[ev.type]; if (eg) { glyph = eg.icon; glyphColor = eg.color; } }
+          } else {
+            glyph = '?'; glyphColor = 'rgba(251,251,251,0.4)';
+            if (isReach) { bg = 'rgba(92,196,240,0.15)'; border = 'rgba(92,196,240,0.4)'; }
+          }
+          if (node.isTerminal && !node.cleared) { glyph = fog ? '?' : (eventKnown ? '⌬' : '?'); glyphColor = '#5CC4F0'; }
+          if (node.isLandmark && !node.cleared) { glyph = fog ? '?' : (eventKnown ? '★' : '?'); glyphColor = '#FBFBFB'; }
 
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  disabled={!isReach && !canClickCurrent && !canClickTerminal}
-                  onClick={() => {
-                    if (canClickCurrent) { onResolveCurrentEvent(); }
-                    else if (canClickTerminal) { onResolveCurrentEvent(); }
-                    else if (isReach) { onChooseNode(id); }
-                  }}
-                  className="flex items-center justify-center transition-all"
-                  style={{
-                    width: `${nodeSize}px`, height: `${nodeSize}px`, borderRadius: '50%',
-                    background: bg, border: `2px solid ${border}`,
-                    cursor: (isReach || canClickCurrent || canClickTerminal) ? 'pointer' : 'default',
-                    boxShadow: isCurrent ? '0 0 16px rgba(43,115,179,0.7)' : isReach ? '0 0 12px rgba(92,196,240,0.6)' : 'none',
-                    animation: isReach ? 'saoPulse 1.6s ease-in-out infinite' : isCurrent ? 'saoPulse 2.4s ease-in-out infinite' : 'none',
-                  }}
-                  aria-label={fog ? 'Zona sconosciuta' : (node.events[0] ? (EVENT_LABELS[node.events[0].type]?.label ?? node.title) : node.title)}
-                  title={fog ? '???' : (node.events[0] && !node.cleared ? `${node.title} — ${EVENT_LABELS[node.events[0].type]?.label ?? ''}` : node.title)}
-                >
-                  <span style={{ color: glyphColor, fontSize: large ? '1rem' : '0.85rem', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, textShadow: textBorder }}>
-                    {glyph}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+          return (
+            <button key={id} type="button"
+              disabled={!isReach && !canClickCurrent && !canClickTerminal}
+              onClick={() => { if (canClickCurrent) onResolveCurrentEvent(); else if (canClickTerminal) onResolveCurrentEvent(); else if (isReach) onChooseNode(id); }}
+              className="flex items-center justify-center transition-all absolute"
+              style={{
+                left: `${pos.x - NODE_SIZE / 2}px`, top: `${pos.y - NODE_SIZE / 2}px`,
+                width: `${NODE_SIZE}px`, height: `${NODE_SIZE}px`, borderRadius: '50%',
+                background: bg, border: `2px solid ${border}`,
+                cursor: (isReach || canClickCurrent || canClickTerminal) ? 'pointer' : 'default',
+                boxShadow: isCurrent ? '0 0 16px rgba(43,115,179,0.7)' : isReach ? '0 0 12px rgba(92,196,240,0.5)' : 'none',
+                animation: isReach ? 'saoPulse 1.6s ease-in-out infinite' : isCurrent ? 'saoPulse 2.4s ease-in-out infinite' : 'none',
+                zIndex: 2,
+              }}
+              aria-label={fog || !eventKnown ? 'Zona sconosciuta' : (node.events[0] ? (EVENT_LABELS[node.events[0].type]?.label ?? node.title) : node.title)}
+              title={fog || !eventKnown ? '???' : node.title}
+            >
+              <span style={{ color: glyphColor, fontSize: large ? '1.2rem' : '0.9rem', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, textShadow: textBorder }}>
+                {glyph}
+              </span>
+            </button>
+          );
+        })
+      )}
     </div>
   );
 }
-
 /* ---------- Zone Card with VR hover (same style as SubAreaCard) ---------- */
 
 function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, cheats }: {
