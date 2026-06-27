@@ -41,6 +41,10 @@ interface SaoHUDProps {
   playerName?: string;
   /** Quando true, il componente è position:relative invece di fixed (per uso dentro altri container) */
   embedded?: boolean;
+  /** Scala delle barre (default 1, usare 0.6-0.7 per versione compatta) */
+  scale?: number;
+  /** Quando true, ogni barra ha il suo VR hover individuale */
+  perBarHover?: boolean;
 }
 
 const DEFAULT_HP: BarValue = { current: 300, max: 300 };
@@ -71,6 +75,8 @@ export default function SaoHUD({
   level = DEFAULT_LEVEL,
   playerName,
   embedded = false,
+  scale = 1,
+  perBarHover = false,
 }: SaoHUDProps) {
   const { play } = useSaoSound();
   const [mounted, setMounted] = useState(false);
@@ -87,6 +93,7 @@ export default function SaoHUD({
       initial={embedded ? false : { opacity: 0, x: -30, y: -10 }}
       animate={embedded ? {} : { opacity: 1, x: 0, y: 0 }}
       transition={embedded ? {} : { duration: 0.6, ease: 'easeOut', delay: 0.2 }}
+      style={embedded ? { transform: `scale(${scale})`, transformOrigin: 'top left' } : { transform: `scale(${scale})`, transformOrigin: 'top left' }}
     >
       <div className="relative flex flex-col gap-[2px]">
         <SaoBar
@@ -97,6 +104,7 @@ export default function SaoHUD({
           showLevel={false}
           level={level}
           playerName={playerName}
+          perBarHover={perBarHover}
         />
         <SaoBar
           type="mp"
@@ -105,6 +113,7 @@ export default function SaoHUD({
           mounted={mounted}
           showLevel={false}
           level={level}
+          perBarHover={perBarHover}
         />
         <SaoBar
           type="energy"
@@ -113,6 +122,7 @@ export default function SaoHUD({
           mounted={mounted}
           showLevel={true}
           level={level}
+          perBarHover={perBarHover}
         />
       </div>
     </motion.div>
@@ -128,6 +138,7 @@ function SaoBar({
   showLevel,
   level,
   playerName,
+  perBarHover = false,
 }: {
   type: BarType;
   current: number;
@@ -136,12 +147,36 @@ function SaoBar({
   showLevel: boolean;
   level: number;
   playerName?: string;
+  perBarHover?: boolean;
 }) {
   const config = BAR_CONFIG[type];
   const pct = Math.max(0, Math.min(1, current / max));
   const hidePct = (1 - pct) * 100;
   const displayCurrent = String(current);
   const displayMax = String(max);
+
+  // VR hover per singola barra
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barHover, setBarHover] = useState<{ tilt: string; lightX: number; lightY: number } | null>(null);
+  const barRafRef = useRef<number | null>(null);
+
+  const handleBarMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!perBarHover) return;
+    const el = barRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    if (barRafRef.current !== null) cancelAnimationFrame(barRafRef.current);
+    barRafRef.current = requestAnimationFrame(() => {
+      setBarHover({
+        tilt: `perspective(400px) rotateX(${-(py - 0.5) * 12}deg) rotateY(${(px - 0.5) * 12}deg) scale3d(1.03, 1.03, 1.03)`,
+        lightX: px * 100,
+        lightY: py * 100,
+      });
+      barRafRef.current = null;
+    });
+  };
 
   // Shared style for the numeric value text (current / max).
   // Identical look to before — only the POSITION changes.
@@ -161,7 +196,31 @@ function SaoBar({
   };
 
   return (
-    <div className="relative" style={{ width: 'min(420px, 40vw)' }}>
+    <div
+      ref={barRef}
+      onMouseMove={handleBarMouseMove}
+      onMouseLeave={() => { if (perBarHover) { setBarHover(null); if (barRafRef.current) cancelAnimationFrame(barRafRef.current); } }}
+      className="relative"
+      style={{
+        width: 'min(420px, 40vw)',
+        transform: perBarHover ? barHover?.tilt : undefined,
+        transformStyle: perBarHover ? 'preserve-3d' : undefined,
+        transition: perBarHover ? 'transform 0.15s ease-out' : undefined,
+        willChange: perBarHover && barHover ? 'transform' : 'auto',
+      }}
+    >
+      {/* VR glow per singola barra */}
+      {perBarHover && (
+        <div
+          className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+          style={{
+            opacity: barHover ? 1 : 0,
+            background: `radial-gradient(circle at ${barHover?.lightX ?? 50}% ${barHover?.lightY ?? 50}%, ${config.labelColor}22 0%, transparent 50%)`,
+            mixBlendMode: 'screen',
+            zIndex: 10,
+          }}
+        />
+      )}
       {/* Player name — placed ABOVE the HP bar only.
           No box, just the text styled in SAO UI font with subtle glow. */}
       {playerName && type === 'hp' && (

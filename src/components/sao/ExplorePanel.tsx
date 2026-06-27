@@ -13,6 +13,7 @@ import {
   type ExploreOutcome,
   type EndingType,
   type TerrainType,
+  type SubAreaDef,
   createInitialExploreState,
 } from '@/lib/sao-explore-types';
 import {
@@ -646,28 +647,24 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
             const gatingOk = currentNode.terrain === 'terminal' || currentNode.isLandmark || resolvedCount >= 1 || !!cheats?.skipEvents;
             return (
             <>
-            {/* HUD barre HP/MP/Energia (alto destra, VR hover) */}
+            {/* HUD barre HP/MP/Energia (alto sinistra, compatte, VR hover per-barra) */}
             <ExploreHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} />
-            <motion.div
-              className="h-full flex flex-col items-center justify-center px-6 py-16 overflow-y-auto sao-scroll"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Sub-area title */}
-              <p
-                className="tracking-[0.25em] mb-1"
-                style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem' }}
-              >
-                {activeSubAreaDef.name.toUpperCase()}
-              </p>
 
-              {/* Mini-mappa a grafo con fog-of-war */}
-              <ExploreMap run={run} onChooseNode={handleChooseNode} gatingOk={gatingOk} />
+            {/* Layout: mappa centrata a sinistra + card espandibile a destra */}
+            <div className="h-full flex items-center justify-center gap-4 px-4 pt-16 pb-4 overflow-y-auto sao-scroll">
 
-              {/* Current node card — same style as SubAreaCard (white borders, VR hover) */}
-              <ZoneCard currentNode={currentNode} run={run} onResolveEvent={handleResolveEvent} onChooseNode={handleChooseNode} onComplete={handleComplete} cheats={cheats} />
-            </motion.div>
+              {/* === COLONNA CENTRO-SINISTRA: mappa grande + zone card === */}
+              <div className="flex-1 flex flex-col items-center justify-center min-w-0">
+                {/* Mini-mappa a grafo GRANDE con linee percorso + fog-of-war */}
+                <ExploreMap run={run} onChooseNode={handleChooseNode} gatingOk={gatingOk} large />
+
+                {/* Current node card */}
+                <ZoneCard currentNode={currentNode} run={run} onResolveEvent={handleResolveEvent} onChooseNode={handleChooseNode} onComplete={handleComplete} cheats={cheats} />
+              </div>
+
+              {/* === COLONNA DESTRA: card espandibile con descrizione sotto-area === */}
+              <ExploreSideCard subAreaDef={activeSubAreaDef} currentNode={currentNode} run={run} />
+            </div>
             </>
             );
           })()}
@@ -1595,11 +1592,26 @@ function RunSummary({ run, ending, onContinue }: {
   );
 }
 
-/* ---------- ExploreHUD: barre HP/MP/Energia IDENTICHE al game screen, con VR hover ---------- */
+/* ---------- ExploreHUD: barre HP/MP/Energia IDENTICHE al game screen, compatte, VR hover per-barra ---------- */
 
 function ExploreHUD({ hp, mp, energy, level, playerName }: {
   hp?: BarValue; mp?: BarValue; energy?: BarValue; level?: number; playerName?: string;
 }) {
+  return (
+    <div className="fixed top-4 left-4 z-30 select-none">
+      <SaoHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} embedded scale={0.6} perBarHover />
+    </div>
+  );
+}
+
+/* ---------- ExploreSideCard: card espandibile a destra con descrizione sotto-area ---------- */
+
+function ExploreSideCard({ subAreaDef, currentNode, run }: {
+  subAreaDef: SubAreaDef;
+  currentNode: ZoneNode;
+  run: SubAreaRun;
+}) {
+  const [expanded, setExpanded] = useState(true);
   const cardRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ tilt: string; lightX: number; lightY: number } | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -1613,7 +1625,7 @@ function ExploreHUD({ hp, mp, energy, level, playerName }: {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       setHover({
-        tilt: `perspective(800px) rotateX(${-(py - 0.5) * 8}deg) rotateY(${(px - 0.5) * 8}deg) scale3d(1.02, 1.02, 1.02)`,
+        tilt: `perspective(800px) rotateX(${-(py - 0.5) * 4}deg) rotateY(${(px - 0.5) * 4}deg)`,
         lightX: px * 100,
         lightY: py * 100,
       });
@@ -1621,46 +1633,132 @@ function ExploreHUD({ hp, mp, energy, level, playerName }: {
     });
   };
 
+  // Stile testo con bordo nero (per rilievo)
+  const textBorder = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 4px rgba(0,0,0,0.9)';
+
   return (
     <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
-      className="fixed top-4 left-4 z-30 select-none"
+      className="glass-panel relative overflow-hidden transition-all duration-300"
       style={{
+        width: expanded ? '320px' : '48px',
+        minWidth: '48px',
+        padding: expanded ? '16px' : '8px',
         transform: hover?.tilt,
         transformStyle: 'preserve-3d',
-        transition: 'transform 0.15s ease-out',
         willChange: hover ? 'transform' : 'auto',
+        maxHeight: '80vh',
+        overflowY: 'auto',
       }}
     >
-      {/* VR glow following cursor */}
+      {/* VR glow */}
       <div
         className="absolute inset-0 pointer-events-none transition-opacity duration-300"
         style={{
           opacity: hover ? 1 : 0,
-          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.15) 0%, transparent 50%)`,
+          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.1) 0%, transparent 50%)`,
           mixBlendMode: 'screen',
-          zIndex: 10,
         }}
       />
-      {/* Reuse the EXACT same SaoHUD component from the game screen (PNG bars) */}
-      <SaoHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} embedded />
+      {/* Toggle button */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          position: 'absolute',
+          top: '8px',
+          right: '8px',
+          background: 'transparent',
+          border: 'none',
+          color: '#5CC4F0',
+          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+          fontSize: '0.8rem',
+          cursor: 'pointer',
+          zIndex: 20,
+        }}
+      >
+        {expanded ? '▶' : '◀'}
+      </button>
+
+      {expanded ? (
+        <>
+          <h3
+            className="tracking-[0.2em] mb-2"
+            style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.8rem', textShadow: textBorder }}
+          >
+            {subAreaDef.name.toUpperCase()}
+          </h3>
+          <p
+            className="mb-3"
+            style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', lineHeight: 1.6, textShadow: textBorder }}
+          >
+            {subAreaDef.description}
+          </p>
+          <div style={{ borderTop: '1px solid rgba(43,115,179,0.2)', paddingTop: '8px' }}>
+            <p
+              className="tracking-[0.15em] mb-1"
+              style={{ color: 'rgba(92,196,240,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', textShadow: textBorder }}
+            >
+              ZONA CORRENTE
+            </p>
+            <p
+              style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.75rem', textShadow: textBorder }}
+            >
+              {currentNode.title}
+            </p>
+            <p
+              className="mt-1"
+              style={{ color: 'rgba(251,251,251,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem', textShadow: textBorder }}
+            >
+              Layer {currentNode.depth + 1}/{run.depth}
+            </p>
+          </div>
+          <div className="mt-3" style={{ borderTop: '1px solid rgba(43,115,179,0.2)', paddingTop: '8px' }}>
+            <p
+              className="tracking-[0.15em] mb-1"
+              style={{ color: 'rgba(92,196,240,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', textShadow: textBorder }}
+            >
+              STATISTICHE RUN
+            </p>
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between" style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.6rem', textShadow: textBorder }}>
+                <span>Zone visitate</span><span>{run.stats.nodesVisited}</span>
+              </div>
+              <div className="flex justify-between" style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.6rem', textShadow: textBorder }}>
+                <span>Eventi risolti</span><span>{run.stats.eventsResolved}</span>
+              </div>
+              <div className="flex justify-between" style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.6rem', textShadow: textBorder }}>
+                <span>Oggetti trovati</span><span>{run.stats.itemsFound}</span>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div
+          className="flex flex-col items-center justify-center h-full"
+          style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.5rem', letterSpacing: '0.2em', writingMode: 'vertical-rl', textShadow: textBorder }}
+        >
+          {subAreaDef.name.toUpperCase()}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ---------- ExploreMap: mini-mappa a grafo con fog-of-war ---------- */
+/* ---------- ExploreMap: mini-mappa a grafo con fog-of-war + linee percorso ---------- */
 
-function ExploreMap({ run, onChooseNode, gatingOk }: {
+function ExploreMap({ run, onChooseNode, gatingOk, large = false }: {
   run: SubAreaRun;
   onChooseNode: (nodeId: string) => void;
-  gatingOk: boolean; // true se il nodo corrente ha l'evento risolto (o terminale/cheat)
+  gatingOk: boolean;
+  large?: boolean;
 }) {
   const current = run.nodes[run.currentNodeId];
   const reachable = new Set(current?.connections ?? []);
+  const visitedSet = new Set(run.visitedNodeIds);
 
-  // Mappa tipo evento → glyph + colore (per icone sulla mappa)
+  // Mappa tipo evento → glyph + colore
   const eventGlyph: Record<string, { icon: string; color: string }> = {
     chest: { icon: '◆', color: '#EBA601' },
     trapChest: { icon: '⚠', color: '#BE2156' },
@@ -1677,80 +1775,118 @@ function ExploreMap({ run, onChooseNode, gatingOk }: {
     ending: { icon: '★', color: '#FBFBFB' },
   };
 
+  const textBorder = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 4px rgba(0,0,0,0.9)';
+  const nodeSize = large ? 44 : 36;
+  const layerGap = large ? '56px' : '40px';
+  const nodeGap = large ? 'gap-5' : 'gap-4';
+
+  // Calcola dimensioni SVG per le linee
+  const maxLayerWidth = Math.max(...run.layers.map(l => l.length));
+  const svgWidth = maxLayerWidth * (nodeSize + 20);
+  const svgHeight = run.depth * parseInt(layerGap);
+
   return (
-    <div className="flex flex-col items-center gap-2 mb-6">
-      {run.layers.map((layerIds, d) => (
-        <div key={d} className="flex items-center justify-center gap-4">
-          {layerIds.map((id) => {
+    <div className="relative flex flex-col items-center mb-6" style={{ padding: '8px' }}>
+      {/* SVG layer per le linee di collegamento (path) */}
+      <svg
+        className="absolute inset-0 pointer-events-none"
+        width="100%"
+        height="100%"
+        style={{ zIndex: 1 }}
+      >
+        {run.layers.slice(0, -1).map((layerIds, d) => {
+          const nextLayer = run.layers[d + 1];
+          return layerIds.map((id) => {
             const node = run.nodes[id];
-            const isCurrent = id === run.currentNodeId;
-            const isReach = reachable.has(id) && gatingOk;
-            const fog = !node.revealed;
+            if (!node || !node.revealed) return null;
+            return node.connections.map((cid) => {
+              const target = run.nodes[cid];
+              if (!target || !target.revealed) return null;
+              // Calcola posizioni approssimative per le linee
+              const x1 = `${(node.indexInLayer + 0.5) / Math.max(1, layerIds.length) * 100}%`;
+              const y1 = `${(d + 0.5) / run.depth * 100}%`;
+              const x2 = `${(target.indexInLayer + 0.5) / Math.max(1, nextLayer.length) * 100}%`;
+              const y2 = `${(d + 1.5) / run.depth * 100}%`;
+              // Linea evidenziata se il percorso è stato visitato
+              const isPathVisited = visitedSet.has(id) && visitedSet.has(cid);
+              const isReachable = id === run.currentNodeId && reachable.has(cid);
+              return (
+                <line
+                  key={`${id}-${cid}`}
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke={isPathVisited ? '#7FC522' : isReachable ? '#5CC4F0' : 'rgba(43,115,179,0.15)'}
+                  strokeWidth={isPathVisited ? 2.5 : isReachable ? 2 : 1}
+                  strokeDasharray={isReachable ? '4 4' : 'none'}
+                  opacity={isPathVisited ? 0.8 : isReachable ? 0.6 : 0.3}
+                />
+              );
+            });
+          });
+        })}
+      </svg>
 
-            // Determina il glyph: se rivelato, mostra l'icona dell'evento
-            let bg = 'rgba(48,48,48,0.18)';
-            let border = 'rgba(43,115,179,0.2)';
-            let color = 'rgba(251,251,251,0.3)';
-            let glyph = '?';
-            let glyphColor = color;
+      <div className="relative flex flex-col items-center" style={{ gap: layerGap, zIndex: 2 }}>
+        {run.layers.map((layerIds, d) => (
+          <div key={d} className={`flex items-center justify-center ${nodeGap}`}>
+            {layerIds.map((id) => {
+              const node = run.nodes[id];
+              const isCurrent = id === run.currentNodeId;
+              const isReach = reachable.has(id) && gatingOk;
+              const fog = !node.revealed;
 
-            if (node.cleared) {
-              bg = 'rgba(127,197,34,0.2)'; border = 'rgba(127,197,34,0.4)'; color = '#3a7a0c'; glyph = '✓'; glyphColor = '#7FC522';
-            } else if (isCurrent) {
-              bg = 'rgba(43,115,179,0.85)'; border = '#2B73B3'; color = '#FBFBFB';
-              // Mostra l'icona evento anche sul nodo corrente
-              const ev = node.events[0];
-              if (ev) {
-                const eg = eventGlyph[ev.type];
-                if (eg) { glyph = eg.icon; glyphColor = eg.color; }
-              }
-            } else if (fog) {
-              glyph = '?'; color = 'rgba(251,251,251,0.25)'; glyphColor = color;
-            } else {
-              // Rivelato ma non corrente: mostra l'icona dell'evento
-              const ev = node.events[0];
-              if (ev) {
-                const eg = eventGlyph[ev.type];
-                if (eg) {
-                  glyph = eg.icon;
-                  glyphColor = eg.color;
-                  if (isReach) {
-                    bg = `${eg.color}22`; border = eg.color; color = eg.color;
-                  } else {
-                    bg = 'rgba(48,48,48,0.15)'; border = 'rgba(43,115,179,0.15)'; color = 'rgba(251,251,251,0.4)';
+              let bg = 'rgba(48,48,48,0.18)';
+              let border = 'rgba(43,115,179,0.2)';
+              let glyph = '?';
+              let glyphColor = 'rgba(251,251,251,0.3)';
+
+              if (node.cleared) {
+                bg = 'rgba(127,197,34,0.2)'; border = 'rgba(127,197,34,0.4)'; glyph = '✓'; glyphColor = '#7FC522';
+              } else if (isCurrent) {
+                bg = 'rgba(43,115,179,0.85)'; border = '#2B73B3'; glyphColor = '#FBFBFB';
+                const ev = node.events[0];
+                if (ev) { const eg = eventGlyph[ev.type]; if (eg) { glyph = eg.icon; glyphColor = eg.color; } }
+              } else if (fog) {
+                glyph = '?'; glyphColor = 'rgba(251,251,251,0.25)';
+              } else {
+                const ev = node.events[0];
+                if (ev) {
+                  const eg = eventGlyph[ev.type];
+                  if (eg) {
+                    glyph = eg.icon; glyphColor = eg.color;
+                    if (isReach) { bg = `${eg.color}22`; border = eg.color; }
+                    else { bg = 'rgba(48,48,48,0.15)'; border = 'rgba(43,115,179,0.15)'; }
                   }
                 }
               }
-            }
-            // Override per terminal/landmark
-            if (node.isTerminal && !node.cleared) { glyph = '◈'; glyphColor = '#5CC4F0'; }
-            if (node.isLandmark && !node.cleared) { glyph = fog ? '?' : '★'; glyphColor = '#FBFBFB'; }
+              if (node.isTerminal && !node.cleared) { glyph = '◈'; glyphColor = '#5CC4F0'; }
+              if (node.isLandmark && !node.cleared) { glyph = fog ? '?' : '★'; glyphColor = '#FBFBFB'; }
 
-            return (
-              <button
-                key={id}
-                type="button"
-                disabled={!isReach}
-                onClick={isReach ? () => onChooseNode(id) : undefined}
-                className="flex items-center justify-center transition-all"
-                style={{
-                  width: '36px', height: '36px', borderRadius: '50%',
-                  background: bg, border: `2px solid ${border}`,
-                  cursor: isReach ? 'pointer' : 'default',
-                  boxShadow: isCurrent ? '0 0 14px rgba(43,115,179,0.6)' : isReach ? '0 0 10px rgba(92,196,240,0.5)' : 'none',
-                  animation: isReach ? 'saoPulse 1.6s ease-in-out infinite' : isCurrent ? 'saoPulse 2.4s ease-in-out infinite' : 'none',
-                }}
-                aria-label={fog ? 'Zona sconosciuta' : (node.events[0] ? (EVENT_LABELS[node.events[0].type]?.label ?? node.title) : node.title)}
-                title={fog ? '???' : (node.events[0] && !node.cleared ? `${node.title} — ${EVENT_LABELS[node.events[0].type]?.label ?? ''}` : node.title)}
-              >
-                <span style={{ color: glyphColor, fontSize: '0.85rem', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400 }}>
-                  {glyph}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ))}
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  disabled={!isReach}
+                  onClick={isReach ? () => onChooseNode(id) : undefined}
+                  className="flex items-center justify-center transition-all"
+                  style={{
+                    width: `${nodeSize}px`, height: `${nodeSize}px`, borderRadius: '50%',
+                    background: bg, border: `2px solid ${border}`,
+                    cursor: isReach ? 'pointer' : 'default',
+                    boxShadow: isCurrent ? '0 0 16px rgba(43,115,179,0.7)' : isReach ? '0 0 12px rgba(92,196,240,0.6)' : 'none',
+                    animation: isReach ? 'saoPulse 1.6s ease-in-out infinite' : isCurrent ? 'saoPulse 2.4s ease-in-out infinite' : 'none',
+                  }}
+                  aria-label={fog ? 'Zona sconosciuta' : (node.events[0] ? (EVENT_LABELS[node.events[0].type]?.label ?? node.title) : node.title)}
+                  title={fog ? '???' : (node.events[0] && !node.cleared ? `${node.title} — ${EVENT_LABELS[node.events[0].type]?.label ?? ''}` : node.title)}
+                >
+                  <span style={{ color: glyphColor, fontSize: large ? '1rem' : '0.85rem', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, textShadow: textBorder }}>
+                    {glyph}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
