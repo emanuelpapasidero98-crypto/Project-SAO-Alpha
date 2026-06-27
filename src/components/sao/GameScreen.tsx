@@ -13,6 +13,7 @@ import CharacterPanel from './CharacterPanel';
 import SaoPanel from './SaoPanel';
 import FloorPanel from './FloorPanel';
 import ExplorePanel from './ExplorePanel';
+import JournalPanel from './JournalPanel';
 import { ExploreErrorBoundary } from './ExploreErrorBoundary';
 import { getStartingPlayerStats, type PlayerStats, type Gender } from '@/lib/sao-data';
 import { calcMaxHp, calcMaxMp, calcMaxSp } from '@/lib/sao-stats-engine';
@@ -67,6 +68,7 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
   const [showInventoryPanel, setShowInventoryPanel] = useState(false);
   const [showFloorPanel, setShowFloorPanel] = useState(false);
   const [showExplorePanel, setShowExplorePanel] = useState(false);
+  const [showJournalPanel, setShowJournalPanel] = useState(false);
   const [exploreAreaId, setExploreAreaId] = useState<string>('grandi-pianure');
   const [showCheatPanel, setShowCheatPanel] = useState(false);
   const [cheats, setCheats] = useState({
@@ -155,6 +157,10 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
           body: 'Non sei in un party. Invita altri giocatori per formarlo.',
           autoDismiss: 6000,
         });
+        break;
+      case 'diario':
+        play('popupPanel', 0.4);
+        setShowJournalPanel(true);
         break;
       case 'options':
         pushNotification({
@@ -517,6 +523,13 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
         }}
       />
       </ExploreErrorBoundary>
+
+      {/* ===== Journal Panel (Diario) ===== */}
+      <JournalPanel
+        open={showJournalPanel}
+        onClose={() => setShowJournalPanel(false)}
+        items={items}
+      />
     </motion.div>
   );
 }

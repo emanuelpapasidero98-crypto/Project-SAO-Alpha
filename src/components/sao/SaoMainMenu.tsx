@@ -57,6 +57,7 @@ const MENU_ITEMS: MenuItemDef[] = [
   { id: 'quest', label: 'Quest', icon: '/sao/menu/Quest & Message Box.svg', iconOn: '/sao/menu/Quest & Message Box_on.svg', sound: 'popupLauncher' },
   { id: 'floor', label: 'Piano', icon: '/sao/menu/Location.svg', iconOn: '/sao/menu/Location_on.svg', sound: 'popupMenu' },
   { id: 'party', label: 'Party', icon: '/sao/menu/Party & Profile.svg', iconOn: '/sao/menu/Party & Profile_on.svg', sound: 'popupPanel' },
+  { id: 'diario', label: 'Diario', icon: '/sao/menu/Diario.svg', iconOn: '/sao/menu/Diario_on.svg', sound: 'popupMenu' },
   { id: 'options', label: 'Opzioni', icon: '/sao/menu/Option.svg', iconOn: '/sao/menu/Option_on.svg', sound: 'popupMessage' },
   { id: 'messages', label: 'Messaggi', icon: '/sao/menu/Message.svg', iconOn: '/sao/menu/Message_on.svg', sound: 'popupLauncher' },
   { id: 'logout', label: 'Log Out', icon: '/sao/menu/Logout.svg', iconOn: '/sao/menu/Logout_on.svg', sound: 'popupMenu' },
