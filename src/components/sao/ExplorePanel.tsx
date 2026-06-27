@@ -70,6 +70,27 @@ const EVENT_LABELS: Record<string, { label: string; color: string; icon: string 
   ending: { label: 'Finale', color: '#FBFBFB', icon: '★' },
 };
 
+// === FUNZIONI PURE A LIVELLO DI MODULO (fuori dal componente per evitare TDZ) ===
+
+// PROBABILITÀ DI SUCCESSO — unico punto da tarare. statValue e difficulty sono sulla stessa
+// scala delle 7 statistiche (~1..90). Se statValue === difficulty → 50%. Ogni punto di scarto
+// sposta ±3%. Clamp 10%..95% (mai vittoria/sconfitta automatica).
+function skillCheckChance(statValue: number, difficulty: number): number {
+  const raw = 0.5 + (statValue - difficulty) * 0.03;
+  return Math.max(0.10, Math.min(0.95, raw));
+}
+
+// helper: pesca un item ID da una pool di LOOT_TABLES (usa Math.random: è una ricompensa runtime)
+// DIFENSIVO: se la pool è mancante/vuota, ritorna undefined senza crashare
+function pickFromPool(poolKey: string): string | undefined {
+  const pool = (LOOT_TABLES as Record<string, string[]>)?.[poolKey] ?? (LOOT_TABLES as Record<string, string[]>)?.common;
+  if (!Array.isArray(pool) || pool.length === 0) {
+    console.warn(`[explore] pool mancante/vuota: "${poolKey}". Disponibili:`, Object.keys(LOOT_TABLES ?? {}));
+    return undefined;
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure', onItemFound, onRest, items = [], equipment, onMoveToBag, onMoveToInventory, onEquip, onUnequip, cheats, playerStats }: ExplorePanelProps) {
   const { play } = useSaoSound();
   const [exploreState, setExploreState] = useState<ExploreState>(createInitialExploreState);
@@ -111,6 +132,14 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
       }
       return next;
     });
+  }, []);
+
+  // FASE B: helper che mostra un toast non-bloccante (scompare dopo 2.5s)
+  // DICHIARATO QUI (sopra handleResolveEvent/resolveSkillCheck/applyOutcome) per evitare TDZ:
+  // quei callback elencano showToast nelle loro deps e vengono valutati al mount.
+  const showToast = useCallback((text: string) => {
+    setToast(text);
+    setTimeout(() => setToast(null), 2500);
   }, []);
 
   // Sound on open
@@ -361,32 +390,8 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
 
   // === FASE B: skill check + narrativa + forziere con micro-scelta ===
 
-  // PROBABILITÀ DI SUCCESSO — unico punto da tarare. statValue e difficulty sono sulla stessa
-  // scala delle 7 statistiche (~1..90). Se statValue === difficulty → 50%. Ogni punto di scarto
-  // sposta ±3%. Clamp 10%..95% (mai vittoria/sconfitta automatica).
-  function skillCheckChance(statValue: number, difficulty: number): number {
-    const raw = 0.5 + (statValue - difficulty) * 0.03;
-    return Math.max(0.10, Math.min(0.95, raw));
-  }
-
-  // helper: pesca un item ID da una pool di LOOT_TABLES (usa Math.random: è una ricompensa runtime)
-  // DIFENSIVO: se la pool è mancante/vuota, ritorna undefined senza crashare
-  function pickFromPool(poolKey: string): string | undefined {
-    const pool = (LOOT_TABLES as Record<string, string[]>)?.[poolKey] ?? (LOOT_TABLES as Record<string, string[]>)?.common;
-    if (!Array.isArray(pool) || pool.length === 0) {
-      console.warn(`[explore] pool mancante/vuota: "${poolKey}". Disponibili:`, Object.keys(LOOT_TABLES ?? {}));
-      return undefined;
-    }
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  // helper: mostra un toast non-bloccante (scompare dopo 2.5s)
-  const showToast = useCallback((text: string) => {
-    setToast(text);
-    setTimeout(() => setToast(null), 2500);
-  }, []);
-
   // Risolve uno skill check: singolo tiro a runtime (anti-save-scumming)
+  // (showToast è dichiarato sopra, vicino agli altri helper foglia)
   const resolveSkillCheck = useCallback((event: ZoneEvent, stat: ExploreStatKey, difficulty: number, rewardPool: string) => {
     // DIFENSIVO: playerStats può essere undefined/parziale — default a 1
     const statsMap = (playerStats ?? {}) as Record<string, number>;
