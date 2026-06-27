@@ -621,7 +621,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
             <ExploreHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} />
 
             {/* Layout: mappa centrata grande + pannello destro con ZoneCard + SideCard */}
-            <div className="h-full flex items-center justify-center gap-4 px-4 pt-16 pb-4 overflow-y-auto sao-scroll">
+            <div className="h-full flex [align-items:safe_center] justify-center gap-4 px-4 pt-16 pb-4 overflow-y-auto sao-scroll">
 
               {/* === COLONNA CENTRO: mappa grande (dal basso verso l'alto) === */}
               <div className="flex-1 flex items-center justify-center min-w-0">
@@ -1727,6 +1727,22 @@ function ExploreMap({ run, onChooseNode, onResolveCurrentEvent, gatingOk, large 
   const reachable = new Set(current?.connections ?? []);
   const visitedSet = new Set(run.visitedNodeIds);
 
+  const MAX_MAP_W = large ? 880 : 520;
+  const NODE_SIZE = large ? 60 : 44;
+  const LAYER_GAP = large ? 116 : 78;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [canvasW, setCanvasW] = useState(MAX_MAP_W);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setCanvasW(Math.min(MAX_MAP_W, Math.max(1, el.clientWidth)));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [MAX_MAP_W]);
+
   const eventGlyph: Record<string, { icon: string; color: string }> = {
     chest: { icon: '◆', color: '#EBA601' },
     trapChest: { icon: '⚠', color: '#BE2156' },
@@ -1741,26 +1757,24 @@ function ExploreMap({ run, onChooseNode, onResolveCurrentEvent, gatingOk, large 
 
   const textBorder = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 4px rgba(0,0,0,0.9)';
 
-  const NODE_SIZE = large ? 56 : 40;
-  const NODE_GAP = large ? 60 : 40;
-  const LAYER_GAP = large ? 100 : 70;
-
-  const maxLayerWidth = Math.max(...run.layers.map(l => l.length));
-  const mapWidth = Math.max(maxLayerWidth * NODE_SIZE + (maxLayerWidth - 1) * NODE_GAP, 200);
+  const PAD_X = NODE_SIZE * 0.9;
+  const mapWidth = canvasW;
   const mapHeight = run.depth * LAYER_GAP;
+  const bandLeft = PAD_X;
+  const bandW = Math.max(1, mapWidth - PAD_X * 2);
 
   const nodePositions: Record<string, { x: number; y: number }> = {};
   run.layers.forEach((layerIds, d) => {
     const y = (run.depth - 1 - d) * LAYER_GAP + LAYER_GAP / 2;
-    const layerWidth = layerIds.length * NODE_SIZE + (layerIds.length - 1) * NODE_GAP;
-    const startX = (mapWidth - layerWidth) / 2;
+    const n = layerIds.length;
     layerIds.forEach((id, k) => {
-      nodePositions[id] = { x: startX + k * (NODE_SIZE + NODE_GAP) + NODE_SIZE / 2, y };
+      const frac = (k + 1) / (n + 1);
+      nodePositions[id] = { x: bandLeft + frac * bandW, y };
     });
   });
 
   return (
-    <div className="relative" style={{ width: `${mapWidth}px`, height: `${mapHeight}px`, margin: '0 auto' }}>
+    <div ref={containerRef} className="relative w-full" style={{ height: `${mapHeight}px`, maxWidth: `${MAX_MAP_W}px`, margin: '0 auto' }}>
       <svg className="absolute inset-0 pointer-events-none" width={mapWidth} height={mapHeight} style={{ zIndex: 1 }}>
         {run.layers.slice(0, -1).map((layerIds, d) =>
           layerIds.map((id) => {
@@ -1842,7 +1856,7 @@ function ExploreMap({ run, onChooseNode, onResolveCurrentEvent, gatingOk, large 
               aria-label={fog || !eventKnown ? 'Zona sconosciuta' : (node.events[0] ? (EVENT_LABELS[node.events[0].type]?.label ?? node.title) : node.title)}
               title={fog || !eventKnown ? '???' : node.title}
             >
-              <span style={{ color: glyphColor, fontSize: large ? '1.2rem' : '0.9rem', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, textShadow: textBorder }}>
+              <span style={{ color: glyphColor, fontSize: large ? '1.3rem' : '0.95rem', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, textShadow: textBorder }}>
                 {glyph}
               </span>
             </button>

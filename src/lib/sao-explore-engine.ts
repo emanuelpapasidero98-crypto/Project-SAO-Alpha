@@ -14,9 +14,15 @@ import type {
 import { ENCOUNTER_RESOLUTION_MODE } from './sao-explore-types';
 import { TERRAIN_ADJACENCY, LOOT_TABLES } from './sao-explore-data';
 
-// === Costanti lunghezza variabile ===
-const MIN_DEPTH = 7;   // lunghezza minima (numero di layer)
-const MAX_DEPTH = 9;   // lunghezza massima
+// === Costanti struttura sotto-area ===
+// Ogni run produce ESATTAMENTE TARGET_NODES nodi (pallini), distribuiti su
+// MIN_DEPTH..MAX_DEPTH layer. La "larghezza" VISIVA della mappa è gestita dal
+// renderer (ExploreMap), NON dal numero di nodi per layer.
+const MIN_DEPTH = 6;          // layer minimi
+const MAX_DEPTH = 7;          // layer massimi (basso → la mappa entra senza scroll)
+const TARGET_NODES = 15;      // numero totale di pallini per sotto-area (requisito)
+const FREE_MIN_WIDTH = 2;     // larghezza minima di un layer ramificato
+const FREE_MAX_WIDTH = 5;     // larghezza massima di un layer ramificato
 
 // === PRNG seedato (mulberry32) ===
 // Generazione di layout, NON combattimento (regola d'oro).
@@ -60,11 +66,33 @@ export function generateSubAreaRun(
   const terminalLayer = Math.floor(depth / 2); // terminale al centro (convergenza forzata)
   const lastLayer = depth - 1;                  // finale (convergenza forzata)
 
-  // --- 2. Larghezza di ogni layer ---
-  const widths: number[] = [];
-  for (let d = 0; d < depth; d++) {
-    if (d === 0 || d === terminalLayer || d === lastLayer) widths.push(1);
-    else widths.push(rngInt(rng, 1, 3)); // ramificazione
+  // --- 2. Larghezza di ogni layer (somma === TARGET_NODES) ---
+  // Stream RNG dedicato e DETERMINISTICO per la STRUTTURA: dipende solo dal seed,
+  // così la forma del grafo è identica tra generazione fresca e ripristino da
+  // checkpoint (stesso seed → stessi widths). NON consuma lo stream `rng` usato
+  // più sotto per terreno/eventi. (Regola d'oro: mulberry32, mai Math.random.)
+  const widthRng = mulberry32(actualSeed >>> 0);
+
+  // Layer a convergenza forzata (1 nodo): ingresso, terminale, finale.
+  const forcedSingle = new Set<number>([0, terminalLayer, lastLayer]);
+  const freeLayers: number[] = [];
+  for (let d = 0; d < depth; d++) if (!forcedSingle.has(d)) freeLayers.push(d);
+
+  // Base: 1 per i forzati, FREE_MIN_WIDTH per i ramificati.
+  const widths: number[] = new Array(depth).fill(1);
+  for (const d of freeLayers) widths[d] = FREE_MIN_WIDTH;
+
+  // Distribuisci i nodi rimanenti come +1 su layer ramificati scelti a caso
+  // (cap FREE_MAX_WIDTH) → forme varie ma SEMPRE 15 nodi totali, deterministiche.
+  let remaining = TARGET_NODES - widths.reduce((s, w) => s + w, 0);
+  let guard = 0;
+  while (remaining > 0) {
+    const eligible = freeLayers.filter((d) => widths[d] < FREE_MAX_WIDTH);
+    if (eligible.length === 0) break;
+    const d = eligible[Math.floor(widthRng() * eligible.length)];
+    widths[d] += 1;
+    remaining--;
+    if (++guard > 500) break; // salvagente anti-loop
   }
 
   // --- 3. Crea i nodi (terreno/eventi assegnati dopo) ---
