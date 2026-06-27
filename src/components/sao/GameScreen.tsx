@@ -13,6 +13,7 @@ import CharacterPanel from './CharacterPanel';
 import SaoPanel from './SaoPanel';
 import FloorPanel from './FloorPanel';
 import ExplorePanel from './ExplorePanel';
+import { ExploreErrorBoundary } from './ExploreErrorBoundary';
 import { getStartingPlayerStats, type PlayerStats, type Gender } from '@/lib/sao-data';
 import { calcMaxHp, calcMaxMp, calcMaxSp } from '@/lib/sao-stats-engine';
 import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
@@ -468,6 +469,8 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
       />
 
       {/* ===== Explore Panel (shown when "Pianure dell'inizio" is clicked) ===== */}
+      {/* Error Boundary: contiene errori runtime dell'esplorazione senza far crashare l'intera app */}
+      <ExploreErrorBoundary>
       <ExplorePanel
         open={showExplorePanel}
         onClose={() => setShowExplorePanel(false)}
@@ -508,6 +511,7 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
           setEnergy({ current: maxSp, max: maxSp });
         }}
       />
+      </ExploreErrorBoundary>
     </motion.div>
   );
 }

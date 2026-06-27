@@ -37,6 +37,11 @@ function rngInt(rng: () => number, min: number, max: number): number {
 }
 
 function pick<T>(rng: () => number, arr: T[]): T {
+  // guardia: array vuoto → ritorna il primo elemento (o undefined castato) per non crashare
+  if (!arr || arr.length === 0) {
+    console.warn('[explore-engine] pick() su array vuoto, ritorno undefined');
+    return undefined as unknown as T;
+  }
   return arr[Math.floor(rng() * arr.length)];
 }
 

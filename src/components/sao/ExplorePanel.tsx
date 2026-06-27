@@ -370,9 +370,13 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   }
 
   // helper: pesca un item ID da una pool di LOOT_TABLES (usa Math.random: è una ricompensa runtime)
+  // DIFENSIVO: se la pool è mancante/vuota, ritorna undefined senza crashare
   function pickFromPool(poolKey: string): string | undefined {
-    const pool = (LOOT_TABLES as Record<string, string[]>)[poolKey] ?? LOOT_TABLES.common;
-    if (!pool.length) return undefined;
+    const pool = (LOOT_TABLES as Record<string, string[]>)?.[poolKey] ?? (LOOT_TABLES as Record<string, string[]>)?.common;
+    if (!Array.isArray(pool) || pool.length === 0) {
+      console.warn(`[explore] pool mancante/vuota: "${poolKey}". Disponibili:`, Object.keys(LOOT_TABLES ?? {}));
+      return undefined;
+    }
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
@@ -384,7 +388,9 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
 
   // Risolve uno skill check: singolo tiro a runtime (anti-save-scumming)
   const resolveSkillCheck = useCallback((event: ZoneEvent, stat: ExploreStatKey, difficulty: number, rewardPool: string) => {
-    const value = playerStats?.[stat] ?? 1;
+    // DIFENSIVO: playerStats può essere undefined/parziale — default a 1
+    const statsMap = (playerStats ?? {}) as Record<string, number>;
+    const value = statsMap[stat] ?? 1;
     const chance = skillCheckChance(value, difficulty);
     const success = Math.random() < chance;
 
@@ -790,7 +796,8 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                   // Se l'opzione ha un check: risolvi come skill check
                   let success = true;
                   if (opt.check) {
-                    const value = playerStats?.[opt.check.stat] ?? 1;
+                    const statsMap = (playerStats ?? {}) as Record<string, number>;
+                    const value = statsMap[opt.check.stat] ?? 1;
                     const chance = skillCheckChance(value, opt.check.difficulty);
                     success = Math.random() < chance;
                   }
@@ -864,8 +871,9 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                   if (!run) return;
                   const event = chestChoiceEvent;
                   const trapped = !!event.payload.trapped;
-                  // DEX check difficoltà 12
-                  const value = playerStats?.DEX ?? 1;
+                  // DEX check difficoltà 12 (difensivo: playerStats può essere undefined)
+                  const statsMap = (playerStats ?? {}) as Record<string, number>;
+                  const value = statsMap.DEX ?? 1;
                   const chance = skillCheckChance(value, 12);
                   const success = Math.random() < chance;
 
@@ -972,7 +980,8 @@ function SkillCheckModal({ event, playerStats, onResolve, onClose }: {
   const promptIdx = event.payload.promptIdx as number;
   const rewardPool = event.payload.rewardPool as string;
   const def = SKILL_CHECK_PROMPTS[stat]?.[promptIdx];
-  const value = playerStats?.[stat] ?? 1;
+  const statsMap = (playerStats ?? {}) as Record<string, number>;
+  const value = statsMap[stat] ?? 1;
   const done = !!event.resolved;
   const success = event.payload.success as boolean | undefined;
 
