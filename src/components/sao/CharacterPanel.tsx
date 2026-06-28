@@ -347,7 +347,7 @@ export default function CharacterPanel({
                       style={{
                         color: '#000000',
                         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 700,
+                        fontWeight: 600,
                         fontSize: '1.1rem',
                         // Relief effect: light shadow top-left, dark shadow bottom-right
                         textShadow:

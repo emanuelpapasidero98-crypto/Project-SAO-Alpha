@@ -174,7 +174,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
 
                   {/* Header */}
                   <div className="flex items-center justify-between p-6 pb-3" style={{ borderBottom: '2px solid #2B73B3' }}>
-                    <h2 className="tracking-[0.3em]" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '1.5rem' }}>
+                    <h2 className="tracking-[0.3em]" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 600, fontSize: '1.5rem' }}>
                       DIARIO
                     </h2>
                     <button onClick={() => { play('dismissLauncher', 0.35); onClose(); }} className="flex items-center justify-center" style={{ width: '36px', height: '36px', background: 'transparent', border: 'none', cursor: 'pointer' }} aria-label="Chiudi">
@@ -200,7 +200,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                             animate={{ rotateY: isRotating ? [0, 360] : 0 }}
                             transition={{ duration: 3, ease: 'easeInOut' }}
                           />
-                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.85rem', textShadow: '0 1px 0 rgba(0,0,0,0.15), 0 2px 1px rgba(0,0,0,0.1)' }}>
+                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 600, fontSize: '0.85rem', textShadow: '0 1px 0 rgba(0,0,0,0.08)' }}>
                             {selectedItem.name}
                           </p>
                           <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', lineHeight: 1.5, opacity: 0.7, textShadow: '0 1px 0 rgba(0,0,0,0.08)' }}>
@@ -253,7 +253,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                               if (subItems.length === 0) return null;
                               return (
                                 <div key={subcat.key}>
-                                  <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.75rem' }}>
+                                  <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 600, fontSize: '0.75rem' }}>
                                     {subcat.label.toUpperCase()}
                                   </p>
                                   <div className="grid grid-cols-2 gap-2">
@@ -305,7 +305,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                           <div className="flex flex-col gap-3">
                             {EXPLORE_AREAS.map(area => (
                               <div key={area.id}>
-                                <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.7rem' }}>
+                                <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 600, fontSize: '0.7rem' }}>
                                   {area.name.toUpperCase()}
                                 </p>
                                 <p style={{ color: 'rgba(26,42,58,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', lineHeight: 1.5, marginBottom: '8px' }}>
@@ -369,7 +369,7 @@ function ItemEntry({ item, isSelected, onClick }: { item: Item; isSelected: bool
     >
       <img src={icon} alt="" className="w-8 h-8 flex-shrink-0" style={{ objectFit: 'contain' }} draggable={false} />
       <div className="flex flex-col min-w-0">
-        <span className="truncate" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.75rem' }}>
+        <span className="truncate" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 600, fontSize: '0.75rem' }}>
           {item.name}
         </span>
         <span style={{ color: accent, fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', textTransform: 'uppercase' }}>
