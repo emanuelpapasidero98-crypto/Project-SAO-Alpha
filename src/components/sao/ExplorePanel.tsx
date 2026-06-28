@@ -1561,7 +1561,7 @@ function ExploreSideCard({ subAreaDef, currentNode, run }: {
   };
 
   // Stile testo con bordo nero (per rilievo)
-  const textBorder = '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)';
+  const textBorder = '0 0 4px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.9)';
 
   return (
     <div
@@ -1714,7 +1714,7 @@ function ExploreMap({ run, onChooseNode, onResolveCurrentEvent, gatingOk, large 
     ending: { icon: '★', color: '#FBFBFB' },
   };
 
-  const textBorder = '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)';
+  const textBorder = '0 0 4px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.9)';
 
   const PAD_X = NODE_SIZE * 0.9;
   const mapWidth = canvasW;
@@ -1914,7 +1914,7 @@ function ZoneCard({ currentNode, run, onResolveEvent, onChooseNode, onComplete, 
   };
   const landmarkAccent = currentNode.ending === 'boss' || currentNode.ending === 'horde' ? '#BE2156' : undefined;
 
-  const textBorder = '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)';
+  const textBorder = '0 0 4px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.9)';
 
   return (
     <div

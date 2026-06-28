@@ -573,7 +573,7 @@ export default function CharacterPanel({
                           fontWeight: 400,
                           fontSize: '0.7rem',
                           letterSpacing: '0.05em',
-                          textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 2px 4px rgba(0,0,0,0.3)',
+                          textShadow: '0 1px 0 rgba(0,0,0,0.08)',
                         }}
                       >
                         MANCANO {xpRemaining} EXP AL LIVELLO {level + 1}

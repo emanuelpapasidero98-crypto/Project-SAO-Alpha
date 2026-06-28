@@ -200,10 +200,10 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                             animate={{ rotateY: isRotating ? [0, 360] : 0 }}
                             transition={{ duration: 3, ease: 'easeInOut' }}
                           />
-                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.85rem', textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 2px 4px rgba(0,0,0,0.3)' }}>
+                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.85rem', textShadow: '0 1px 0 rgba(0,0,0,0.15), 0 2px 1px rgba(0,0,0,0.1)' }}>
                             {selectedItem.name}
                           </p>
-                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', lineHeight: 1.5, opacity: 0.7, textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 2px 4px rgba(0,0,0,0.3)' }}>
+                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', lineHeight: 1.5, opacity: 0.7, textShadow: '0 1px 0 rgba(0,0,0,0.08)' }}>
                             {selectedItem.description}
                           </p>
                         </div>
