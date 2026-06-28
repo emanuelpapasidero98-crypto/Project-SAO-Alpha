@@ -278,7 +278,7 @@ export default function CharacterPanel({
                   style={{
                     color: '#1a2a3a',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400,
+                    fontWeight: 300,
                     fontSize: 'clamp(1rem, 2vw, 1.4rem)',
                   }}
                 >
@@ -336,7 +336,7 @@ export default function CharacterPanel({
                       style={{
                         color: '#1a2a3a',
                         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 400,
+                        fontWeight: 300,
                         fontSize: '1rem',
                       }}
                     >
@@ -407,7 +407,7 @@ export default function CharacterPanel({
                       style={{
                         color: 'rgba(26, 42, 58, 0.6)',
                         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 400,
+                        fontWeight: 300,
                         fontSize: '0.7rem',
                       }}
                     >
@@ -451,7 +451,7 @@ export default function CharacterPanel({
                               style={{
                                 color: 'rgba(26, 42, 58, 0.5)',
                                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                fontWeight: 400,
+                                fontWeight: 300,
                                 fontSize: '0.7rem',
                                 letterSpacing: '0.1em',
                               }}
@@ -505,7 +505,7 @@ export default function CharacterPanel({
                                 style={{
                                   color: '#1a2a3a',
                                   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                  fontWeight: 400,
+                                  fontWeight: 300,
                                   fontSize: '0.65rem',
                                 }}
                               >
@@ -518,7 +518,7 @@ export default function CharacterPanel({
                                 style={{
                                   color: 'rgba(190, 33, 86, 0.5)',
                                   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                  fontWeight: 400,
+                                  fontWeight: 300,
                                   fontSize: '0.5rem',
                                 }}
                               >
@@ -570,7 +570,7 @@ export default function CharacterPanel({
                         style={{
                           color: '#FBFBFB',
                           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                          fontWeight: 400,
+                          fontWeight: 300,
                           fontSize: '0.7rem',
                           letterSpacing: '0.05em',
                           textShadow: '0 1px 0 rgba(0,0,0,0.08)',
@@ -624,7 +624,7 @@ export default function CharacterPanel({
                                 style={{
                                   color: meta.color,
                                   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                  fontWeight: 400,
+                                  fontWeight: 300,
                                   fontSize: '0.65rem',
                                   letterSpacing: '0.15em',
                                 }}
@@ -635,7 +635,7 @@ export default function CharacterPanel({
                                 style={{
                                   color: '#1a2a3a',
                                   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                                  fontWeight: 400,
+                                  fontWeight: 300,
                                   fontSize: '0.95rem',
                                 }}
                               >
@@ -711,7 +711,7 @@ export default function CharacterPanel({
 const subStatLabelStyle: React.CSSProperties = {
   color: 'rgba(26, 42, 58, 0.6)',
   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-  fontWeight: 400,
+  fontWeight: 300,
   fontSize: '0.65rem',
   letterSpacing: '0.15em',
 };
@@ -719,7 +719,7 @@ const subStatLabelStyle: React.CSSProperties = {
 const subStatValueStyle: React.CSSProperties = {
   color: '#1a2a3a',
   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-  fontWeight: 400,
+  fontWeight: 300,
   fontSize: '0.7rem',
   letterSpacing: '0.1em',
 };
@@ -727,7 +727,7 @@ const subStatValueStyle: React.CSSProperties = {
 const sectionLabelStyle: React.CSSProperties = {
   color: 'rgba(26, 42, 58, 0.7)',
   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-  fontWeight: 400,
+  fontWeight: 300,
   fontSize: '0.7rem',
   letterSpacing: '0.25em',
 };
@@ -735,7 +735,7 @@ const sectionLabelStyle: React.CSSProperties = {
 const sectionValueStyle: React.CSSProperties = {
   color: '#1a2a3a',
   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-  fontWeight: 400,
+  fontWeight: 300,
   fontSize: '0.75rem',
   letterSpacing: '0.05em',
 };
@@ -757,7 +757,7 @@ function DerivedStatBox({ label, value }: { label: string; value: string | numbe
         style={{
           color: 'rgba(26, 42, 58, 0.7)',
           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-          fontWeight: 400,
+          fontWeight: 300,
           fontSize: '0.7rem',
           letterSpacing: '0.15em',
         }}
@@ -768,7 +768,7 @@ function DerivedStatBox({ label, value }: { label: string; value: string | numbe
         style={{
           color: '#1a2a3a',
           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-          fontWeight: 400,
+          fontWeight: 300,
           fontSize: '0.75rem',
         }}
       >

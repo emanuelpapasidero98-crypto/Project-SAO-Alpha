@@ -231,7 +231,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                   style={{
                     color: 'rgba(26, 42, 58, 0.5)',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400,
+                    fontWeight: 300,
                     fontSize: '0.65rem',
                   }}
                 >
@@ -244,7 +244,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                   style={{
                     color: '#1a2a3a',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400,
+                    fontWeight: 300,
                     fontSize: '1.3rem',
                     textShadow: '0 1px 2px rgba(0,0,0,0.9)',
                   }}
@@ -258,7 +258,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                   style={{
                     color: '#1a2a3a',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400,
+                    fontWeight: 300,
                     fontSize: '0.9rem',
                     lineHeight: 1.5,
                   }}
@@ -274,7 +274,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                       style={{
                         color: 'rgba(26, 42, 58, 0.5)',
                         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                        fontWeight: 400,
+                        fontWeight: 300,
                         fontSize: '0.65rem',
                       }}
                     >
@@ -292,7 +292,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                               'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
                             color: '#2B73B3',
                             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                            fontWeight: 400,
+                            fontWeight: 300,
                             fontSize: '0.7rem',
                             letterSpacing: '0.05em',
                           }}
@@ -320,7 +320,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                     style={{
                       color: item.equippable ? '#3a7a0c' : '#BE2156',
                       fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                      fontWeight: 400,
+                      fontWeight: 300,
                       fontSize: '0.65rem',
                       letterSpacing: '0.15em',
                     }}

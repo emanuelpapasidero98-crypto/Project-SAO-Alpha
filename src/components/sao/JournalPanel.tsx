@@ -203,14 +203,14 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                           <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.85rem', textShadow: '0 1px 0 rgba(0,0,0,0.08)' }}>
                             {selectedItem.name}
                           </p>
-                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', lineHeight: 1.5, opacity: 0.7, textShadow: '0 1px 0 rgba(0,0,0,0.08)' }}>
+                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.7rem', lineHeight: 1.5, opacity: 0.7, textShadow: '0 1px 0 rgba(0,0,0,0.08)' }}>
                             {selectedItem.description}
                           </p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-2" style={{ opacity: 0.3 }}>
                           <img src="/sao/equipment-types/icon_round_item.png" alt="" className="w-20 h-20" style={{ opacity: 0.4 }} draggable={false} />
-                          <p style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', letterSpacing: '0.1em' }}>
+                          <p style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.75rem', letterSpacing: '0.1em' }}>
                             SELEZIONA UN OGGETTO
                           </p>
                         </div>
@@ -233,7 +233,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                               clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
                               color: activeTab === tab.key ? '#2B73B3' : 'rgba(26,42,58,0.5)',
                               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                              fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.1em',
+                              fontWeight: 300, fontSize: '0.7rem', letterSpacing: '0.1em',
                               cursor: 'pointer',
                             }}
                           >
@@ -308,14 +308,14 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                                 <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.7rem' }}>
                                   {area.name.toUpperCase()}
                                 </p>
-                                <p style={{ color: 'rgba(26,42,58,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', lineHeight: 1.5, marginBottom: '8px' }}>
+                                <p style={{ color: 'rgba(26,42,58,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.75rem', lineHeight: 1.5, marginBottom: '8px' }}>
                                   {area.description}
                                 </p>
                                 <div className="flex flex-col gap-1">
                                   {EXPLORE_SUBAREAS.filter(sa => sa.areaId === area.id).map(sa => (
                                     <div key={sa.id} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'rgba(43,115,179,0.05)', border: '1px solid rgba(43,115,179,0.1)', clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}>
                                       <span style={{ color: '#2B73B3', fontSize: '0.7rem' }}>◈</span>
-                                      <span style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem' }}>
+                                      <span style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.75rem' }}>
                                         {sa.name}
                                       </span>
                                       <span className="ml-auto" style={{ color: 'rgba(26,42,58,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.75rem' }}>
@@ -372,7 +372,7 @@ function ItemEntry({ item, isSelected, onClick }: { item: Item; isSelected: bool
         <span className="truncate" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.75rem' }}>
           {item.name}
         </span>
-        <span style={{ color: accent, fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', textTransform: 'uppercase' }}>
+        <span style={{ color: accent, fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.7rem', textTransform: 'uppercase' }}>
           {item.rarity || 'common'}
         </span>
       </div>
@@ -385,7 +385,7 @@ function ItemEntry({ item, isSelected, onClick }: { item: Item; isSelected: bool
 function EmptyState({ text }: { text: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-8" style={{ opacity: 0.4 }}>
-      <p style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', textAlign: 'center' }}>
+      <p style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.7rem', textAlign: 'center' }}>
         {text}
       </p>
     </div>
