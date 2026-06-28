@@ -244,7 +244,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                   style={{
                     color: '#1a2a3a',
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 700,
+                    fontWeight: 400,
                     fontSize: '1.3rem',
                     textShadow: '0 1px 2px rgba(0,0,0,0.9)',
                   }}
