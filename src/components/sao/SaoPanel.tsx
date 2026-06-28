@@ -223,14 +223,14 @@ export default function SaoPanel({
                   >
                     <h2
                       className="tracking-[0.4em]"
-                      style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: 'clamp(1rem, 2vw, 1.4rem)' }}
+                      style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: 'clamp(1rem, 2vw, 1.4rem)' }}
                     >
                       {title}
                     </h2>
                     {mode === 'bag' && (
                       <p
                         className="mt-1 tracking-[0.2em]"
-                        style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}
+                        style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.65rem' }}
                       >
                         {items.filter(i => i.location === 'bag').length} / {BAG_MAX_ITEMS} SLOT
                       </p>
@@ -254,7 +254,7 @@ export default function SaoPanel({
                               color: '#1a2a3a',
                               border: '1px solid rgba(43, 115, 179, 0.4)',
                               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                              fontWeight: 400,
+                              fontWeight: 300,
                               fontSize: '0.75rem',
                               clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
                             }}
@@ -288,7 +288,7 @@ export default function SaoPanel({
                     {displayItems.length === 0 ? (
                       <p
                         className="text-center py-8"
-                        style={{ color: 'rgba(26,42,58,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.8rem', letterSpacing: '0.2em' }}
+                        style={{ color: 'rgba(26,42,58,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.8rem', letterSpacing: '0.2em' }}
                       >
                         NESSUN OGGETTO
                       </p>
@@ -336,7 +336,7 @@ function SortButton({ active, onClick, label }: { active: boolean; onClick: () =
         border: `1px solid ${active ? 'rgba(43, 115, 179, 0.5)' : 'rgba(43, 115, 179, 0.2)'}`,
         color: active ? '#2B73B3' : 'rgba(26,42,58,0.5)',
         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-        fontWeight: 400,
+        fontWeight: 300,
         fontSize: '0.6rem',
         letterSpacing: '0.15em',
         cursor: 'pointer',
@@ -358,7 +358,7 @@ function CategoryTab({ active, onClick, label }: { active: boolean; onClick: () 
         color: active ? '#FBFBFB' : 'rgba(26,42,58,0.6)',
         border: `1px solid ${active ? '#2B73B3' : 'rgba(43, 115, 179, 0.2)'}`,
         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-        fontWeight: 400,
+        fontWeight: 300,
         fontSize: '0.6rem',
         letterSpacing: '0.1em',
         cursor: 'pointer',
@@ -454,7 +454,7 @@ function ItemCard({
         style={{
           color: '#1a2a3a',
           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-          fontWeight: 400,
+          fontWeight: 300,
           fontSize: '0.75rem',
           letterSpacing: '0.02em',
           textShadow: '0 1px 2px rgba(0,0,0,0.9)',
@@ -474,7 +474,7 @@ function ItemCard({
               border: '1px solid rgba(127, 197, 34, 0.4)',
               color: '#3a7a0c',
               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
+              fontWeight: 300,
               fontSize: '0.5rem',
               letterSpacing: '0.05em',
               cursor: 'pointer',
@@ -492,7 +492,7 @@ function ItemCard({
               border: '1px solid rgba(127, 197, 34, 0.5)',
               color: '#3a7a0c',
               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
+              fontWeight: 300,
               fontSize: '0.5rem',
               letterSpacing: '0.05em',
               clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)',
@@ -510,7 +510,7 @@ function ItemCard({
               border: '1px solid rgba(43, 115, 179, 0.3)',
               color: '#2B73B3',
               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
+              fontWeight: 300,
               fontSize: '0.5rem',
               letterSpacing: '0.05em',
               cursor: 'pointer',
