@@ -408,7 +408,7 @@ export default function CharacterPanel({
                         color: 'rgba(26, 42, 58, 0.6)',
                         fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                         fontWeight: 400,
-                        fontSize: '0.6rem',
+                        fontSize: '0.7rem',
                       }}
                     >
                       EQUIPAGGIAMENTO
@@ -452,7 +452,7 @@ export default function CharacterPanel({
                                 color: 'rgba(26, 42, 58, 0.5)',
                                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                                 fontWeight: 400,
-                                fontSize: '0.5rem',
+                                fontSize: '0.7rem',
                                 letterSpacing: '0.1em',
                               }}
                             >
@@ -506,7 +506,7 @@ export default function CharacterPanel({
                                   color: '#1a2a3a',
                                   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                                   fontWeight: 400,
-                                  fontSize: '0.45rem',
+                                  fontSize: '0.65rem',
                                 }}
                               >
                                 {item.name}
@@ -519,7 +519,7 @@ export default function CharacterPanel({
                                   color: 'rgba(190, 33, 86, 0.5)',
                                   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                                   fontWeight: 400,
-                                  fontSize: '0.4rem',
+                                  fontSize: '0.5rem',
                                 }}
                               >
                                 BLOCCATO
@@ -571,9 +571,9 @@ export default function CharacterPanel({
                           color: '#FBFBFB',
                           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                           fontWeight: 400,
-                          fontSize: '0.6rem',
+                          fontSize: '0.7rem',
                           letterSpacing: '0.05em',
-                          textShadow: '0 1px 1px rgba(0,0,0,0.9)',
+                          textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 2px 4px rgba(0,0,0,0.3)',
                         }}
                       >
                         MANCANO {xpRemaining} EXP AL LIVELLO {level + 1}
@@ -758,7 +758,7 @@ function DerivedStatBox({ label, value }: { label: string; value: string | numbe
           color: 'rgba(26, 42, 58, 0.7)',
           fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
           fontWeight: 400,
-          fontSize: '0.6rem',
+          fontSize: '0.7rem',
           letterSpacing: '0.15em',
         }}
       >

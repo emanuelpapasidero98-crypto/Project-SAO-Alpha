@@ -200,17 +200,17 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                             animate={{ rotateY: isRotating ? [0, 360] : 0 }}
                             transition={{ duration: 3, ease: 'easeInOut' }}
                           />
-                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.85rem' }}>
+                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.85rem', textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 2px 4px rgba(0,0,0,0.3)' }}>
                             {selectedItem.name}
                           </p>
-                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', lineHeight: 1.5, opacity: 0.7 }}>
+                          <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', lineHeight: 1.5, opacity: 0.7, textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 2px 4px rgba(0,0,0,0.3)' }}>
                             {selectedItem.description}
                           </p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-2" style={{ opacity: 0.3 }}>
                           <img src="/sao/equipment-types/icon_round_item.png" alt="" className="w-20 h-20" style={{ opacity: 0.4 }} draggable={false} />
-                          <p style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem', letterSpacing: '0.1em' }}>
+                          <p style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', letterSpacing: '0.1em' }}>
                             SELEZIONA UN OGGETTO
                           </p>
                         </div>
@@ -233,7 +233,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                               clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
                               color: activeTab === tab.key ? '#2B73B3' : 'rgba(26,42,58,0.5)',
                               fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                              fontWeight: 400, fontSize: '0.6rem', letterSpacing: '0.1em',
+                              fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.1em',
                               cursor: 'pointer',
                             }}
                           >
@@ -253,7 +253,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                               if (subItems.length === 0) return null;
                               return (
                                 <div key={subcat.key}>
-                                  <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.65rem' }}>
+                                  <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.75rem' }}>
                                     {subcat.label.toUpperCase()}
                                   </p>
                                   <div className="grid grid-cols-2 gap-2">
@@ -308,17 +308,17 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                                 <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.7rem' }}>
                                   {area.name.toUpperCase()}
                                 </p>
-                                <p style={{ color: 'rgba(26,42,58,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem', lineHeight: 1.5, marginBottom: '8px' }}>
+                                <p style={{ color: 'rgba(26,42,58,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', lineHeight: 1.5, marginBottom: '8px' }}>
                                   {area.description}
                                 </p>
                                 <div className="flex flex-col gap-1">
                                   {EXPLORE_SUBAREAS.filter(sa => sa.areaId === area.id).map(sa => (
                                     <div key={sa.id} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'rgba(43,115,179,0.05)', border: '1px solid rgba(43,115,179,0.1)', clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}>
                                       <span style={{ color: '#2B73B3', fontSize: '0.7rem' }}>◈</span>
-                                      <span style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
+                                      <span style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem' }}>
                                         {sa.name}
                                       </span>
-                                      <span className="ml-auto" style={{ color: 'rgba(26,42,58,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.55rem' }}>
+                                      <span className="ml-auto" style={{ color: 'rgba(26,42,58,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.75rem' }}>
                                         {sa.terrainPalette.length} terreni
                                       </span>
                                     </div>
@@ -369,10 +369,10 @@ function ItemEntry({ item, isSelected, onClick }: { item: Item; isSelected: bool
     >
       <img src={icon} alt="" className="w-8 h-8 flex-shrink-0" style={{ objectFit: 'contain' }} draggable={false} />
       <div className="flex flex-col min-w-0">
-        <span className="truncate" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.65rem' }}>
+        <span className="truncate" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.75rem' }}>
           {item.name}
         </span>
-        <span style={{ color: accent, fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.5rem', textTransform: 'uppercase' }}>
+        <span style={{ color: accent, fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', textTransform: 'uppercase' }}>
           {item.rarity || 'common'}
         </span>
       </div>

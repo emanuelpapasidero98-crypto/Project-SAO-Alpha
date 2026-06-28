@@ -282,7 +282,7 @@ export default function FloorPanel({ open, onClose, onZoneSelect }: FloorPanelPr
                                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                                 fontWeight: 400,
                                 fontSize: '0.7rem',
-                                textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
+                                textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
                               }}
                             >
                               DISPONIBILE
@@ -294,7 +294,7 @@ export default function FloorPanel({ open, onClose, onZoneSelect }: FloorPanelPr
                                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                                 fontWeight: 400,
                                 fontSize: '1.5rem',
-                                textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
+                                textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
                               }}
                             >
                               PIANO 1 — AINCRAD
@@ -422,7 +422,7 @@ export default function FloorPanel({ open, onClose, onZoneSelect }: FloorPanelPr
                                   fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                                   fontWeight: 700,
                                   fontSize: '1rem',
-                                  textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
+                                  textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
                                 }}
                               >
                                 {zone.name}

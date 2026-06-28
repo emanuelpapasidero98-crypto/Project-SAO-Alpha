@@ -189,7 +189,7 @@ function SaoBar({
     fontWeight: 400,
     fontSize: 'clamp(0.55rem, 1vw, 0.75rem)',
     letterSpacing: '0.02em',
-    textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
+    textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
     whiteSpace: 'nowrap',
     pointerEvents: 'none',
     lineHeight: 1,
@@ -232,7 +232,7 @@ function SaoBar({
             fontWeight: 400,
             fontSize: '0.8rem',
             letterSpacing: '0.35em',
-            textShadow: '0 0 10px rgba(92, 196, 240, 0.7), 0 1px 2px rgba(0,0,0,0.9)',
+            textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
           }}
         >
           {playerName.toUpperCase()}
@@ -250,7 +250,7 @@ function SaoBar({
           fontSize: '0.55rem',
           letterSpacing: '0.25em',
           color: config.labelColor,
-          textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
+          textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
           lineHeight: 1,
           pointerEvents: 'none',
         }}
@@ -312,7 +312,7 @@ function SaoBar({
               ...valueTextStyle,
               left: SLOT.levelLeft,
               color: '#FBFBFB',
-              textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
+              textShadow: '1px 1px 0 #C0C0C0, -1px -1px 0 #C0C0C0, 1px -1px 0 #C0C0C0, -1px 1px 0 #C0C0C0, 0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
             }}
           >
             {String(level)}
