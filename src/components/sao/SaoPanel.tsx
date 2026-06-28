@@ -457,7 +457,7 @@ function ItemCard({
           fontWeight: 700,
           fontSize: '0.75rem',
           letterSpacing: '0.02em',
-          textShadow: '0 1px 0 rgba(255,255,255,0.9), 0 -1px 2px rgba(0,0,0,0.2), 0 0 4px rgba(43, 115, 179, 0.15)',
+          textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
         }}
       >
         {item.name}

@@ -22,8 +22,6 @@ import {
   getSubAreaById,
   SKILL_CHECK_PROMPTS,
   NARRATIVE_SCENES,
-  LORE_FRAGMENTS,
-  getLoreById,
   LOOT_TABLES,
 } from '@/lib/sao-explore-data';
 import { generateSubAreaRun, generateSeed, getChestLoot, revealNeighbors } from '@/lib/sao-explore-engine';
@@ -121,12 +119,9 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   const activeSubAreaDef = activeSubAreaId ? getSubAreaById(activeSubAreaId) : null;
 
   // FASE C: helper che aggiorna la cartografia in modo idempotente
-  const registerDiscovery = useCallback((opts: { lore?: string; terrain?: TerrainType; resource?: { type: string; n: number } }) => {
+  const registerDiscovery = useCallback((opts: { terrain?: TerrainType; resource?: { type: string; n: number } }) => {
     setExploreState((prev) => {
       const next = { ...prev };
-      if (opts.lore && !next.discoveredLore.includes(opts.lore)) {
-        next.discoveredLore = [...next.discoveredLore, opts.lore];
-      }
       if (opts.terrain && !next.mappedTerrains.includes(opts.terrain)) {
         next.mappedTerrains = [...next.mappedTerrains, opts.terrain];
       }
@@ -427,8 +422,6 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
       }
       case 'lore': {
         if (outcome.loreId) {
-          setRun((prev) => prev ? { ...prev, stats: { ...prev.stats, loreFound: prev.stats.loreFound + 1 } } : prev);
-          // FASE C: registra loreId in discoveredLore
           registerDiscovery({ lore: outcome.loreId });
         }
         showToast(outcome.text);
@@ -1311,7 +1304,6 @@ function CartographyPanel({ exploreState, onClose }: {
   const resourceLabels: Record<string, string> = { herb: 'Erbe', mineral: 'Minerali', wood: 'Legno' };
 
   const terrainPct = Math.round((exploreState.mappedTerrains.length / allTerrains.length) * 100);
-  const lorePct = Math.round((exploreState.discoveredLore.length / LORE_FRAGMENTS.length) * 100);
   const endingPct = Math.round((exploreState.visitedLandmarks.length / allEndings.length) * 100);
   const globalPct = Math.round((terrainPct + lorePct + endingPct) / 3);
 
@@ -1358,38 +1350,6 @@ function CartographyPanel({ exploreState, onClose }: {
                 >
                   {terrainLabels[t]?.toUpperCase() ?? t.toUpperCase()}
                 </span>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Frammenti di lore */}
-        <div className="mb-5">
-          <p className="tracking-[0.2em] mb-2" style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
-            FRAMMENTI DI LORE ({exploreState.discoveredLore.length}/{LORE_FRAGMENTS.length})
-          </p>
-          <div className="flex flex-col gap-1.5">
-            {LORE_FRAGMENTS.map((lore) => {
-              const found = exploreState.discoveredLore.includes(lore.id);
-              return (
-                <div
-                  key={lore.id}
-                  className="px-3 py-2"
-                  style={{
-                    background: found ? 'rgba(43,115,179,0.1)' : 'rgba(48,48,48,0.1)',
-                    border: `1px solid ${found ? 'rgba(43,115,179,0.3)' : 'rgba(48,48,48,0.2)'}`,
-                    clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-                  }}
-                >
-                  <p style={{ color: found ? '#FBFBFB' : 'rgba(251,251,251,0.3)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.65rem', marginBottom: '2px' }}>
-                    {found ? lore.title : '??? — Frammento non ancora scoperto'}
-                  </p>
-                  {found && (
-                    <p style={{ color: 'rgba(251,251,251,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem', lineHeight: 1.5 }}>
-                      {lore.text}
-                    </p>
-                  )}
-                </div>
               );
             })}
           </div>
@@ -1502,7 +1462,6 @@ function RunSummary({ run, ending, onContinue }: {
     ['Oggetti trovati', run.stats.itemsFound],
     ['Prove superate', run.stats.skillChecksPassed],
     ['Prove fallite', run.stats.skillChecksFailed],
-    ['Frammenti di lore', run.stats.loreFound],
   ];
   const totalEvents = run.stats.eventsResolved;
   const rating = totalEvents >= 15 ? 'ESPLORATORE LEGGENDARIO' : totalEvents >= 10 ? 'ESPLORATORE ESPERTO' : totalEvents >= 5 ? 'ESPLORATORE' : 'PRINCIPIIANTE';

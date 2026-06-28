@@ -213,7 +213,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               style={{
                 fontSize: 'clamp(0.95rem, 2.8vw, 1.5rem)',
                 color: '#5CC4F0',
-                textShadow: '0 0 14px rgba(92, 196, 240, 0.8)',
+                textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 fontWeight: 400,
               }}
@@ -225,7 +225,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               style={{
                 fontSize: 'clamp(0.7rem, 2vw, 1.05rem)',
                 color: '#FBFBFB',
-                textShadow: '0 0 10px rgba(255, 255, 255, 0.6)',
+                textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 fontWeight: 400,
                 padding: '2px 10px',
@@ -269,7 +269,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3 }}
                 className="text-cyan-300/80"
-                style={{ textShadow: '0 0 8px rgba(92, 196, 240, 0.6)' }}
+                style={{ textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)' }}
               >
                 {line}
               </motion.div>
@@ -400,7 +400,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               className="relative text-white tracking-[0.2em] pointer-events-none"
               style={{
                 fontSize: 'clamp(0.7rem, 1.4vw, 1rem)',
-                textShadow: '0 0 8px rgba(255,255,255,0.7), 0 0 16px rgba(43,115,179,0.9)',
+                textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 fontWeight: 400,
               }}

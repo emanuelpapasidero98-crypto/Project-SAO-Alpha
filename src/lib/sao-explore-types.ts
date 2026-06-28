@@ -62,7 +62,7 @@ export interface SubAreaRun {
     itemsFound: number;
     skillChecksPassed: number;
     skillChecksFailed: number;
-    loreFound: number;
+    
   };
 }
 
@@ -78,11 +78,10 @@ export interface SubAreaCheckpoint {
 }
 
 // === Esiti di opzioni narrative / skill check (Fase B) ===
-export type ExploreOutcomeType = 'reward' | 'lore' | 'heal' | 'risk' | 'nothing';
+export type ExploreOutcomeType = 'reward' | 'heal' | 'risk' | 'nothing';
 export interface ExploreOutcome {
   type: ExploreOutcomeType;
   itemPool?: string;   // chiave di LOOT_TABLES (per 'reward')
-  loreId?: string;     // (per 'lore')
   text: string;        // testo mostrato al giocatore
   // 'risk' → TODO(combat-system): innescherà un combattimento
 }
@@ -102,11 +101,6 @@ export interface NarrativeScene {
   options: NarrativeOption[];
 }
 
-export interface LoreFragment {
-  id: string;
-  title: string;
-  text: string;
-}
 
 export interface SubAreaDef {
   id: string;
@@ -167,7 +161,6 @@ export interface ExploreState {
   secretQuestCompleted: boolean;
   reputations: string[];
   // === FASE C: stato persistente di collezione/cartografia ===
-  discoveredLore: string[];          // ID dei frammenti di lore scoperti
   mappedTerrains: TerrainType[];     // tipi di terreno visitati almeno una volta
   visitedLandmarks: EndingType[];    // esiti finali incontrati (per collezione)
   gatheredResources: Record<string, number>; // forward-compat crafting (herb/mineral/wood → quantità)
@@ -196,7 +189,6 @@ export function createInitialExploreState(): ExploreState {
     secretQuestCompleted: false,
     reputations: [],
     // FASE C: collezione/cartografia
-    discoveredLore: [],
     mappedTerrains: [],
     visitedLandmarks: [],
     gatheredResources: {},

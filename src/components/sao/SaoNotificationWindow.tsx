@@ -230,7 +230,7 @@ function SaoWindow({
                 fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                 fontWeight: 400,
                 fontSize: 'clamp(0.75rem, 1.8vw, 1.1rem)',
-                textShadow: '0 1px 2px rgba(255,255,255,0.5)',
+                textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
               }}
             >
               {notification.title.toUpperCase()}

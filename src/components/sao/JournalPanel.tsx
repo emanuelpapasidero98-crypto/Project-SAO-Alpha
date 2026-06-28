@@ -6,7 +6,6 @@ import { useSaoSound } from '@/hooks/useSaoSound';
 import type { Item, ItemCategory } from '@/lib/sao-inventory-types';
 import { CATEGORIES } from '@/lib/sao-inventory-types';
 import { EXPLORE_AREAS, EXPLORE_SUBAREAS } from '@/lib/sao-explore-data';
-import { LORE_FRAGMENTS } from '@/lib/sao-explore-data';
 
 /**
  * SAO Journal Panel (Diario) — shows all discovered information.
@@ -327,24 +326,6 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                                 </div>
                               </div>
                             ))}
-                            {/* Lore fragments */}
-                            <div>
-                              <p className="tracking-[0.1em] mb-1.5" style={{ color: '#EBA601', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.65rem' }}>
-                                FRAMMENTI DI LORE
-                              </p>
-                              <div className="flex flex-col gap-1">
-                                {LORE_FRAGMENTS.map(lore => (
-                                  <div key={lore.id} className="px-2 py-1.5" style={{ background: 'rgba(235,166,1,0.05)', border: '1px solid rgba(235,166,1,0.1)', clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}>
-                                    <p style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 700, fontSize: '0.6rem' }}>
-                                      {lore.title}
-                                    </p>
-                                    <p style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', lineHeight: 1.4 }}>
-                                      ??? — Da scoprire
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
                           </div>
                         )}
 

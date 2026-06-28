@@ -246,7 +246,7 @@ export default function ItemDetailModal({ item, onClose }: ItemDetailModalProps)
                     fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                     fontWeight: 700,
                     fontSize: '1.3rem',
-                    textShadow: '0 1px 0 rgba(255,255,255,0.7), 0 -1px 1px rgba(0,0,0,0.1)',
+                    textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(92,196,240,0.3)',
                   }}
                 >
                   {item.name}
