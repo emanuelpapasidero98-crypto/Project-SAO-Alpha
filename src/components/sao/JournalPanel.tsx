@@ -83,7 +83,8 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
   const [isHover, setIsHover] = useState(false);
   const [activeTab, setActiveTab] = useState<JournalTab>('weapons');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [isRotating, setIsRotating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSubCategory, setActiveSubCategory] = useState<string>('all');
 
   useEffect(() => {
     if (open) {
@@ -112,8 +113,6 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
   const handleItemClick = (item: Item) => {
     play('click', 0.3);
     setSelectedItem(item);
-    setIsRotating(true);
-    setTimeout(() => setIsRotating(false), 3000);
   };
 
   // Filter items by category
@@ -125,12 +124,31 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
   const accessoryItems = getItemsByCategory(['accessory']);
   const questItems = getItemsByCategory(['quest-item']);
 
+  // Filter by subcategory + search
+  const filterItems = (list: Item[]) => {
+    let filtered = list;
+    if (activeSubCategory !== 'all') {
+      filtered = filtered.filter(i => i.category === activeSubCategory);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(i => i.name.toLowerCase().includes(q));
+    }
+    return filtered;
+  };
+
+  const weaponItemsFiltered = filterItems(weaponItems);
+  const itemItemsFiltered = filterItems(itemItems);
+  const armorItemsFiltered = filterItems(armorItems);
+  const accessoryItemsFiltered = filterItems(accessoryItems);
+  const questItemsFiltered = filterItems(questItems);
+
   const tabs: { key: JournalTab; label: string; count: number }[] = [
-    { key: 'weapons', label: TAB_LABELS.weapons, count: weaponItems.length },
-    { key: 'items', label: TAB_LABELS.items, count: itemItems.length },
-    { key: 'armor', label: TAB_LABELS.armor, count: armorItems.length },
-    { key: 'accessories', label: TAB_LABELS.accessories, count: accessoryItems.length },
-    { key: 'quest', label: TAB_LABELS.quest, count: questItems.length },
+    { key: 'weapons', label: TAB_LABELS.weapons, count: weaponItemsFiltered.length },
+    { key: 'items', label: TAB_LABELS.items, count: itemItemsFiltered.length },
+    { key: 'armor', label: TAB_LABELS.armor, count: armorItemsFiltered.length },
+    { key: 'accessories', label: TAB_LABELS.accessories, count: accessoryItemsFiltered.length },
+    { key: 'quest', label: TAB_LABELS.quest, count: questItemsFiltered.length },
     { key: 'areas', label: TAB_LABELS.areas, count: EXPLORE_AREAS.length },
     { key: 'mob', label: TAB_LABELS.mob, count: 0 },
   ];
@@ -174,9 +192,19 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
 
                   {/* Header */}
                   <div className="flex items-center justify-between p-6 pb-3" style={{ borderBottom: '2px solid #2B73B3' }}>
-                    <h2 className="tracking-[0.3em]" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '1.5rem' }}>
-                      DIARIO
-                    </h2>
+                    <div className="flex-1 text-center">
+                      <p
+                        className="tracking-[0.3em]"
+                        style={{
+                          color: '#1a2a3a',
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                          fontWeight: 300,
+                          fontSize: '1rem',
+                        }}
+                      >
+                        DIARIO DEL BETA TESTER
+                      </p>
+                    </div>
                     <button onClick={() => { play('dismissLauncher', 0.35); onClose(); }} className="flex items-center justify-center" style={{ width: '36px', height: '36px', background: 'transparent', border: 'none', cursor: 'pointer' }} aria-label="Chiudi">
                       <img src="/sao/window/btn-red.svg" alt="Chiudi" className="w-full h-full" draggable={false} />
                     </button>
@@ -197,8 +225,12 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                             style={{ objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' }}
                             draggable={false}
                             initial={{ rotateY: 0 }}
-                            animate={{ rotateY: isRotating ? [0, 360] : 0 }}
-                            transition={{ duration: 3, ease: 'easeInOut' }}
+                            animate={{ rotateY: 360 }}
+                            transition={{
+                              duration: 8,
+                              repeat: Infinity,
+                              ease: 'linear',
+                            }}
                           />
                           <p className="text-center" style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.85rem', textShadow: '0 1px 0 rgba(0,0,0,0.08)' }}>
                             {selectedItem.name}
@@ -225,7 +257,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                         {tabs.map(tab => (
                           <button
                             key={tab.key}
-                            onClick={() => { play('click', 0.3); setActiveTab(tab.key); setSelectedItem(null); }}
+                            onClick={() => { play('click', 0.3); setActiveTab(tab.key); setSelectedItem(null); setActiveSubCategory('all'); setSearchQuery(''); }}
                             className="px-3 py-1.5 transition-all"
                             style={{
                               background: activeTab === tab.key ? 'rgba(43,115,179,0.15)' : 'transparent',
@@ -242,61 +274,128 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                         ))}
                       </div>
 
+                      {/* Search + Subcategory filter (solo per tab con oggetti) */}
+                      {activeTab !== 'areas' && activeTab !== 'mob' && (
+                        <div className="p-3" style={{ borderBottom: '1px solid rgba(43,115,179,0.1)' }}>
+                          {/* Search bar */}
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Cerca oggetto..."
+                            className="w-full px-3 py-1.5 outline-none mb-2"
+                            style={{
+                              background: 'rgba(255,255,255,0.95)',
+                              color: '#1a2a3a',
+                              border: '1px solid rgba(43, 115, 179, 0.4)',
+                              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                              fontWeight: 300,
+                              fontSize: '0.7rem',
+                              clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
+                            }}
+                          />
+                          {/* Subcategory tabs (solo per weapons) */}
+                          {activeTab === 'weapons' && (
+                            <div className="flex flex-wrap gap-1">
+                              <button
+                                onClick={() => { play('click', 0.3); setActiveSubCategory('all'); }}
+                                className="px-2 py-1"
+                                style={{
+                                  background: activeSubCategory === 'all' ? 'rgba(43,115,179,0.15)' : 'transparent',
+                                  border: `1px solid ${activeSubCategory === 'all' ? 'rgba(43,115,179,0.4)' : 'rgba(43,115,179,0.1)'}`,
+                                  clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)',
+                                  color: activeSubCategory === 'all' ? '#2B73B3' : 'rgba(26,42,58,0.4)',
+                                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                  fontWeight: 300, fontSize: '0.55rem', letterSpacing: '0.05em',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                TUTTI
+                              </button>
+                              {WEAPON_SUBCATS.map(sub => (
+                                <button
+                                  key={sub.key}
+                                  onClick={() => { play('click', 0.3); setActiveSubCategory(sub.key); }}
+                                  className="px-2 py-1"
+                                  style={{
+                                    background: activeSubCategory === sub.key ? 'rgba(43,115,179,0.15)' : 'transparent',
+                                    border: `1px solid ${activeSubCategory === sub.key ? 'rgba(43,115,179,0.4)' : 'rgba(43,115,179,0.1)'}`,
+                                    clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)',
+                                    color: activeSubCategory === sub.key ? '#2B73B3' : 'rgba(26,42,58,0.4)',
+                                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                                    fontWeight: 300, fontSize: '0.55rem', letterSpacing: '0.05em',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  {sub.label.toUpperCase()}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Item list */}
                       <div className="flex-1 overflow-y-auto p-3" style={{ maxHeight: '400px' }}>
 
                         {/* WEAPONS tab */}
                         {activeTab === 'weapons' && (
                           <div className="flex flex-col gap-3">
-                            {WEAPON_SUBCATS.map(subcat => {
-                              const subItems = weaponItems.filter(i => i.category === subcat.key);
-                              if (subItems.length === 0) return null;
-                              return (
-                                <div key={subcat.key}>
-                                  <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.75rem' }}>
-                                    {subcat.label.toUpperCase()}
-                                  </p>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {subItems.map(item => (
-                                      <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />
-                                    ))}
+                            {activeSubCategory === 'all' ? (
+                              WEAPON_SUBCATS.map(subcat => {
+                                const subItems = weaponItemsFiltered.filter(i => i.category === subcat.key);
+                                if (subItems.length === 0) return null;
+                                return (
+                                  <div key={subcat.key}>
+                                    <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.75rem' }}>
+                                      {subcat.label.toUpperCase()}
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {subItems.map(item => (
+                                        <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                            {weaponItems.length === 0 && <EmptyState text="Nessun'arma scoperta." />}
+                                );
+                              })
+                            ) : (
+                              <div className="grid grid-cols-2 gap-2">
+                                {weaponItemsFiltered.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
+                              </div>
+                            )}
+                            {weaponItemsFiltered.length === 0 && <EmptyState text="Nessun'arma trovata." />}
                           </div>
                         )}
 
                         {/* ITEMS tab */}
                         {activeTab === 'items' && (
                           <div className="grid grid-cols-2 gap-2">
-                            {itemItems.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
-                            {itemItems.length === 0 && <EmptyState text="Nessun oggetto scoperto." />}
+                            {itemItemsFiltered.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
+                            {itemItemsFiltered.length === 0 && <EmptyState text="Nessun oggetto trovato." />}
                           </div>
                         )}
 
                         {/* ARMOR tab */}
                         {activeTab === 'armor' && (
                           <div className="grid grid-cols-2 gap-2">
-                            {armorItems.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
-                            {armorItems.length === 0 && <EmptyState text="Nessun'armatura scoperta." />}
+                            {armorItemsFiltered.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
+                            {armorItemsFiltered.length === 0 && <EmptyState text="Nessun'armatura trovata." />}
                           </div>
                         )}
 
                         {/* ACCESSORIES tab */}
                         {activeTab === 'accessories' && (
                           <div className="grid grid-cols-2 gap-2">
-                            {accessoryItems.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
-                            {accessoryItems.length === 0 && <EmptyState text="Nessun accessorio scoperto." />}
+                            {accessoryItemsFiltered.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
+                            {accessoryItemsFiltered.length === 0 && <EmptyState text="Nessun accessorio trovato." />}
                           </div>
                         )}
 
                         {/* QUEST ITEMS tab */}
                         {activeTab === 'quest' && (
                           <div className="grid grid-cols-2 gap-2">
-                            {questItems.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
-                            {questItems.length === 0 && <EmptyState text="Nessun oggetto missione scoperto." />}
+                            {questItemsFiltered.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
+                            {questItemsFiltered.length === 0 && <EmptyState text="Nessun oggetto missione trovato." />}
                           </div>
                         )}
 

@@ -269,9 +269,12 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
                       <img
                         src={item.icon}
                         alt=""
-                        className="w-5 h-5 absolute transition-opacity duration-200"
+                        className="absolute transition-opacity duration-200"
                         draggable={false}
                         style={{
+                          width: '20px',
+                          height: '20px',
+                          objectFit: 'contain',
                           opacity: hoveredItem === item.id ? 0 : 1,
                         }}
                       />
@@ -280,9 +283,12 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
                         <img
                           src={item.iconOn}
                           alt=""
-                          className="w-5 h-5 absolute transition-opacity duration-200"
+                          className="absolute transition-opacity duration-200"
                           draggable={false}
                           style={{
+                            width: '20px',
+                            height: '20px',
+                            objectFit: 'contain',
                             opacity: hoveredItem === item.id ? 1 : 0,
                           }}
                         />
