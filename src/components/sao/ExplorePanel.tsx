@@ -420,14 +420,6 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
         play('present', 0.4);
         break;
       }
-      case 'lore': {
-        if (outcome.loreId) {
-          registerDiscovery({ lore: outcome.loreId });
-        }
-        showToast(outcome.text);
-        play('system', 0.4);
-        break;
-      }
       case 'heal': {
         onRest?.();
         showToast(outcome.text);
@@ -1305,7 +1297,7 @@ function CartographyPanel({ exploreState, onClose }: {
 
   const terrainPct = Math.round((exploreState.mappedTerrains.length / allTerrains.length) * 100);
   const endingPct = Math.round((exploreState.visitedLandmarks.length / allEndings.length) * 100);
-  const globalPct = Math.round((terrainPct + lorePct + endingPct) / 3);
+  const globalPct = Math.round((terrainPct + endingPct) / 2);
 
   return (
     <motion.div
