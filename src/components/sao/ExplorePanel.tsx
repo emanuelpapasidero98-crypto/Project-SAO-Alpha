@@ -290,7 +290,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     if (!current) return;
 
     // Tipi che NON vengono marcati risolti qui (gestiti dalle loro risoluzioni)
-    const selfResolvedTypes = new Set(['terminal', 'chest', 'opulentChest']);
+    const selfResolvedTypes = new Set(['terminal', 'chest']);
     if (!selfResolvedTypes.has(event.type)) {
       const nodes = { ...run.nodes };
       nodes[run.currentNodeId] = {
@@ -326,10 +326,16 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
       case 'opulentChest': {
         // Forziere opulento: serve Chiave/Chiave Universale oppure DEX
         // TODO(item-system): controlla se il giocatore ha una Chiave
-        // Per ora: placeholder, mostra notifica
-        showToast('Forziere opulento. Serve una Chiave o abbastanza Destrezza per scassinarlo.');
-        play('alert', 0.3);
-        // NON marcare risolto (richiede chiave/DEX)
+        // Per ora: non puoi aprirlo, ma l'esplorazione non si blocca
+        showToast('Forziere opulento chiuso. Serve una Chiave o abbastanza Destrezza. Procedi oltre.');
+        play('click', 0.3);
+        // Marca risolto (senza loot) per non bloccare l'avanzamento
+        const nodes = { ...run.nodes };
+        nodes[run.currentNodeId] = {
+          ...current,
+          events: current.events.map((ev) => (ev === event ? { ...ev, resolved: true } : ev)),
+        };
+        setRun({ ...run, nodes, stats: { ...run.stats, eventsResolved: run.stats.eventsResolved + 1 } });
         break;
       }
       case 'terminal':
