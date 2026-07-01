@@ -119,7 +119,13 @@ export function generateSubAreaRun(
     const cur = layers[d];
     const next = layers[d + 1];
     for (let i = 0; i < cur.length; i++) {
-      const rel = cur.length === 1 ? 0.5 : i / (cur.length - 1);
+      // Se il layer corrente ha un solo nodo (ingresso/terminale/finale),
+      // connettilo a TUTTI i nodi del layer successivo (ventaglio completo).
+      if (cur.length === 1) {
+        nodes[cur[i]].connections = next.slice();
+        continue;
+      }
+      const rel = i / (cur.length - 1);
       const targetIdx = Math.round(rel * (next.length - 1));
       const targets = new Set<number>([targetIdx]);
       if (next.length > 1 && rng() < 0.5) {
