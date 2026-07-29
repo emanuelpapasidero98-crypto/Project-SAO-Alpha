@@ -29,6 +29,8 @@ import { SAMPLE_ITEMS } from '@/lib/sao-sample-items';
 import type { Item, EquipmentState } from '@/lib/sao-inventory-types';
 import { BAG_MAX_ITEMS } from '@/lib/sao-inventory-types';
 import SaoHUD, { type BarValue } from './SaoHUD';
+import GameBookCard from './GameBookCard';
+import { type GameBookState, type GameBookChoice, createInitialGameBookState } from '@/lib/sao-gamebook-types';
 import ItemDetailModal from './ItemDetailModal';
 
 /**
@@ -112,6 +114,8 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   const [showSummary, setShowSummary] = useState(false);
   const [endingResult, setEndingResult] = useState<EndingType | null>(null);
   const [showCartography, setShowCartography] = useState(false);
+  // Game Book state (libro game)
+  const [gameBookState, setGameBookState] = useState<GameBookState | null>(null);
 
   const areaDef = EXPLORE_AREAS.find((a) => a.id === areaId);
   const subAreas = areaDef ? getSubAreasForArea(areaId) : [];
@@ -183,14 +187,64 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   const handleStartExplore = useCallback((subAreaId: string) => {
     const def = getSubAreaById(subAreaId);
     if (!def) return;
-    const checkpoint = exploreState.subAreaCheckpoints[subAreaId];
-    const seed = checkpoint?.seed ?? generateSeed();
-    const newRun = generateSubAreaRun(def, seed, checkpoint);
-    setRun(newRun);
+    // Inizializza il Game Book state
+    setGameBookState(createInitialGameBookState(subAreaId, def.name));
     setActiveSubAreaId(subAreaId);
     setView('exploring');
     play('click', 0.5);
-  }, [exploreState, play]);
+  }, [play]);
+
+  // Game Book: gestisci scelta del giocatore
+  const handleGameBookChoice = useCallback((choice: GameBookChoice) => {
+    if (!gameBookState) return;
+
+    setGameBookState((prev) => {
+      if (!prev) return prev;
+      const newPageId = choice.outcome === 'back' ? 'entry' : choice.id;
+      const newPage = prev.pages[newPageId];
+      const updated = {
+        ...prev,
+        currentPageId: newPageId,
+        visitedPages: prev.visitedPages.includes(newPageId)
+          ? prev.visitedPages
+          : [...prev.visitedPages, newPageId],
+        stats: {
+          ...prev.stats,
+          pagesVisited: prev.visitedPages.includes(newPageId)
+            ? prev.stats.pagesVisited
+            : prev.stats.pagesVisited + 1,
+          choicesMade: prev.stats.choicesMade + 1,
+        },
+      };
+
+      // Se la pagina non esiste ancora, creala come placeholder
+      if (!newPage && choice.outcome !== 'back') {
+        updated.pages[newPageId] = {
+          id: newPageId,
+          title: choice.resultText || 'Zona Sconosciuta',
+          description: choice.resultText || 'Procedi oltre...\n\nIl sentiero continua davanti a te. Da questa parte non hai ancora esplorato nulla.\n\nCosa vuoi fare?',
+          zoneType: 'exploration',
+          choices: [
+            { id: 'continue', label: '▶ Continua ad esplorare', outcome: 'progress', resultText: 'Procedi oltre...' },
+            { id: 'go_back', label: '◀ Torna indietro', outcome: 'back' },
+          ],
+        };
+      }
+
+      return updated;
+    });
+
+    // Effetti collaterali in base all'outcome
+    if (choice.outcome === 'item') {
+      showToast('Hai trovato un oggetto!');
+      play('present', 0.4);
+    } else if (choice.outcome === 'combat') {
+      play('alert', 0.4);
+    } else if (choice.outcome === 'rest') {
+      onRest?.();
+      play('welcome', 0.4);
+    }
+  }, [gameBookState, play, showToast, onRest]);
 
   // Viaggia verso un nodo connesso (scelta del percorso ai bivi)
   const handleChooseNode = useCallback((nextNodeId: string) => {
@@ -602,31 +656,23 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
             </motion.div>
           )}
 
-          {/* === EXPLORING === */}
-          {view === 'exploring' && run && currentNode && activeSubAreaDef && (() => {
-            const resolvedCount = currentNode.events.filter((e) => e.resolved).length;
-            const gatingOk = currentNode.terrain === 'terminal' || currentNode.isLandmark || resolvedCount >= 1 || !!cheats?.skipEvents;
-            return (
+          {/* === EXPLORING (Libro Game) === */}
+          {view === 'exploring' && run && activeSubAreaDef && (
             <>
             {/* HUD barre HP/MP/Energia (alto sinistra, compatte, VR hover per-barra) */}
             <ExploreHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} />
 
-            {/* Layout: mappa centrata grande + pannello destro con ZoneCard + SideCard */}
-            <div className="h-full flex [align-items:safe_center] justify-center gap-4 px-4 pt-16 pb-4 overflow-y-auto sao-scroll">
-
-              {/* === COLONNA CENTRO: mappa grande (dal basso verso l'alto) === */}
+            {/* Layout: GameBookCard centrato */}
+            <div className="h-full flex items-center justify-center px-4 pt-16 pb-4 overflow-y-auto sao-scroll">
               <div className="flex-1 flex items-center justify-center min-w-0">
-                <ExploreMap run={run} onChooseNode={handleChooseNode} onResolveCurrentEvent={() => { if (currentNode.events[0] && !currentNode.events[0].resolved) handleResolveEvent(currentNode.events[0]); }} gatingOk={gatingOk} large />
-              </div>
-
-              {/* === COLONNA DESTRA: ZoneCard (corrente, auto-adattante) === */}
-              <div className="flex flex-col items-end" style={{ width: '340px', minWidth: '340px', maxHeight: '85vh', overflowY: 'auto' }}>
-                <ZoneCard currentNode={currentNode} run={run} onResolveEvent={handleResolveEvent} onChooseNode={handleChooseNode} onComplete={handleComplete} cheats={cheats} />
+                <GameBookCard
+                  state={gameBookState}
+                  onChoice={handleGameBookChoice}
+                />
               </div>
             </div>
             </>
-            );
-          })()}
+          )}
 
           {/* === COMPLETION CHECKMARK (non-invasive) === */}
           <AnimatePresence>
