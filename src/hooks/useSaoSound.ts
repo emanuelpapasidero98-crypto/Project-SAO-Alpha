@@ -5,50 +5,58 @@ import { useCallback, useEffect, useRef } from 'react';
 /**
  * SAO Sound Manager
  * Centralized audio playback for the SAO login experience.
- * Uses only audio assets found in the Progetto-SAO repository.
+ * Uses audio assets from asset-gioco-di-SAO repo (Sword Art Online Sound FX).
+ *
+ * 6 audio files mapped to 19 sound names:
+ *   - ConfirmSound.wav  → click, confirm
+ *   - BackSound.wav      → dismiss, back, cancel
+ *   - EnterMenu.wav      → popup open (menu, panel, message, launcher)
+ *   - ExitMenu.wav       → dismiss popup (launcher, message)
+ *   - MenuTick.wav       → tick, hover, warning, alert, system, message
+ *   - AchievementSound.wav → welcome, present, achievement
  */
 
 export type SaoSoundName =
-  | 'startup'        // Startup.SAO.NerveGear.wav
-  | 'click'          // Feedback.SAO.Click.wav
-  | 'linkStartK'     // LinkStart.SAO.Kirito.wav
-  | 'linkStartA'     // LinkStart.SAO.Asuna.wav
-  | 'welcome'        // Ready.SAO.Welcome.wav
-  | 'alert'          // Notify.SAO.Alert.wav
-  | 'system'         // Notify.SAO.System.wav
-  | 'warning'        // Notify.SAO.Warning.wav
-  | 'present'        // Notify.SAO.Present.wav
-  | 'message'        // Notify.SAO.Message.wav
-  | 'popupMenu'      // Popup.SAO.Menu.wav
-  | 'popupPanel'     // Popup.SAO.Panel.wav
-  | 'popupMessage'   // Popup.SAO.Message.wav
-  | 'popupLauncher'  // Popup.SAO.Launcher.wav
-  | 'dismissLauncher'// Dismiss.SAO.Launcher.wav
-  | 'dismissMessage' // Dismiss.SAO.Message.wav
-  | 'programStart'   // Sounds/ProgramStart.wav
-  | 'programReady'   // Sounds/ProgramReady.wav
-  | 'credits';       // Sounds/Credits.wav
+  | 'startup'        // EnterMenu.wav (boot sequence)
+  | 'click'          // ConfirmSound.wav
+  | 'linkStartK'     // AchievementSound.wav
+  | 'linkStartA'     // AchievementSound.wav
+  | 'welcome'        // AchievementSound.wav
+  | 'alert'          // MenuTick.wav
+  | 'system'         // MenuTick.wav
+  | 'warning'        // MenuTick.wav
+  | 'present'        // AchievementSound.wav
+  | 'message'        // MenuTick.wav
+  | 'popupMenu'      // EnterMenu.wav
+  | 'popupPanel'     // EnterMenu.wav
+  | 'popupMessage'   // EnterMenu.wav
+  | 'popupLauncher'  // EnterMenu.wav
+  | 'dismissLauncher'// ExitMenu.wav
+  | 'dismissMessage' // ExitMenu.wav
+  | 'programStart'   // EnterMenu.wav
+  | 'programReady'   // ConfirmSound.wav
+  | 'credits';       // AchievementSound.wav
 
 const SOUND_PATHS: Record<SaoSoundName, string> = {
-  startup: '/sao/audio/Startup.SAO.NerveGear.wav',
-  click: '/sao/audio/Feedback.SAO.Click.wav',
-  linkStartK: '/sao/audio/LinkStart.SAO.Kirito.wav',
-  linkStartA: '/sao/audio/LinkStart.SAO.Asuna.wav',
-  welcome: '/sao/audio/Ready.SAO.Welcome.wav',
-  alert: '/sao/audio/Notify.SAO.Alert.wav',
-  system: '/sao/audio/Notify.SAO.System.wav',
-  warning: '/sao/audio/Notify.SAO.Warning.wav',
-  present: '/sao/audio/Notify.SAO.Present.wav',
-  message: '/sao/audio/Notify.SAO.Message.wav',
-  popupMenu: '/sao/audio/Popup.SAO.Menu.wav',
-  popupPanel: '/sao/audio/Popup.SAO.Panel.wav',
-  popupMessage: '/sao/audio/Popup.SAO.Message.wav',
-  popupLauncher: '/sao/audio/Popup.SAO.Launcher.wav',
-  dismissLauncher: '/sao/audio/Dismiss.SAO.Launcher.wav',
-  dismissMessage: '/sao/audio/Dismiss.SAO.Message.wav',
-  programStart: '/sao/audio/ProgramStart.wav',
-  programReady: '/sao/audio/ProgramReady.wav',
-  credits: '/sao/audio/Credits.wav',
+  startup: '/sao/audio/EnterMenu.wav',
+  click: '/sao/audio/ConfirmSound.wav',
+  linkStartK: '/sao/audio/AchievementSound.wav',
+  linkStartA: '/sao/audio/AchievementSound.wav',
+  welcome: '/sao/audio/AchievementSound.wav',
+  alert: '/sao/audio/MenuTick.wav',
+  system: '/sao/audio/MenuTick.wav',
+  warning: '/sao/audio/MenuTick.wav',
+  present: '/sao/audio/AchievementSound.wav',
+  message: '/sao/audio/MenuTick.wav',
+  popupMenu: '/sao/audio/EnterMenu.wav',
+  popupPanel: '/sao/audio/EnterMenu.wav',
+  popupMessage: '/sao/audio/EnterMenu.wav',
+  popupLauncher: '/sao/audio/EnterMenu.wav',
+  dismissLauncher: '/sao/audio/ExitMenu.wav',
+  dismissMessage: '/sao/audio/ExitMenu.wav',
+  programStart: '/sao/audio/EnterMenu.wav',
+  programReady: '/sao/audio/ConfirmSound.wav',
+  credits: '/sao/audio/AchievementSound.wav',
 };
 
 /**
