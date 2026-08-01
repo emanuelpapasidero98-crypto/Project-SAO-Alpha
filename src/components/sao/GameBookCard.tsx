@@ -252,15 +252,17 @@ export default function GameBookCard({ state, onChoice, playerStats }: GameBookC
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
       onClick={skipTyping}
-      className="relative overflow-hidden glass-panel"
+      className="relative overflow-hidden"
       style={{
         width: '100%',
         maxWidth: 'min(700px, 94vw)',
         transform: hover?.tilt,
         transformStyle: 'preserve-3d',
         transition: 'transform 0.15s ease-out',
-        border: '2px solid rgba(251, 251, 251, 0.5)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
+        // Card: palette bianco argenteo SAO (#EFEFEF → #DFDFDF)
+        background: 'linear-gradient(180deg, #EFEFEF 0%, #DFDFDF 100%)',
+        border: '2px solid #A8A8A8',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.6)',
         clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
         willChange: hover ? 'transform' : 'auto',
       }}
@@ -270,57 +272,57 @@ export default function GameBookCard({ state, onChoice, playerStats }: GameBookC
         className="absolute inset-0 pointer-events-none transition-opacity duration-300"
         style={{
           opacity: hover ? 1 : 0,
-          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.15) 0%, transparent 50%)`,
+          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(43,115,179,0.12) 0%, transparent 50%)`,
           mixBlendMode: 'screen',
         }}
       />
 
-      {/* === PARTE SUPERIORE: Immagine === */}
+      {/* === HEADER: titolo (su sfondo argenteo, testo scuro) === */}
       <div
-        className="relative flex items-center justify-center"
+        className="relative px-6 pt-5 pb-3"
         style={{
-          height: '180px',
-          background: 'linear-gradient(180deg, rgba(2,8,20,0.6) 0%, rgba(2,8,20,0.9) 100%)',
-          borderBottom: '1px solid rgba(43,115,179,0.3)',
+          borderBottom: '1px solid #A8A8A8',
+          background: 'linear-gradient(180deg, #EFEFEF 0%, #D6D6D6 100%)',
         }}
       >
-        {currentPage.image ? (
+        <div className="flex items-center gap-3 justify-center">
           <img
-            src={currentPage.image}
-            alt={currentPage.title}
-            className="w-full h-full object-cover"
+            src="/sao/menu/Location_on.svg"
+            alt=""
+            className="w-5 h-5"
+            style={{ filter: 'drop-shadow(0 0 4px rgba(43,115,179,0.5))' }}
             draggable={false}
           />
-        ) : (
-          <div className="flex flex-col items-center gap-2" style={{ opacity: 0.3 }}>
-            <span style={{ fontSize: '2rem', color: 'rgba(92,196,240,0.4)' }}>◈</span>
-            <span style={{ color: 'rgba(92,196,240,0.3)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.6rem', letterSpacing: '0.2em' }}>
-              IMMAGINE ZONA
-            </span>
-          </div>
-        )}
-        {/* Titolo sovrapposto all'immagine */}
-        <div
-          className="absolute bottom-2 left-0 right-0 text-center px-4"
-          style={{
-            color: '#FBFBFB',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '1rem',
-            letterSpacing: '0.2em',
-            textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
-          }}
-        >
-          {currentPage.title.toUpperCase()}
+          <h3
+            className="tracking-[0.35em] text-center"
+            style={{
+              color: '#1a2a3a',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: '1.1rem',
+              textShadow: '0 1px 0 rgba(255,255,255,0.6)',
+            }}
+          >
+            {currentPage.title.toUpperCase()}
+          </h3>
         </div>
+        {/* Linea decorativa SAO sotto il titolo */}
+        <div
+          className="mt-3 mx-auto"
+          style={{
+            width: '60%',
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, #A8A8A8, transparent)',
+          }}
+        />
       </div>
 
-      {/* === PARTE CENTRALE: Descrizione (stile SAO anime) === */}
+      {/* === PARTE CENTRALE: Descrizione (su sfondo scuro per leggibilità) === */}
       <div
         className="relative"
         onClick={skipTyping}
         style={{
-          background: 'rgba(0,0,0,0.4)',
+          background: '#1a1f2e',
           padding: '24px 28px',
           minHeight: '180px',
           maxHeight: '320px',
@@ -328,7 +330,7 @@ export default function GameBookCard({ state, onChoice, playerStats }: GameBookC
           cursor: isTyping ? 'pointer' : 'default',
         }}
       >
-        {/* Effetto scanline sottile (SAO style, azzurro) */}
+        {/* Effetto scanline sottile */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -390,66 +392,102 @@ export default function GameBookCard({ state, onChoice, playerStats }: GameBookC
         )}
       </div>
 
-      {/* === PARTE INFERIORE: Scelte === */}
+      {/* === PARTE INFERIORE: Scelte (box argentei con hover elevate) === */}
       <div
-        className="flex flex-col gap-2 p-4"
+        className="flex flex-col gap-2.5 p-4"
         style={{
-          background: 'rgba(8, 22, 40, 0.85)',
-          borderTop: '1px solid rgba(43,115,179,0.3)',
+          background: 'linear-gradient(180deg, #D6D6D6 0%, #EFEFEF 100%)',
+          borderTop: '1px solid #A8A8A8',
         }}
       >
         {/* Nascondi scelte durante typing */}
         {!isTyping && (
           <AnimatePresence>
             <motion.div
-              className="flex flex-col gap-2"
+              className="flex flex-col gap-2.5"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {currentPage.choices.filter(isChoiceVisible).map((choice) => {
+              {currentPage.choices.filter(isChoiceVisible).map((choice, idx) => {
                 const status = getChoiceStatus(choice);
+                const isDisabled = status.disabled || choice.locked;
                 return (
-                  <button
+                  <motion.button
                     key={choice.id}
                     onClick={() => handleChoice(choice)}
-                    disabled={status.disabled || choice.locked}
-                    className="px-4 py-2.5 text-left transition-all flex items-center justify-between gap-3"
+                    disabled={isDisabled}
+                    className="px-4 py-3 text-left flex items-center justify-between gap-3"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 * idx }}
+                    // Hover: eleva il bottone (translateY + shadow) per staccarlo dalla card
+                    whileHover={!isDisabled ? { y: -3, scale: 1.02 } : {}}
+                    whileTap={!isDisabled ? { y: -1, scale: 0.99 } : {}}
                     style={{
-                      background: status.disabled || choice.locked
-                        ? 'rgba(48,48,48,0.15)'
-                        : 'rgba(43,115,179,0.12)',
-                      border: `1px solid ${status.disabled || choice.locked ? 'rgba(48,48,48,0.2)' : 'rgba(43,115,179,0.35)'}`,
+                      // Box argenteo SAO: gradiente #EFEFEF → #D6D6D6
+                      background: isDisabled
+                        ? 'linear-gradient(180deg, #C8C8C8 0%, #B8B8B8 100%)'
+                        : 'linear-gradient(180deg, #F5F5F5 0%, #D6D6D6 100%)',
+                      border: `1px solid ${isDisabled ? '#888' : '#A8A8A8'}`,
+                      borderRadius: '2px',
                       clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
-                      color: status.disabled || choice.locked ? 'rgba(251,251,251,0.25)' : '#FBFBFB',
+                      color: isDisabled ? 'rgba(26,42,58,0.4)' : '#1a2a3a',
                       fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                       fontWeight: 400,
-                      fontSize: '0.8rem',
-                      letterSpacing: '0.05em',
-                      cursor: status.disabled || choice.locked ? 'not-allowed' : 'pointer',
-                      opacity: status.disabled || choice.locked ? 0.5 : 1,
-                      textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
+                      fontSize: '0.82rem',
+                      letterSpacing: '0.04em',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.6 : 1,
+                      textShadow: '0 1px 0 rgba(255,255,255,0.6)',
+                      // Shadow che aumenta al hover per effetto "elevato"
+                      boxShadow: isDisabled
+                        ? 'inset 0 1px 2px rgba(0,0,0,0.1)'
+                        : '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.7)',
+                      transition: 'box-shadow 0.2s ease, background 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isDisabled) {
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.3), 0 0 12px rgba(43,115,179,0.2), inset 0 1px 0 rgba(255,255,255,0.8)';
+                        e.currentTarget.style.background = 'linear-gradient(180deg, #FBFBFB 0%, #E0E0E0 100%)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isDisabled) {
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.7)';
+                        e.currentTarget.style.background = 'linear-gradient(180deg, #F5F5F5 0%, #D6D6D6 100%)';
+                      }
                     }}
                   >
-                    <span>{choice.label}</span>
+                    <span className="flex items-center gap-2.5">
+                      {!isDisabled && (
+                        <span style={{ color: '#2B73B3', fontSize: '0.7rem', fontWeight: 700 }}>▸</span>
+                      )}
+                      {isDisabled && (
+                        <span style={{ color: '#888', fontSize: '0.7rem' }}>✕</span>
+                      )}
+                      {choice.label}
+                    </span>
                     {(status.reason || status.label) && (
                       <span
                         style={{
-                          color: status.disabled ? 'rgba(190,33,86,0.7)' : 'rgba(127,197,34,0.7)',
+                          color: status.label ? '#5a7a0c' : '#8a1a3a',
                           fontSize: '0.65rem',
                           whiteSpace: 'nowrap',
                           flexShrink: 0,
+                          fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                          letterSpacing: '0.05em',
                         }}
                       >
                         {status.label ? status.label : `[${status.reason}]`}
                       </span>
                     )}
                     {choice.locked && choice.lockReason && (
-                      <span style={{ color: 'rgba(190,33,86,0.5)', fontSize: '0.65rem' }}>
+                      <span style={{ color: '#8a1a3a', fontSize: '0.65rem' }}>
                         [BLOCCATO: {choice.lockReason}]
                       </span>
                     )}
-                  </button>
+                  </motion.button>
                 );
               })}
             </motion.div>
@@ -457,19 +495,19 @@ export default function GameBookCard({ state, onChoice, playerStats }: GameBookC
         )}
       </div>
 
-      {/* === Footer: statistiche === */}
+      {/* === Footer: statistiche (su sfondo argenteo scuro) === */}
       <div
-        className="flex justify-between items-center px-4 py-2"
+        className="flex justify-between items-center px-5 py-2"
         style={{
-          background: 'rgba(2,8,20,0.6)',
-          borderTop: '1px solid rgba(43,115,179,0.15)',
+          background: 'linear-gradient(180deg, #C8C8C8 0%, #B8B8B8 100%)',
+          borderTop: '1px solid #A8A8A8',
         }}
       >
-        <span style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.55rem', letterSpacing: '0.1em' }}>
+        <span style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em' }}>
           {state.subAreaName.toUpperCase()}
         </span>
-        <span style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.55rem', letterSpacing: '0.1em' }}>
-          PAGINE: {state.stats.pagesVisited} | SCELTE: {state.stats.choicesMade}
+        <span style={{ color: 'rgba(26,42,58,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.15em' }}>
+          PAG. {state.stats.pagesVisited} · SCELTE {state.stats.choicesMade}
         </span>
       </div>
     </div>

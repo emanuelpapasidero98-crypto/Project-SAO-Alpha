@@ -115,7 +115,6 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   // Fase C: schermata riepilogo + pannello cartografia
   const [showSummary, setShowSummary] = useState(false);
   const [endingResult, setEndingResult] = useState<EndingType | null>(null);
-  const [showCartography, setShowCartography] = useState(false);
   // Game Book state (libro game)
   const [gameBookState, setGameBookState] = useState<GameBookState | null>(null);
   // Dice roll overlay (per scelte con diceRoll)
@@ -855,22 +854,6 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                   );
                 })}
               </div>
-
-              {/* FASE C: bottone CARTOGRAFIA */}
-              <div className="mt-8 flex justify-center">
-                <button
-                  onClick={() => { setShowCartography(true); play('popupPanel', 0.4); }}
-                  className="px-5 py-2"
-                  style={{
-                    background: 'rgba(235,166,1,0.15)',
-                    border: '1px solid rgba(235,166,1,0.4)',
-                    clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-                    color: '#EBA601', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em', cursor: 'pointer',
-                  }}
-                >
-                  ⚐ CARTOGRAFIA
-                </button>
-              </div>
             </motion.div>
           )}
 
@@ -1187,16 +1170,6 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                   setRun(null);
                   setActiveSubAreaId(null);
                 }}
-              />
-            )}
-          </AnimatePresence>
-
-          {/* === FASE C: CARTOGRAPHY PANEL === */}
-          <AnimatePresence>
-            {showCartography && (
-              <CartographyPanel
-                exploreState={exploreState}
-                onClose={() => { setShowCartography(false); play('dismissLauncher', 0.3); }}
               />
             )}
           </AnimatePresence>
@@ -1580,156 +1553,6 @@ function TerminalButton({ label, color, onClick }: { label: string; color: strin
   );
 }
 
-/* ---------- Cartography Panel (Fase C — collezione/cartografia) ---------- */
-
-function CartographyPanel({ exploreState, onClose }: {
-  exploreState: ExploreState;
-  onClose: () => void;
-}) {
-  const allTerrains: TerrainType[] = ['plains', 'hills', 'river', 'sparse_wood', 'ruins', 'camp', 'clearing', 'highland', 'terminal'];
-  const terrainLabels: Record<string, string> = {
-    plains: 'Pianura', hills: 'Colline', river: 'Fiume', sparse_wood: 'Bosco Rado',
-    ruins: 'Rovine', camp: 'Campo', clearing: 'Radura', highland: 'Altopiano', terminal: 'Terminale',
-  };
-  const endingLabels: Record<string, string> = {
-    boss: 'Boss', treasure: 'Tesoro', horde: 'Orda', nothing: 'Confine',
-  };
-  const allEndings: EndingType[] = ['boss', 'treasure', 'horde', 'nothing'];
-  const resourceLabels: Record<string, string> = { herb: 'Erbe', mineral: 'Minerali', wood: 'Legno' };
-
-  const terrainPct = Math.round((exploreState.mappedTerrains.length / allTerrains.length) * 100);
-  const endingPct = Math.round((exploreState.visitedLandmarks.length / allEndings.length) * 100);
-  const globalPct = Math.round((terrainPct + endingPct) / 2);
-
-  return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      style={{ background: 'rgba(2,8,20,0.92)', backdropFilter: 'blur(10px)' }}
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="glass-panel p-6 overflow-y-auto sao-scroll"
-        style={{ minWidth: 'min(560px, 92vw)', maxHeight: '85vh', borderColor: 'rgba(235,166,1,0.4)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="tracking-[0.3em] text-center mb-2" style={{ color: '#EBA601', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '1rem' }}>
-          CARTOGRAFIA
-        </h3>
-        <p className="tracking-[0.15em] text-center mb-5" style={{ color: 'rgba(251,251,251,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem' }}>
-          COMPLETAMENTO GLOBALE: {globalPct}%
-        </p>
-
-        {/* Terreni mappati */}
-        <div className="mb-5">
-          <p className="tracking-[0.2em] mb-2" style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
-            TERRENI MAPPATI ({exploreState.mappedTerrains.length}/{allTerrains.length})
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {allTerrains.map((t) => {
-              const found = exploreState.mappedTerrains.includes(t);
-              return (
-                <span
-                  key={t}
-                  className="px-2 py-1"
-                  style={{
-                    background: found ? 'rgba(127,197,34,0.15)' : 'rgba(48,48,48,0.15)',
-                    border: `1px solid ${found ? 'rgba(127,197,34,0.4)' : 'rgba(48,48,48,0.3)'}`,
-                    clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-                    color: found ? '#7FC522' : 'rgba(251,251,251,0.25)',
-                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.1em',
-                  }}
-                >
-                  {terrainLabels[t]?.toUpperCase() ?? t.toUpperCase()}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Finali incontrati */}
-        <div className="mb-5">
-          <p className="tracking-[0.2em] mb-2" style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
-            FINALI INCONTRATI ({exploreState.visitedLandmarks.length}/{allEndings.length})
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {allEndings.map((e) => {
-              const found = exploreState.visitedLandmarks.includes(e);
-              return (
-                <span
-                  key={e}
-                  className="px-2 py-1"
-                  style={{
-                    background: found ? 'rgba(235,166,1,0.15)' : 'rgba(48,48,48,0.15)',
-                    border: `1px solid ${found ? 'rgba(235,166,1,0.4)' : 'rgba(48,48,48,0.3)'}`,
-                    clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-                    color: found ? '#EBA601' : 'rgba(251,251,251,0.25)',
-                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.1em',
-                  }}
-                >
-                  {endingLabels[e]?.toUpperCase() ?? e.toUpperCase()}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Risorse raccolte */}
-        <div className="mb-5">
-          <p className="tracking-[0.2em] mb-2" style={{ color: '#5CC4F0', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
-            RISORSE RACCOLTE
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {Object.keys(resourceLabels).map((r) => {
-              const amount = exploreState.gatheredResources[r] ?? 0;
-              return (
-                <span
-                  key={r}
-                  className="px-2 py-1"
-                  style={{
-                    background: amount > 0 ? 'rgba(127,197,34,0.15)' : 'rgba(48,48,48,0.15)',
-                    border: `1px solid ${amount > 0 ? 'rgba(127,197,34,0.4)' : 'rgba(48,48,48,0.3)'}`,
-                    clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
-                    color: amount > 0 ? '#7FC522' : 'rgba(251,251,251,0.25)',
-                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.55rem', letterSpacing: '0.1em',
-                  }}
-                >
-                  {resourceLabels[r]?.toUpperCase() ?? r.toUpperCase()}: {amount}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* knownBossPaths (info nascosta, solo se presente) */}
-        {exploreState.knownBossPaths.length > 0 && (
-          <div className="mb-4">
-            <p className="tracking-[0.2em] mb-1" style={{ color: '#BE2156', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem' }}>
-              ⚠ PERCORSI BOSS CONOSCIUTI: {exploreState.knownBossPaths.join(', ')}
-            </p>
-          </div>
-        )}
-
-        <div className="flex justify-center">
-          <button
-            onClick={onClose}
-            className="px-5 py-2"
-            style={{
-              background: 'rgba(43,115,179,0.8)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
-              color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em', cursor: 'pointer',
-            }}
-          >
-            CHIUDI
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
 
 /* ---------- Run Summary (Fase C — schermata riepilogo) ---------- */
 
