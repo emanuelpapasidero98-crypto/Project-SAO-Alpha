@@ -396,16 +396,26 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
         )}
       </AnimatePresence>
 
-      {/* ===== Crosshair (bottom-center, VR hint) ===== */}
+      {/* ===== Indicatore verde (bottom-center) — ruota come gli oggetti ===== */}
       <motion.div
         className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.5 }}
+        animate={{ opacity: 0.85 }}
         transition={{ delay: 1, duration: 1 }}
       >
-        <div
-          className="w-6 h-6 rounded-full border"
-          style={{ borderColor: 'rgba(92, 196, 240, 0.6)' }}
+        <motion.img
+          src="/sao/indicatore verde.svg"
+          alt=""
+          className="w-10 h-10 sm:w-12 sm:h-12"
+          style={{ filter: 'drop-shadow(0 0 8px rgba(127, 197, 34, 0.5))' }}
+          draggable={false}
+          initial={{ rotateY: 0 }}
+          animate={{ rotateY: 360 }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: 'linear',
+          }}
         />
       </motion.div>
 

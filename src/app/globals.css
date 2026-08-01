@@ -37,6 +37,19 @@
   scrollbar-color: rgba(43, 115, 179, 0.5) rgba(48, 48, 48, 0.15);
 }
 
+/* ===== Invisible scrollbar (per menu a cascata su schermi piccoli) =====
+   Mantiene lo scroll ma nasconde completamente la scrollbar. */
+.sao-scroll-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+.sao-scroll-hidden {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  -webkit-overflow-scrolling: touch; /* iOS smooth scroll */
+}
+
 /* ===== SAO Glass Panel (shared container style) ===== */
 .glass-panel {
   background: rgba(8, 12, 20, 0.6);

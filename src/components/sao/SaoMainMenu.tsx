@@ -199,8 +199,8 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="fixed top-20 right-4 z-40 select-none"
-            style={{ width: 'min(220px, 80vw)' }}
+            className="fixed top-20 right-4 z-40 select-none sao-scroll-hidden"
+            style={{ width: 'min(220px, 80vw)', maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}
             initial={{ opacity: 0, y: -350 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -350 }}
