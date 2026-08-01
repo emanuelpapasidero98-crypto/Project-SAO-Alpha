@@ -259,8 +259,10 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
 
     // Controlla requiresStat
     if (choice.requiresStat && playerStats) {
-      const statKey = choice.requiresStat.stat.toLowerCase() as keyof typeof playerStats;
-      const statValue = playerStats[statKey] ?? 0;
+      // Prova sia la chiave maiuscola (STR) che minuscola (str) per robustezza
+      const statKeyUpper = choice.requiresStat.stat.toUpperCase() as keyof typeof playerStats;
+      const statKeyLower = choice.requiresStat.stat.toLowerCase() as keyof typeof playerStats;
+      const statValue = playerStats[statKeyUpper] ?? playerStats[statKeyLower] ?? 0;
       if (statValue < choice.requiresStat.value) {
         play('warning', 0.3);
         showToast(`${choice.requiresStat.stat} ${choice.requiresStat.value} richiesti — ti mancano ${choice.requiresStat.value - statValue} punti.`);

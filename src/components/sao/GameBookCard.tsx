@@ -188,8 +188,10 @@ export default function GameBookCard({ state, onChoice, playerStats }: GameBookC
     }
     // requiresStat
     if (choice.requiresStat && playerStats) {
-      const statKey = choice.requiresStat.stat.toLowerCase();
-      const statValue = playerStats[statKey] ?? 0;
+      // Prova sia la chiave maiuscola (STR) che minuscola (str) per robustezza
+      const statKeyUpper = choice.requiresStat.stat.toUpperCase();
+      const statKeyLower = choice.requiresStat.stat.toLowerCase();
+      const statValue = playerStats[statKeyUpper] ?? playerStats[statKeyLower] ?? 0;
       if (statValue < choice.requiresStat.value) {
         return {
           disabled: true,

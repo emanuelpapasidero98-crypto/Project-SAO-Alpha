@@ -168,22 +168,25 @@ Alle tue spalle, i cancelli di pietra della Città degli Inizi continuano a rigu
 Tuttavia, quando la distanza si accorcia, l'illusione si spezza. I mulini non sono strutture isolate, ma i guardiani di un villaggio fantasma. Scheletri di case con i tetti sfondati giacciono in un silenzio irreale, circondati da orti ormai soffocati da rovi e malerbe. Zappe e falci giacciono abbandonate a terra, divorate da una ruggine che sembra essersi accanita su di esse per decenni. È un luogo morto, dimenticato dal tempo che entra in contrasto con il finto cielo azzurro e il manto verde che circonda tutto quanto, ma l'istinto ti suggerisce che tra quelle macerie fatiscenti potrebbe ancora celarsi qualcosa di prezioso. Avvicinarsi, però, richiede cautela: i cinghiali blu pattugliano le rovine con occhi ostili, raspando il terreno con gli zoccoli, pronti a caricare chiunque osi violare il loro territorio. Eppure, in mezzo a quella desolazione di legno marcio e pietra sgretolata, l'ingresso di uno dei grandi mulini a vento si staglia come un'eccezione: il portone è semiaperto, un varco buio e accessibile che sembra invitarti a entrare.`,
     conditionalDescriptions: [
       {
-        requiresFlags: ['windmill_event_resolved', 'houses_explored'],
+        // Tutto completato: case + mulino + secret room
+        requiresFlags: ['windmill_event_resolved', 'houses_d10_1', 'houses_d10_2_5', 'houses_d10_6_9', 'houses_d10_10', 'secret_room_completed'],
         description: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
 
 Hai già frugato in ogni anfratto delle case diroccate — non resta che polvere, insetti e legno marcio. Anche il mulino a vento in cui sei entrato è ormai vuoto e silenzioso, svuotato di ogni segreto. L'aria ferma della zona porta solo l'eco lontana del vento tra le pale e il verso sporadico di un uccello solitario.`,
       },
       {
+        // Case completate (tutti i D10 + secret room) ma mulino NON risolto
+        requiresFlags: ['houses_d10_1', 'houses_d10_2_5', 'houses_d10_6_9', 'houses_d10_10', 'secret_room_completed'],
+        description: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
+
+Hai già frugato in ogni anfratto delle case diroccate — non resta che polvere, insetti e legno marcio. Resta però il grande mulino a vento: il suo portone semiaperto continua a stagliarsi come un varco buio e invitante, ancora inesplorato, con la luce che filtra dalle fessure delle pale in movimento.`,
+      },
+      {
+        // Mulino risolto ma case NON completamente esplorate
         requiresFlags: ['windmill_event_resolved'],
         description: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
 
 Il mulino in cui sei entrato è ora silenzioso e vuoto, svuotato di ogni presenza. Le case diroccate, invece, continuano a incombere con le loro ombre cupe — potrebbero ancora celare qualcosa di utile tra le macerie e la polvere.`,
-      },
-      {
-        requiresFlags: ['houses_explored'],
-        description: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
-
-Hai già setacciato le case diroccate fin nei minimi anfratti — non c'è più nulla da cercare tra quelle macerie. Resta però il grande mulino a vento: il suo portone semiaperto continua a stagliarsi come un varco buio e invitante, ancora inesplorato, con la luce che filtra dalle fessure delle pale in movimento.`,
       },
     ],
     revisitDescription: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
@@ -247,9 +250,7 @@ Le case diroccate incombono come scheletri di pietra, le loro finestre vuote com
     id: 'explore_houses',
     title: 'Case Diroccate',
     zoneType: 'discovery',
-    description: `La curiosità e la voglia di migliorare il tuo equipaggiamento ti spinge a esplorare questo villaggio dimenticato da chiunque, inizi a osservarne ogni anfratto, ad entrare in ogni casa diroccata spostando oggetti che per un giocatore non hanno alcun valore togliendo polvere e qualche piccolo insetto che ne ha fatto la sua casa di quel ciarpame.
-
-Tira un D10 [Se esce come risultato 1 trova l'oggetto "ciottolo x1"; Se esce come risultato da 2 a 5 trova ferro grezzo x2; se esce da 6 a 9 trova kit di erbe essenziali; se esce 10 trovi una libreria molto pesante che nasconde un entrata, per spostarla serve avere Forza a 8]`,
+    description: `La curiosità e la voglia di migliorare il tuo equipaggiamento ti spinge a esplorare questo villaggio dimenticato da chiunque, inizi a osservarne ogni anfratto, ad entrare in ogni casa diroccata spostando oggetti che per un giocatore non hanno alcun valore togliendo polvere e qualche piccolo insetto che ne ha fatto la sua casa di quel ciarpame.`,
     conditionalDescriptions: [
       {
         // Libreria scoperta ma secret room non completata
@@ -388,9 +389,7 @@ Il silenzio regna sovrano, l'unica fonte di luce è quella generata dal tuo glob
     id: 'descend_dark',
     title: 'Il Sotterraneo Buio',
     zoneType: 'discovery',
-    description: `Il silenzio regna sovrano, non hai fonti di luce , attorno a te vi è solamente polvere, vecchi mobili marci e un buio che non ti fa capire bene cosa ti circonda
-
-Tira 1D10 [Pari trovi il diario, dispari trovi il pugnale di bronzo]`,
+    description: `Il silenzio regna sovrano, non hai fonti di luce , attorno a te vi è solamente polvere, vecchi mobili marci e un buio che non ti fa capire bene cosa ti circonda`,
     choices: [
       {
         id: 'roll_d10_dark',
