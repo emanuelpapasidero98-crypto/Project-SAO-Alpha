@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
+import { resolvePageDescription } from '@/lib/sao-gamebook-types';
 import type { GameBookPage, GameBookState, GameBookChoice } from '@/lib/sao-gamebook-types';
 
 /**
@@ -15,18 +16,20 @@ import type { GameBookPage, GameBookState, GameBookChoice } from '@/lib/sao-game
  *   - Descrizione: testo bianco #FBFBFB su sfondo scuro, font SAO UI
  *   - Scelte: pulsanti SAO con hover glow + icona ▸
  *
- * Struttura:
- *   - PARTE SUPERIORE: header con titolo + linea decorativa
- *   - PARTE CENTRALE: descrizione (con typewriter)
- *   - PARTE INFERIORE: scelte (bottoni SAO)
+ * La descrizione mostrata tiene conto dei flag di stato: prima visita =
+ * descrizione originale; visite successive = revisitDescription o
+ * conditionalDescriptions (es. dopo aver esplorato le case, dopo l'evento
+ * mulino, ecc.).
  */
 
 interface GameBookCardProps {
   state: GameBookState;
   onChoice: (choice: GameBookChoice) => void;
+  /** Statistiche giocatore per verificare requiresStat (opzionale) */
+  playerStats?: Record<string, number>;
 }
 
-export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
+export default function GameBookCard({ state, onChoice, playerStats }: GameBookCardProps) {
   const { play } = useSaoSound();
   const currentPage: GameBookPage = state.pages[state.currentPageId];
   const cardRef = useRef<HTMLDivElement>(null);
@@ -36,33 +39,43 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
   const [resultText, setResultText] = useState<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const typedPagesRef = useRef<Set<string>>(new Set());
+  // Ref per skippare il typewriter: se true, il setInterval smette di aggiornare typedText
   const skipRef = useRef<boolean>(false);
+  // Ref per tenere traccia dell'interval corrente e poterlo pulire
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const description = currentPage?.description ?? '';
+  // Risolve la descrizione corretta in base ai flag
+  const resolvedDescription = currentPage ? resolvePageDescription(currentPage, state) : '';
 
-  // Typewriter effect
+  // Typewriter effect per la descrizione (stile Matrix)
   useEffect(() => {
     if (!currentPage) return;
-    const text = description;
+    const text = resolvedDescription;
     if (!text) { setTypedText(''); return; }
-    if (typedPagesRef.current.has(currentPage.id)) {
+    // Se abbiamo già typato questa pagina con questo exact text, salta
+    const typeKey = `${currentPage.id}::${text.slice(0, 40)}`;
+    if (typedPagesRef.current.has(typeKey)) {
       setTypedText(text);
       setIsTyping(false);
       return;
     }
-    typedPagesRef.current.add(currentPage.id);
-    skipRef.current = false;
+    typedPagesRef.current.add(typeKey);
+    skipRef.current = false; // reset skip per nuova pagina
     setIsTyping(true);
     setTypedText('');
     setResultText(null);
     let i = 0;
+    // Pulisci eventuale interval precedente
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
+      // Se l'utente ha skippato, ferma subito il typewriter
       if (skipRef.current) {
         setTypedText(text);
         setIsTyping(false);
-        if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         return;
       }
       if (i < text.length) {
@@ -70,13 +83,19 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
         i++;
       } else {
         setIsTyping(false);
-        if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
       }
-    }, 14);
+    }, 12); // Veloce per effetto Matrix
     return () => {
-      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
-  }, [currentPage?.id, description]);
+  }, [currentPage?.id, resolvedDescription]);
 
   // VR hover
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -88,7 +107,7 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       setHover({
-        tilt: `perspective(1000px) rotateX(${-(py - 0.5) * 4}deg) rotateY(${(px - 0.5) * 4}deg)`,
+        tilt: `perspective(800px) rotateX(${-(py - 0.5) * 6}deg) rotateY(${(px - 0.5) * 6}deg)`,
         lightX: px * 100,
         lightY: py * 100,
       });
@@ -96,17 +115,67 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
     });
   };
 
+  // Determina se una scelta è disabled (per maxUses/oneTime/requiresStat)
+  const getChoiceStatus = useCallback((choice: GameBookChoice): { disabled: boolean; reason?: string; label?: string } => {
+    // maxUses / oneTime
+    if (choice.oneTime || choice.maxUses) {
+      const uses = state.choiceUses[choice.id] ?? 0;
+      const limit = choice.oneTime ? 1 : (choice.maxUses ?? Infinity);
+      if (uses >= limit) {
+        return { disabled: true, reason: 'Esaurito', label: '✓ Fatto' };
+      }
+    }
+    // requiresStat
+    if (choice.requiresStat && playerStats) {
+      const statKey = choice.requiresStat.stat.toLowerCase();
+      const statValue = playerStats[statKey] ?? 0;
+      if (statValue < choice.requiresStat.value) {
+        return {
+          disabled: true,
+          reason: `Richiede ${choice.requiresStat.stat} ${choice.requiresStat.value} (hai ${statValue})`,
+        };
+      }
+    }
+    return { disabled: false };
+  }, [state.choiceUses, playerStats]);
+
+  // Determina se una scelta deve essere mostrata (filtri showWhenFlag / hideWhenAllFlags)
+  const isChoiceVisible = useCallback((choice: GameBookChoice): boolean => {
+    // showWhenFlag: mostra solo se il flag è true
+    if (choice.showWhenFlag && !state.flags[choice.showWhenFlag]) {
+      return false;
+    }
+    // hideWhenAllFlags: nascondi quando TUTTI i flag sono true
+    if (choice.hideWhenAllFlags && choice.hideWhenAllFlags.length > 0) {
+      const allTrue = choice.hideWhenAllFlags.every((f) => state.flags[f]);
+      if (allTrue) return false;
+    }
+    return true;
+  }, [state.flags]);
+
+  // Salta l'animazione del typewriter (mostra subito la descrizione completa)
   const skipTyping = useCallback(() => {
     if (isTyping) {
+      // Imposta il flag di skip PRIMA dei setter: al prossimo tick del setInterval
+      // questo flag viene letto e l'interval viene fermato + il testo completo viene
+      // settato in modo atomico.
       skipRef.current = true;
-      setTypedText(description);
+      setTypedText(resolvedDescription);
       setIsTyping(false);
-      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      // Pulisci subito l'interval per evitare ulteriori tick
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     }
-  }, [isTyping, description]);
+  }, [isTyping, resolvedDescription]);
 
   const handleChoice = (choice: GameBookChoice) => {
-    if (choice.locked) { play('warning', 0.3); return; }
+    const status = getChoiceStatus(choice);
+    if (status.disabled) {
+      play('warning', 0.3);
+      return;
+    }
     play('click', 0.4);
     if (choice.resultText) {
       setResultText(choice.resultText);
@@ -121,71 +190,71 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
-      className="relative overflow-hidden"
+      onClick={skipTyping}
+      className="relative overflow-hidden glass-panel"
       style={{
         width: '100%',
-        maxWidth: '720px',
+        maxWidth: '700px',
         transform: hover?.tilt,
         transformStyle: 'preserve-3d',
         transition: 'transform 0.15s ease-out',
-        background: 'linear-gradient(180deg, rgba(8,22,40,0.85) 0%, rgba(2,8,20,0.92) 100%)',
-        border: '1.5px solid rgba(92,196,240,0.4)',
-        clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 0 30px rgba(43,115,179,0.08)',
+        border: '2px solid rgba(251, 251, 251, 0.5)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
+        clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
         willChange: hover ? 'transform' : 'auto',
       }}
     >
-      {/* VR glow seguendo il cursore */}
+      {/* VR glow */}
       <div
         className="absolute inset-0 pointer-events-none transition-opacity duration-300"
         style={{
           opacity: hover ? 1 : 0,
-          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.12) 0%, transparent 50%)`,
+          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.15) 0%, transparent 50%)`,
           mixBlendMode: 'screen',
         }}
       />
 
-      {/* === HEADER: titolo + linea decorativa === */}
+      {/* === PARTE SUPERIORE: Immagine === */}
       <div
-        className="relative px-6 pt-5 pb-3"
+        className="relative flex items-center justify-center"
         style={{
-          borderBottom: '1px solid rgba(92,196,240,0.25)',
-          background: 'linear-gradient(180deg, rgba(43,115,179,0.15) 0%, transparent 100%)',
+          height: '180px',
+          background: 'linear-gradient(180deg, rgba(2,8,20,0.6) 0%, rgba(2,8,20,0.9) 100%)',
+          borderBottom: '1px solid rgba(43,115,179,0.3)',
         }}
       >
-        <div className="flex items-center gap-3 justify-center">
+        {currentPage.image ? (
           <img
-            src="/sao/menu/Location_on.svg"
-            alt=""
-            className="w-5 h-5"
-            style={{ filter: 'drop-shadow(0 0 5px rgba(92,196,240,0.7))' }}
+            src={currentPage.image}
+            alt={currentPage.title}
+            className="w-full h-full object-cover"
             draggable={false}
           />
-          <h3
-            className="tracking-[0.35em] text-center"
-            style={{
-              color: '#FBFBFB',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-              fontSize: '1.1rem',
-              textShadow: '0 0 12px rgba(92,196,240,0.5), 0 2px 4px rgba(0,0,0,0.95)',
-            }}
-          >
-            {currentPage.title.toUpperCase()}
-          </h3>
-        </div>
-        {/* Linea decorativa SAO sotto il titolo */}
+        ) : (
+          <div className="flex flex-col items-center gap-2" style={{ opacity: 0.3 }}>
+            <span style={{ fontSize: '2rem', color: 'rgba(92,196,240,0.4)' }}>◈</span>
+            <span style={{ color: 'rgba(92,196,240,0.3)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.6rem', letterSpacing: '0.2em' }}>
+              IMMAGINE ZONA
+            </span>
+          </div>
+        )}
+        {/* Titolo sovrapposto all'immagine */}
         <div
-          className="mt-3 mx-auto"
+          className="absolute bottom-2 left-0 right-0 text-center px-4"
           style={{
-            width: '60%',
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(92,196,240,0.4), transparent)',
+            color: '#FBFBFB',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: '1rem',
+            letterSpacing: '0.2em',
+            textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
           }}
-        />
+        >
+          {currentPage.title.toUpperCase()}
+        </div>
       </div>
 
-      {/* === PARTE CENTRALE: Descrizione === */}
+      {/* === PARTE CENTRALE: Descrizione (stile SAO anime) === */}
       <div
         className="relative"
         onClick={skipTyping}
@@ -198,7 +267,7 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
           cursor: isTyping ? 'pointer' : 'default',
         }}
       >
-        {/* Effetto scanline sottile (SAO style) */}
+        {/* Effetto scanline sottile (SAO style, azzurro) */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -206,7 +275,7 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
           }}
         />
 
-        {/* Testo descrizione */}
+        {/* Testo descrizione o risultato */}
         <pre
           style={{
             color: '#FBFBFB',
@@ -233,10 +302,13 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
           )}
         </pre>
 
-        {/* Bottone "SKIP" */}
+        {/* Bottone SKIP */}
         {isTyping && !resultText && (
           <button
-            onClick={(e) => { e.stopPropagation(); skipTyping(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              skipTyping();
+            }}
             className="absolute bottom-2 right-2 z-10"
             style={{
               background: 'rgba(92,196,240,0.1)',
@@ -261,10 +333,11 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
       <div
         className="flex flex-col gap-2 p-4"
         style={{
-          background: 'rgba(8,22,40,0.7)',
-          borderTop: '1px solid rgba(92,196,240,0.25)',
+          background: 'rgba(8, 22, 40, 0.85)',
+          borderTop: '1px solid rgba(43,115,179,0.3)',
         }}
       >
+        {/* Nascondi scelte durante typing */}
         {!isTyping && (
           <AnimatePresence>
             <motion.div
@@ -273,50 +346,49 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {currentPage.choices.map((choice, idx) => {
-                const isDisabled = !!choice.locked;
+              {currentPage.choices.filter(isChoiceVisible).map((choice) => {
+                const status = getChoiceStatus(choice);
                 return (
-                  <motion.button
+                  <button
                     key={choice.id}
                     onClick={() => handleChoice(choice)}
-                    disabled={isDisabled}
-                    className="px-4 py-2.5 text-left transition-all flex items-center justify-between gap-3 group"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 * idx }}
-                    whileHover={!isDisabled ? { scale: 1.01, x: 4 } : {}}
-                    whileTap={!isDisabled ? { scale: 0.99 } : {}}
+                    disabled={status.disabled || choice.locked}
+                    className="px-4 py-2.5 text-left transition-all flex items-center justify-between gap-3"
                     style={{
-                      background: isDisabled
+                      background: status.disabled || choice.locked
                         ? 'rgba(48,48,48,0.15)'
-                        : 'linear-gradient(90deg, rgba(43,115,179,0.18) 0%, rgba(43,115,179,0.08) 100%)',
-                      border: `1px solid ${isDisabled ? 'rgba(48,48,48,0.3)' : 'rgba(92,196,240,0.35)'}`,
+                        : 'rgba(43,115,179,0.12)',
+                      border: `1px solid ${status.disabled || choice.locked ? 'rgba(48,48,48,0.2)' : 'rgba(43,115,179,0.35)'}`,
                       clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
-                      color: isDisabled ? 'rgba(251,251,251,0.3)' : '#FBFBFB',
+                      color: status.disabled || choice.locked ? 'rgba(251,251,251,0.25)' : '#FBFBFB',
                       fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
                       fontWeight: 400,
-                      fontSize: '0.82rem',
-                      letterSpacing: '0.04em',
-                      cursor: isDisabled ? 'not-allowed' : 'pointer',
-                      opacity: isDisabled ? 0.55 : 1,
-                      textShadow: '0 1px 2px rgba(0,0,0,0.95)',
+                      fontSize: '0.8rem',
+                      letterSpacing: '0.05em',
+                      cursor: status.disabled || choice.locked ? 'not-allowed' : 'pointer',
+                      opacity: status.disabled || choice.locked ? 0.5 : 1,
+                      textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
                     }}
                   >
-                    <span className="flex items-center gap-2.5">
-                      {!isDisabled && (
-                        <span style={{ color: '#5CC4F0', fontSize: '0.7rem', textShadow: '0 0 5px rgba(92,196,240,0.6)' }}>▸</span>
-                      )}
-                      {isDisabled && (
-                        <span style={{ color: 'rgba(190,33,86,0.5)', fontSize: '0.7rem' }}>✕</span>
-                      )}
-                      {choice.label}
-                    </span>
+                    <span>{choice.label}</span>
+                    {(status.reason || status.label) && (
+                      <span
+                        style={{
+                          color: status.disabled ? 'rgba(190,33,86,0.7)' : 'rgba(127,197,34,0.7)',
+                          fontSize: '0.65rem',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {status.label ? status.label : `[${status.reason}]`}
+                      </span>
+                    )}
                     {choice.locked && choice.lockReason && (
                       <span style={{ color: 'rgba(190,33,86,0.5)', fontSize: '0.65rem' }}>
                         [BLOCCATO: {choice.lockReason}]
                       </span>
                     )}
-                  </motion.button>
+                  </button>
                 );
               })}
             </motion.div>
@@ -326,35 +398,20 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
 
       {/* === Footer: statistiche === */}
       <div
-        className="flex justify-between items-center px-5 py-2"
+        className="flex justify-between items-center px-4 py-2"
         style={{
           background: 'rgba(2,8,20,0.6)',
-          borderTop: '1px solid rgba(92,196,240,0.15)',
+          borderTop: '1px solid rgba(43,115,179,0.15)',
         }}
       >
-        <span
-          style={{
-            color: 'rgba(92,196,240,0.4)',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '0.55rem',
-            letterSpacing: '0.15em',
-          }}
-        >
+        <span style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.55rem', letterSpacing: '0.1em' }}>
           {state.subAreaName.toUpperCase()}
         </span>
-        <span
-          style={{
-            color: 'rgba(92,196,240,0.4)',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '0.55rem',
-            letterSpacing: '0.15em',
-          }}
-        >
-          PAG. {state.stats.pagesVisited} · SCELTE {state.stats.choicesMade}
+        <span style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.55rem', letterSpacing: '0.1em' }}>
+          PAGINE: {state.stats.pagesVisited} | SCELTE: {state.stats.choicesMade}
         </span>
       </div>
     </div>
   );
 }
+

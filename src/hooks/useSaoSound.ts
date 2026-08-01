@@ -35,7 +35,9 @@ export type SaoSoundName =
   | 'dismissMessage' // ExitMenu.wav
   | 'programStart'   // EnterMenu.wav
   | 'programReady'   // ConfirmSound.wav
-  | 'credits';       // AchievementSound.wav
+  | 'credits'        // AchievementSound.wav
+  | 'diceRoll'       // MenuTick.wav (ripetuto rapidamente per simulare il rotolamento)
+  | 'diceLand';      // ConfirmSound.wav (il dado si ferma)
 
 const SOUND_PATHS: Record<SaoSoundName, string> = {
   startup: '/sao/audio/EnterMenu.wav',
@@ -57,6 +59,8 @@ const SOUND_PATHS: Record<SaoSoundName, string> = {
   programStart: '/sao/audio/EnterMenu.wav',
   programReady: '/sao/audio/ConfirmSound.wav',
   credits: '/sao/audio/AchievementSound.wav',
+  diceRoll: '/sao/audio/MenuTick.wav',
+  diceLand: '/sao/audio/ConfirmSound.wav',
 };
 
 /**

@@ -272,7 +272,7 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                       </div>
 
                       {/* Search + Subcategory filter (solo per tab con oggetti) */}
-                      {activeTab !== 'areas' && activeTab !== 'mob' && (
+                      {activeTab !== 'mob' && (
                         <div className="p-3" style={{ borderBottom: '1px solid rgba(43,115,179,0.1)' }}>
                           {/* Search bar */}
                           <input

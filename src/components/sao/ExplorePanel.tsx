@@ -30,7 +30,9 @@ import type { Item, EquipmentState } from '@/lib/sao-inventory-types';
 import { BAG_MAX_ITEMS } from '@/lib/sao-inventory-types';
 import SaoHUD, { type BarValue } from './SaoHUD';
 import GameBookCard from './GameBookCard';
-import { type GameBookState, type GameBookChoice, createInitialGameBookState } from '@/lib/sao-gamebook-types';
+import DiceRollOverlay from './DiceRollOverlay';
+import SaoNotificationWindow, { type SaoNotificationData } from './SaoNotificationWindow';
+import { type GameBookState, type GameBookChoice, type DiceRollOutcome, createInitialGameBookState } from '@/lib/sao-gamebook-types';
 import ItemDetailModal from './ItemDetailModal';
 
 /**
@@ -116,6 +118,14 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   const [showCartography, setShowCartography] = useState(false);
   // Game Book state (libro game)
   const [gameBookState, setGameBookState] = useState<GameBookState | null>(null);
+  // Dice roll overlay (per scelte con diceRoll)
+  const [diceRoll, setDiceRoll] = useState<{ sides: number; choice: GameBookChoice } | null>(null);
+  // Exit confirmation notification (per X rossa durante esplorazione).
+  // Usa SaoNotificationWindow per essere IDENTICO al messaggio di login.
+  const [exitNotification, setExitNotification] = useState<SaoNotificationData | null>(null);
+  // Stati di gioco salvati per ogni sotto-area (per riprendere l'esplorazione
+  // da dove si era lasciato quando si torna alla città).
+  const [savedGameBookStates, setSavedGameBookStates] = useState<Record<string, GameBookState>>({});
 
   const areaDef = EXPLORE_AREAS.find((a) => a.id === areaId);
   const subAreas = areaDef ? getSubAreasForArea(areaId) : [];
@@ -168,7 +178,21 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (showTerminal || foundItem) return;
-        if (view === 'exploring') {
+        if (exitNotification) {
+          // Se la notifica di conferma uscita è aperta, ESC = annulla
+          setExitNotification(null);
+          return;
+        }
+        if (view === 'exploring' && gameBookState) {
+          // ESC durante esplorazione = come la X rossa: mostra conferma uscita
+          setExitNotification({
+            id: Date.now(),
+            kind: 'alert',
+            title: 'Avviso',
+            body: 'Vuoi davvero abbandonare l\'esplorazione? I progressi non salvati andranno persi. Per uscire salvando, torna alla città più vicina oppure usa un Cristallo del Teletrasporto.',
+          });
+        } else if (view === 'exploring') {
+          // exploring senza gameBookState (vecchio sistema): back ai subareas
           play('dismissLauncher', 0.3);
           setView('subareas');
           setRun(null);
@@ -181,38 +205,114 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [open, onClose, play, view, showTerminal, foundItem]);
+  }, [open, onClose, play, view, showTerminal, foundItem, exitNotification, gameBookState]);
 
   // Start exploration
   const handleStartExplore = useCallback((subAreaId: string) => {
     const def = getSubAreaById(subAreaId);
     if (!def) return;
-    // Inizializza il Game Book state
-    setGameBookState(createInitialGameBookState(subAreaId, def.name));
+    // Se c'è uno stato salvato per questa sotto-area, riprendi da lì
+    // (il giocatore era tornato alla città salvando i progressi)
+    const saved = savedGameBookStates[subAreaId];
+    if (saved) {
+      setGameBookState(saved);
+    } else {
+      // Altrimenti crea un nuovo stato iniziale
+      setGameBookState(createInitialGameBookState(subAreaId, def.name));
+    }
     setActiveSubAreaId(subAreaId);
     setView('exploring');
     play('click', 0.5);
-  }, [play]);
+  }, [play, savedGameBookStates]);
 
   // Game Book: gestisci scelta del giocatore
   const handleGameBookChoice = useCallback((choice: GameBookChoice) => {
     if (!gameBookState) return;
 
+    // Se la scelta richiede un tiro di dado, apri l'overlay
+    if (choice.diceRoll) {
+      setDiceRoll({ sides: choice.diceRoll.sides, choice });
+      return;
+    }
+
+    // Se la scelta chiude l'esplorazione salvando i progressi (es. "Torna alla città")
+    if (choice.exitsExploration) {
+      // Salva lo stato attuale per questa sotto-area
+      if (activeSubAreaId) {
+        setSavedGameBookStates((prev) => ({ ...prev, [activeSubAreaId]: gameBookState }));
+      }
+      play('dismissLauncher', 0.4);
+      // Chiudi l'esplorazione (i progressi sono salvati in savedGameBookStates)
+      setTimeout(() => onClose(), 100);
+      return;
+    }
+
+    // Controlla maxUses / oneTime
+    if (choice.maxUses || choice.oneTime) {
+      const uses = gameBookState.choiceUses[choice.id] ?? 0;
+      const limit = choice.oneTime ? 1 : (choice.maxUses ?? Infinity);
+      if (uses >= limit) {
+        play('warning', 0.3);
+        showToast('Questa scelta non è più disponibile.');
+        return;
+      }
+    }
+
+    // Controlla requiresStat
+    if (choice.requiresStat && playerStats) {
+      const statKey = choice.requiresStat.stat.toLowerCase() as keyof typeof playerStats;
+      const statValue = playerStats[statKey] ?? 0;
+      if (statValue < choice.requiresStat.value) {
+        play('warning', 0.3);
+        showToast(`${choice.requiresStat.stat} ${choice.requiresStat.value} richiesti — ti mancano ${choice.requiresStat.value - statValue} punti.`);
+        return;
+      }
+    }
+
     setGameBookState((prev) => {
       if (!prev) return prev;
-      const newPageId = choice.outcome === 'back' ? 'entry' : choice.id;
+
+      // Determina la pagina di destinazione
+      let newPageId: string;
+      if (choice.outcome === 'back') {
+        newPageId = choice.targetPage ?? 'entry';
+      } else {
+        newPageId = choice.targetPage ?? choice.id;
+      }
+
       const newPage = prev.pages[newPageId];
-      const updated = {
+      const wasVisited = prev.visitedPages.includes(newPageId);
+
+      // Aggiorna choiceUses
+      const newChoiceUses = { ...prev.choiceUses };
+      newChoiceUses[choice.id] = (newChoiceUses[choice.id] ?? 0) + 1;
+
+      // Aggiorna flags
+      const newFlags = { ...prev.flags };
+      if (choice.setsFlags) {
+        for (const f of choice.setsFlags) {
+          newFlags[f] = true;
+        }
+      }
+      if (choice.clearsFlags) {
+        for (const f of choice.clearsFlags) {
+          newFlags[f] = false;
+        }
+      }
+
+      const updated: GameBookState = {
         ...prev,
         currentPageId: newPageId,
-        visitedPages: prev.visitedPages.includes(newPageId)
-          ? prev.visitedPages
-          : [...prev.visitedPages, newPageId],
+        visitedPages: wasVisited ? prev.visitedPages : [...prev.visitedPages, newPageId],
+        choiceUses: newChoiceUses,
+        flags: newFlags,
+        visitCount: {
+          ...prev.visitCount,
+          [newPageId]: (prev.visitCount[newPageId] ?? 0) + 1,
+        },
         stats: {
           ...prev.stats,
-          pagesVisited: prev.visitedPages.includes(newPageId)
-            ? prev.stats.pagesVisited
-            : prev.stats.pagesVisited + 1,
+          pagesVisited: wasVisited ? prev.stats.pagesVisited : prev.stats.pagesVisited + 1,
           choicesMade: prev.stats.choicesMade + 1,
         },
       };
@@ -226,7 +326,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           zoneType: 'exploration',
           choices: [
             { id: 'continue', label: '▶ Continua ad esplorare', outcome: 'progress', resultText: 'Procedi oltre...' },
-            { id: 'go_back', label: '◀ Torna indietro', outcome: 'back' },
+            { id: 'go_back', label: '◀ Torna indietro', outcome: 'back', targetPage: 'entry' },
           ],
         };
       }
@@ -244,7 +344,79 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
       onRest?.();
       play('welcome', 0.4);
     }
-  }, [gameBookState, play, showToast, onRest]);
+  }, [gameBookState, play, showToast, onRest, playerStats, activeSubAreaId, onClose]);
+
+  // Dice roll: gestisci risultato del tiro dado
+  const handleDiceResult = useCallback((result: number) => {
+    if (!diceRoll) return;
+    const { choice } = diceRoll;
+    if (!choice.diceRoll) {
+      setDiceRoll(null);
+      return;
+    }
+
+    // Trova l'outcome corrispondente al risultato
+    let targetOutcome: DiceRollOutcome | undefined;
+    for (const o of choice.diceRoll.outcomes) {
+      if (result < o.min || result > o.max) continue;
+      if (o.parity === 'even' && result % 2 !== 0) continue;
+      if (o.parity === 'odd' && result % 2 !== 1) continue;
+      targetOutcome = o;
+      break;
+    }
+
+    setDiceRoll(null);
+
+    if (!targetOutcome) {
+      play('warning', 0.3);
+      showToast('Nessun esito definito per questo tiro.');
+      return;
+    }
+
+    // Se l'outcome ha setsFlags e tutti i flag sono già true → vai a "nothing_new"
+    const alreadyObtained = targetOutcome.setsFlags
+      && targetOutcome.setsFlags.length > 0
+      && targetOutcome.setsFlags.every((f) => gameBookState?.flags[f]);
+
+    const targetPage = alreadyObtained ? 'd10_nothing_new' : targetOutcome.targetPage;
+
+    // Naviga alla pagina di destinazione
+    setGameBookState((prev) => {
+      if (!prev) return prev;
+      const wasVisited = prev.visitedPages.includes(targetPage);
+      const newChoiceUses = { ...prev.choiceUses };
+      newChoiceUses[choice.id] = (newChoiceUses[choice.id] ?? 0) + 1;
+      const newFlags = { ...prev.flags };
+      // Setta i flag dell'outcome solo se NON è "alreadyObtained"
+      if (!alreadyObtained && targetOutcome.setsFlags) {
+        for (const f of targetOutcome.setsFlags) newFlags[f] = true;
+      }
+      // Setta i flag della choice (se presenti)
+      if (choice.setsFlags) {
+        for (const f of choice.setsFlags) newFlags[f] = true;
+      }
+      // Clears flags della choice (se presenti)
+      if (choice.clearsFlags) {
+        for (const f of choice.clearsFlags) newFlags[f] = false;
+      }
+      return {
+        ...prev,
+        currentPageId: targetPage,
+        visitedPages: wasVisited ? prev.visitedPages : [...prev.visitedPages, targetPage],
+        choiceUses: newChoiceUses,
+        flags: newFlags,
+        visitCount: {
+          ...prev.visitCount,
+          [targetPage]: (prev.visitCount[targetPage] ?? 0) + 1,
+        },
+        stats: {
+          ...prev.stats,
+          pagesVisited: wasVisited ? prev.stats.pagesVisited : prev.stats.pagesVisited + 1,
+          choicesMade: prev.stats.choicesMade + 1,
+        },
+      };
+    });
+  }, [diceRoll, play, showToast, gameBookState]);
 
   // Viaggia verso un nodo connesso (scelta del percorso ai bivi)
   const handleChooseNode = useCallback((nextNodeId: string) => {
@@ -542,9 +714,11 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
   }, [run, activeSubAreaId, play]);
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
+          key="explore-panel"
           className="fixed inset-0 z-40"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -553,10 +727,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           style={{ background: 'rgba(2, 8, 20, 0.92)', backdropFilter: 'blur(10px)' }}
         >
           {/* === BACKGROUND: immagine della zona (stile GameScreen con Aincrad.png) ===
-              Usa lo sfondo della zona corrente per rendere l'esplorazione più immersiva.
-              Sfondo scelto in base all'areaId:
-                - 'grandi-pianure' → 'Pianure dell'inizio.svg'
-                - (altri) → 'Aincrad.png' (default) */}
+              Usa lo sfondo della zona corrente per rendere l'esplorazione più immersiva. */}
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
             <img
               src={areaId === 'grandi-pianure'
@@ -588,7 +759,19 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           <button
             onClick={() => {
               play('dismissLauncher', 0.35);
-              onClose();
+              // Se siamo in esplorazione (libro game attivo), chiedi conferma
+              // usando la stessa SaoNotificationWindow del messaggio di login.
+              // L'unico modo per uscire salvando è tornare alla città (choice back_city).
+              if (view === 'exploring' && gameBookState) {
+                setExitNotification({
+                  id: Date.now(),
+                  kind: 'alert',
+                  title: 'Avviso',
+                  body: 'Vuoi davvero abbandonare l\'esplorazione? I progressi non salvati andranno persi. Per uscire salvando, torna alla città più vicina oppure usa un Cristallo del Teletrasporto.',
+                });
+              } else {
+                onClose();
+              }
             }}
             className="absolute top-4 right-4 z-30"
             style={{ width: '32px', height: '32px', cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
@@ -601,10 +784,20 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           {view === 'exploring' && (
             <button
               onClick={() => {
-                play('dismissLauncher', 0.3);
-                setView('subareas');
-                setRun(null);
-                setActiveSubAreaId(null);
+                // Se il libro game è attivo, mostra conferma uscita (come X rossa)
+                if (gameBookState) {
+                  setExitNotification({
+                    id: Date.now(),
+                    kind: 'alert',
+                    title: 'Avviso',
+                    body: 'Vuoi davvero abbandonare l\'esplorazione? I progressi non salvati andranno persi. Per uscire salvando, torna alla città più vicina oppure usa un Cristallo del Teletrasporto.',
+                  });
+                } else {
+                  play('dismissLauncher', 0.3);
+                  setView('subareas');
+                  setRun(null);
+                  setActiveSubAreaId(null);
+                }
               }}
               className="absolute top-4 left-4 z-30"
               style={{
@@ -625,61 +818,38 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           {/* === SUB-AREA SELECTION === */}
           {view === 'subareas' && (
             <motion.div
-              className="h-full flex flex-col items-center justify-center px-4 relative z-10"
+              className="h-full flex flex-col items-center justify-center px-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              {/* Title — con icona Location SAO */}
-              <motion.div
-                className="flex flex-col items-center mb-10"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+              {/* Title */}
+              <p
+                className="tracking-[0.3em] mb-2"
+                style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem' }}
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <img
-                    src="/sao/menu/Location.svg"
-                    alt=""
-                    className="w-6 h-6"
-                    style={{ filter: 'drop-shadow(0 0 6px rgba(92,196,240,0.6))' }}
-                    draggable={false}
-                  />
-                  <p
-                    className="tracking-[0.4em]"
-                    style={{ color: 'rgba(92,196,240,0.7)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', textShadow: '0 0 8px rgba(92,196,240,0.3)' }}
-                  >
-                    {areaDef?.name.toUpperCase()}
-                  </p>
-                </div>
-                {/* Linea decorativa SAO */}
-                <div
-                  style={{
-                    width: '120px',
-                    height: '1px',
-                    background: 'linear-gradient(90deg, transparent, rgba(92,196,240,0.5), transparent)',
-                    marginBottom: '12px',
-                  }}
-                />
-                <h2
-                  className="tracking-[0.5em]"
-                  style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: 'clamp(1.1rem, 2.8vw, 1.8rem)', textShadow: '0 0 16px rgba(92,196,240,0.5), 0 2px 4px rgba(0,0,0,0.95)' }}
-                >
-                  SELEZIONA SOTTO-AREA
-                </h2>
-              </motion.div>
+                {areaDef?.name.toUpperCase()}
+              </p>
+              <h2
+                className="tracking-[0.4em] mb-8"
+                style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: 'clamp(1.2rem, 3vw, 2rem)', textShadow: '0 0 20px rgba(92,196,240,0.5)' }}
+              >
+                SELEZIONA SOTTO-AREA
+              </h2>
 
               {/* Sub-area cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
                 {subAreas.map((sa, idx) => {
                   const status = exploreState.subAreaProgress[sa.id]?.status ?? 'unlocked';
                   const isCompleted = status === 'completed';
+                  const hasSavedState = !!savedGameBookStates[sa.id];
                   return (
                     <SubAreaCard
                       key={sa.id}
                       sa={sa}
                       idx={idx}
                       isCompleted={isCompleted}
+                      hasSavedState={hasSavedState}
                       onClick={() => handleStartExplore(sa.id)}
                     />
                   );
@@ -696,7 +866,6 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                     border: '1px solid rgba(235,166,1,0.4)',
                     clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
                     color: '#EBA601', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em', cursor: 'pointer',
-                    textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
                   }}
                 >
                   ⚐ CARTOGRAFIA
@@ -711,42 +880,13 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
             {/* HUD barre HP/MP/Energia (alto sinistra, compatte, VR hover per-barra) */}
             <ExploreHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} />
 
-            {/* Header della sotto-area (in alto, centrato) */}
-            <motion.div
-              className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <div className="flex items-center gap-2">
-                <img
-                  src="/sao/menu/Location_on.svg"
-                  alt=""
-                  className="w-4 h-4"
-                  style={{ filter: 'drop-shadow(0 0 4px rgba(92,196,240,0.7))' }}
-                  draggable={false}
-                />
-                <p
-                  className="tracking-[0.4em]"
-                  style={{
-                    color: 'rgba(92,196,240,0.8)',
-                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400,
-                    fontSize: '0.7rem',
-                    textShadow: '0 0 8px rgba(92,196,240,0.4), 0 1px 3px rgba(0,0,0,0.95)',
-                  }}
-                >
-                  {activeSubAreaDef.name.toUpperCase()}
-                </p>
-              </div>
-            </motion.div>
-
             {/* Layout: GameBookCard centrato */}
-            <div className="h-full flex items-center justify-center px-4 pt-16 pb-4 overflow-y-auto sao-scroll relative z-10">
+            <div className="h-full flex items-center justify-center px-4 pt-16 pb-4 overflow-y-auto sao-scroll">
               <div className="flex-1 flex items-center justify-center min-w-0">
                 <GameBookCard
                   state={gameBookState}
                   onChoice={handleGameBookChoice}
+                  playerStats={playerStats as Record<string, number> | undefined}
                 />
               </div>
             </div>
@@ -1065,9 +1205,40 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           <AnimatePresence>
             {toast && <ExploreToast text={toast} />}
           </AnimatePresence>
+
+          {/* === DICE ROLL OVERLAY (tiro dado per scelte con diceRoll) === */}
+          <DiceRollOverlay
+            open={!!diceRoll}
+            sides={diceRoll?.sides ?? 10}
+            onResult={handleDiceResult}
+          />
         </motion.div>
       )}
     </AnimatePresence>
+
+      {/* === EXIT CONFIRMATION (SaoNotificationWindow - IDENTICA al messaggio di login)
+          Renderizzata FUORI da <AnimatePresence> (è un overlay fixed indipendente
+          con il suo AnimatePresence interno). zIndex=200 per stare sopra l'ExplorePanel. === */}
+      <SaoNotificationWindow
+        notification={exitNotification}
+        zIndex={200}
+        onConfirm={() => {
+          // Conferma uscita: chiude subito senza animazione di uscita
+          // (l'animazione di uscita del notification window + onClose() simultaneo
+          // causava crash perché l'ExplorePanel si smonta mentre il notification
+          // sta ancora animando l'exit).
+          setExitNotification(null);
+          play('dismissLauncher', 0.4);
+          // Usa setTimeout 0 per assicurarsi che il setExitNotification(null)
+          // venga processato prima del onClose() che smonta tutto.
+          setTimeout(() => onClose(), 0);
+        }}
+        onCancel={() => {
+          // Annulla: chiude solo la notifica (l'animazione di exit può girare)
+          setExitNotification(null);
+        }}
+      />
+    </>
   );
 }
 
@@ -2266,10 +2437,11 @@ function EventSquareCard({
 
 /* ---------- Sub-Area Card with VR hover ---------- */
 
-function SubAreaCard({ sa, idx, isCompleted, onClick }: {
+function SubAreaCard({ sa, idx, isCompleted, hasSavedState, onClick }: {
   sa: { id: string; name: string; description: string; order: number };
   idx: number;
   isCompleted: boolean;
+  hasSavedState?: boolean;
   onClick: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -2305,18 +2477,18 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
         onMouseMove={handleMouseMove}
         onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
         onClick={onClick}
-        className="relative cursor-pointer overflow-hidden group"
+        className="relative cursor-pointer overflow-hidden"
         style={{
           padding: '24px',
           transform: hover?.tilt,
           transformStyle: 'preserve-3d',
           transition: 'transform 0.15s ease-out',
-          background: 'linear-gradient(180deg, rgba(8,22,40,0.88) 0%, rgba(2,8,20,0.92) 100%)',
-          border: `1.5px solid ${isCompleted ? 'rgba(127, 197, 34, 0.55)' : 'rgba(92, 196, 240, 0.4)'}`,
+          background: 'rgba(8, 22, 40, 0.85)',
+          border: `2px solid ${isCompleted ? 'rgba(127, 197, 34, 0.6)' : 'rgba(251, 251, 251, 0.5)'}`,
           boxShadow: isCompleted
             ? '0 4px 20px rgba(127, 197, 34, 0.2), inset 0 0 20px rgba(127, 197, 34, 0.05)'
-            : '0 4px 20px rgba(0,0,0,0.5), inset 0 0 20px rgba(43, 115, 179, 0.08)',
-          clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
+            : '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
+          clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
           willChange: hover ? 'transform' : 'auto',
         }}
       >
@@ -2325,19 +2497,8 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
           className="absolute inset-0 pointer-events-none transition-opacity duration-300"
           style={{
             opacity: hover ? 1 : 0,
-            background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92, 196, 240, 0.18) 0%, transparent 50%)`,
+            background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92, 196, 240, 0.15) 0%, transparent 50%)`,
             mixBlendMode: 'screen',
-          }}
-        />
-
-        {/* Bordo superiore accent (linea SAO) */}
-        <div
-          className="absolute top-0 left-0 right-0 pointer-events-none"
-          style={{
-            height: '2px',
-            background: isCompleted
-              ? 'linear-gradient(90deg, transparent, rgba(127,197,34,0.6), transparent)'
-              : 'linear-gradient(90deg, transparent, rgba(92,196,240,0.5), transparent)',
           }}
         />
 
@@ -2360,50 +2521,58 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
           </motion.div>
         )}
 
-        {/* Order number con icona Location SAO */}
-        <div className="mb-3 flex items-center gap-3">
-          <div
-            className="flex items-center justify-center"
+        {/* Saved state indicator (esplorazione in corso, progressi salvati) */}
+        {hasSavedState && !isCompleted && (
+          <motion.div
+            className="absolute top-3 right-3"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.6 + idx * 0.1 }}
             style={{
-              width: '40px', height: '40px', borderRadius: '50%',
-              background: isCompleted ? 'rgba(127, 197, 34, 0.15)' : 'rgba(43, 115, 179, 0.2)',
-              border: `1px solid ${isCompleted ? 'rgba(127,197,34,0.4)' : 'rgba(92,196,240,0.4)'}`,
+              padding: '3px 8px',
+              background: 'rgba(235, 166, 1, 0.15)',
+              border: '1px solid rgba(235, 166, 1, 0.5)',
+              clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
             }}
           >
-            <img
-              src={isCompleted ? '/sao/menu/Location_on.svg' : '/sao/menu/Location.svg'}
-              alt=""
-              className="w-5 h-5"
+            <span
               style={{
-                filter: isCompleted
-                  ? 'drop-shadow(0 0 5px rgba(127,197,34,0.6))'
-                  : 'drop-shadow(0 0 5px rgba(92,196,240,0.6))',
+                color: '#EBA601',
+                fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                fontWeight: 400,
+                fontSize: '0.55rem',
+                letterSpacing: '0.15em',
+                textShadow: '0 0 4px rgba(235,166,1,0.5)',
               }}
-              draggable={false}
-            />
-          </div>
-          <span
-            style={{
-              color: isCompleted ? 'rgba(127,197,34,0.6)' : 'rgba(92,196,240,0.5)',
-              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-              fontWeight: 400,
-              fontSize: '0.65rem',
-              letterSpacing: '0.2em',
-            }}
-          >
-            ZONA {sa.order}
-          </span>
+            >
+              ◐ RIPRENDI
+            </span>
+          </motion.div>
+        )}
+
+        {/* Order number */}
+        <div
+          className="mb-3 flex items-center justify-center"
+          style={{
+            width: '36px', height: '36px', borderRadius: '50%',
+            background: 'rgba(43, 115, 179, 0.2)',
+            border: '1px solid rgba(251, 251, 251, 0.3)',
+            color: '#5CC4F0',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400, fontSize: '0.9rem',
+          }}
+        >
+          {sa.order}
         </div>
 
         {/* Name */}
         <h3
-          className="tracking-[0.25em] mb-2"
+          className="tracking-[0.2em] mb-2"
           style={{
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '1.05rem',
-            textShadow: '0 0 10px rgba(92,196,240,0.3), 0 2px 4px rgba(0,0,0,0.95)',
+            fontWeight: 700, fontSize: '1rem',
+            textShadow: '0 1px 0 rgba(255,255,255,0.1)',
           }}
         >
           {sa.name.toUpperCase()}
@@ -2413,11 +2582,9 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
         <p
           className="leading-relaxed mb-3"
           style={{
-            color: 'rgba(251,251,251,0.6)',
+            color: 'rgba(251,251,251,0.5)',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 300,
-            fontSize: '0.72rem',
-            textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+            fontWeight: 400, fontSize: '0.7rem',
           }}
         >
           {sa.description}
@@ -2427,11 +2594,9 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
         <p
           className="tracking-[0.2em]"
           style={{
-            color: isCompleted ? 'rgba(127, 197, 34, 0.75)' : 'rgba(92, 196, 240, 0.6)',
+            color: isCompleted ? 'rgba(127, 197, 34, 0.7)' : 'rgba(92, 196, 240, 0.5)',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '0.6rem',
-            textShadow: `0 0 6px ${isCompleted ? 'rgba(127,197,34,0.3)' : 'rgba(92,196,240,0.3)'}, 0 1px 2px rgba(0,0,0,0.95)`,
+            fontWeight: 400, fontSize: '0.6rem',
           }}
         >
           {isCompleted ? '[ COMPLETATA — RIESPLORABILE ]' : '[ DISPONIBILE ]'}
