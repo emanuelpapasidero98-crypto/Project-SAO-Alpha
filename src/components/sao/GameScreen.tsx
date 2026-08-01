@@ -406,8 +406,8 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
         <motion.img
           src="/sao/indicatore verde.svg"
           alt=""
-          className="w-10 h-10 sm:w-12 sm:h-12"
-          style={{ filter: 'drop-shadow(0 0 8px rgba(127, 197, 34, 0.5))' }}
+          className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28"
+          style={{ filter: 'drop-shadow(0 0 12px rgba(127, 197, 34, 0.6))' }}
           draggable={false}
           initial={{ rotateY: 0 }}
           animate={{ rotateY: 360 }}

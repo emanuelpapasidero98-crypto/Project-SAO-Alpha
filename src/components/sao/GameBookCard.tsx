@@ -7,6 +7,67 @@ import { resolvePageDescription } from '@/lib/sao-gamebook-types';
 import type { GameBookPage, GameBookState, GameBookChoice } from '@/lib/sao-gamebook-types';
 
 /**
+ * Parsa il testo e identifica i dialoghi (testo tra virgolette "..." o "..." ecc.).
+ * Ritorna un array di segmenti { type: 'normal' | 'dialogue', text }.
+ *
+ * Gestisce anche virgolette non chiuse (durante il typewriter effect):
+ * se il testo termina con una virgoletta aperta non chiusa, tutto il testo
+ * dopo quella virgoletta viene trattato come dialogo.
+ *
+ * Supporta sia virgolette dritte (") che virgolette tipografiche (" ").
+ */
+function parseTextSegments(text: string): { type: 'normal' | 'dialogue'; text: string }[] {
+  if (!text) return [];
+  const segments: { type: 'normal' | 'dialogue'; text: string }[] = [];
+  // Regex: trova "..." (con virgolette dritte o tipografiche)
+  // La virgoletta finale è opzionale per gestire il typing parziale
+  const dialogueRegex = /["\u201C\u201D]([^"\u201C\u201D]*)(?:["\u201C\u201D])?/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = dialogueRegex.exec(text)) !== null) {
+    // Testo normale prima del dialogo
+    if (match.index > lastIndex) {
+      segments.push({ type: 'normal', text: text.slice(lastIndex, match.index) });
+    }
+    // Il dialogo (include le virgolette di apertura e, se presente, di chiusura)
+    segments.push({ type: 'dialogue', text: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+  // Testo normale rimanente
+  if (lastIndex < text.length) {
+    segments.push({ type: 'normal', text: text.slice(lastIndex) });
+  }
+  // Se non ci sono segmenti (nessun dialogo), ritorna l'intero testo come normal
+  if (segments.length === 0) {
+    segments.push({ type: 'normal', text });
+  }
+  return segments;
+}
+
+/** Renderizza il testo parsando i dialoghi e applicando stili diversi. */
+function renderTextWithDialogues(text: string) {
+  const segments = parseTextSegments(text);
+  return segments.map((seg, i) => {
+    if (seg.type === 'dialogue') {
+      return (
+        <span
+          key={i}
+          style={{
+            color: '#EBA601',
+            fontStyle: 'italic',
+            fontWeight: 400,
+            textShadow: '0 0 6px rgba(235,166,1,0.3), 0 1px 2px rgba(0,0,0,0.95)',
+          }}
+        >
+          {seg.text}
+        </span>
+      );
+    }
+    return <span key={i}>{seg.text}</span>;
+  });
+}
+
+/**
  * GameBookCard — card centrale per l'esplorazione stile libro game.
  *
  * Stile: coerente con il resto del gioco (Sword Art Online anime):
@@ -292,7 +353,7 @@ export default function GameBookCard({ state, onChoice, playerStats }: GameBookC
             pointerEvents: 'none',
           }}
         >
-          {resultText || typedText}
+          {renderTextWithDialogues(resultText || typedText)}
           {isTyping && !resultText && (
             <span style={{
               color: '#5CC4F0',
