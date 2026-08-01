@@ -552,6 +552,29 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           transition={{ duration: 0.3 }}
           style={{ background: 'rgba(2, 8, 20, 0.92)', backdropFilter: 'blur(10px)' }}
         >
+          {/* === BACKGROUND: immagine della zona (stile GameScreen con Aincrad.png) ===
+              Usa lo sfondo della zona corrente per rendere l'esplorazione più immersiva.
+              Sfondo scelto in base all'areaId:
+                - 'grandi-pianure' → 'Pianure dell'inizio.svg'
+                - (altri) → 'Aincrad.png' (default) */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+            <img
+              src={areaId === 'grandi-pianure'
+                ? '/sao/backgrounds/Pianure dell\'inizio.svg'
+                : '/sao/backgrounds/Aincrad.png'}
+              alt=""
+              className="w-full h-full object-cover"
+              style={{ filter: 'brightness(0.45) saturate(1.1)', opacity: 0.7 }}
+              draggable={false}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(180deg, rgba(2,8,20,0.5) 0%, rgba(2,8,20,0.3) 30%, rgba(2,8,20,0.3) 70%, rgba(2,8,20,0.6) 100%)',
+              }}
+            />
+          </div>
+
           {/* CRT TV power-on animation overlay */}
           <motion.div
             className="absolute inset-0 z-50 pointer-events-none"
@@ -602,24 +625,49 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           {/* === SUB-AREA SELECTION === */}
           {view === 'subareas' && (
             <motion.div
-              className="h-full flex flex-col items-center justify-center px-4"
+              className="h-full flex flex-col items-center justify-center px-4 relative z-10"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              {/* Title */}
-              <p
-                className="tracking-[0.3em] mb-2"
-                style={{ color: 'rgba(92,196,240,0.5)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem' }}
+              {/* Title — con icona Location SAO */}
+              <motion.div
+                className="flex flex-col items-center mb-10"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
               >
-                {areaDef?.name.toUpperCase()}
-              </p>
-              <h2
-                className="tracking-[0.4em] mb-8"
-                style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: 'clamp(1.2rem, 3vw, 2rem)', textShadow: '0 0 20px rgba(92,196,240,0.5)' }}
-              >
-                SELEZIONA SOTTO-AREA
-              </h2>
+                <div className="flex items-center gap-3 mb-2">
+                  <img
+                    src="/sao/menu/Location.svg"
+                    alt=""
+                    className="w-6 h-6"
+                    style={{ filter: 'drop-shadow(0 0 6px rgba(92,196,240,0.6))' }}
+                    draggable={false}
+                  />
+                  <p
+                    className="tracking-[0.4em]"
+                    style={{ color: 'rgba(92,196,240,0.7)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.75rem', textShadow: '0 0 8px rgba(92,196,240,0.3)' }}
+                  >
+                    {areaDef?.name.toUpperCase()}
+                  </p>
+                </div>
+                {/* Linea decorativa SAO */}
+                <div
+                  style={{
+                    width: '120px',
+                    height: '1px',
+                    background: 'linear-gradient(90deg, transparent, rgba(92,196,240,0.5), transparent)',
+                    marginBottom: '12px',
+                  }}
+                />
+                <h2
+                  className="tracking-[0.5em]"
+                  style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: 'clamp(1.1rem, 2.8vw, 1.8rem)', textShadow: '0 0 16px rgba(92,196,240,0.5), 0 2px 4px rgba(0,0,0,0.95)' }}
+                >
+                  SELEZIONA SOTTO-AREA
+                </h2>
+              </motion.div>
 
               {/* Sub-area cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
@@ -648,6 +696,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
                     border: '1px solid rgba(235,166,1,0.4)',
                     clipPath: 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)',
                     color: '#EBA601', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.7rem', letterSpacing: '0.2em', cursor: 'pointer',
+                    textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
                   }}
                 >
                   ⚐ CARTOGRAFIA
@@ -657,13 +706,43 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
           )}
 
           {/* === EXPLORING (Libro Game) === */}
-          {view === 'exploring' && run && activeSubAreaDef && (
+          {view === 'exploring' && activeSubAreaDef && gameBookState && (
             <>
             {/* HUD barre HP/MP/Energia (alto sinistra, compatte, VR hover per-barra) */}
             <ExploreHUD hp={hp} mp={mp} energy={energy} level={level} playerName={playerName} />
 
+            {/* Header della sotto-area (in alto, centrato) */}
+            <motion.div
+              className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <div className="flex items-center gap-2">
+                <img
+                  src="/sao/menu/Location_on.svg"
+                  alt=""
+                  className="w-4 h-4"
+                  style={{ filter: 'drop-shadow(0 0 4px rgba(92,196,240,0.7))' }}
+                  draggable={false}
+                />
+                <p
+                  className="tracking-[0.4em]"
+                  style={{
+                    color: 'rgba(92,196,240,0.8)',
+                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                    fontWeight: 400,
+                    fontSize: '0.7rem',
+                    textShadow: '0 0 8px rgba(92,196,240,0.4), 0 1px 3px rgba(0,0,0,0.95)',
+                  }}
+                >
+                  {activeSubAreaDef.name.toUpperCase()}
+                </p>
+              </div>
+            </motion.div>
+
             {/* Layout: GameBookCard centrato */}
-            <div className="h-full flex items-center justify-center px-4 pt-16 pb-4 overflow-y-auto sao-scroll">
+            <div className="h-full flex items-center justify-center px-4 pt-16 pb-4 overflow-y-auto sao-scroll relative z-10">
               <div className="flex-1 flex items-center justify-center min-w-0">
                 <GameBookCard
                   state={gameBookState}
@@ -2226,18 +2305,18 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
         onMouseMove={handleMouseMove}
         onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
         onClick={onClick}
-        className="relative cursor-pointer overflow-hidden"
+        className="relative cursor-pointer overflow-hidden group"
         style={{
           padding: '24px',
           transform: hover?.tilt,
           transformStyle: 'preserve-3d',
           transition: 'transform 0.15s ease-out',
-          background: 'rgba(8, 22, 40, 0.85)',
-          border: `2px solid ${isCompleted ? 'rgba(127, 197, 34, 0.6)' : 'rgba(251, 251, 251, 0.5)'}`,
+          background: 'linear-gradient(180deg, rgba(8,22,40,0.88) 0%, rgba(2,8,20,0.92) 100%)',
+          border: `1.5px solid ${isCompleted ? 'rgba(127, 197, 34, 0.55)' : 'rgba(92, 196, 240, 0.4)'}`,
           boxShadow: isCompleted
             ? '0 4px 20px rgba(127, 197, 34, 0.2), inset 0 0 20px rgba(127, 197, 34, 0.05)'
-            : '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
-          clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
+            : '0 4px 20px rgba(0,0,0,0.5), inset 0 0 20px rgba(43, 115, 179, 0.08)',
+          clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
           willChange: hover ? 'transform' : 'auto',
         }}
       >
@@ -2246,8 +2325,19 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
           className="absolute inset-0 pointer-events-none transition-opacity duration-300"
           style={{
             opacity: hover ? 1 : 0,
-            background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92, 196, 240, 0.15) 0%, transparent 50%)`,
+            background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92, 196, 240, 0.18) 0%, transparent 50%)`,
             mixBlendMode: 'screen',
+          }}
+        />
+
+        {/* Bordo superiore accent (linea SAO) */}
+        <div
+          className="absolute top-0 left-0 right-0 pointer-events-none"
+          style={{
+            height: '2px',
+            background: isCompleted
+              ? 'linear-gradient(90deg, transparent, rgba(127,197,34,0.6), transparent)'
+              : 'linear-gradient(90deg, transparent, rgba(92,196,240,0.5), transparent)',
           }}
         />
 
@@ -2270,29 +2360,50 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
           </motion.div>
         )}
 
-        {/* Order number */}
-        <div
-          className="mb-3 flex items-center justify-center"
-          style={{
-            width: '36px', height: '36px', borderRadius: '50%',
-            background: 'rgba(43, 115, 179, 0.2)',
-            border: '1px solid rgba(251, 251, 251, 0.3)',
-            color: '#5CC4F0',
-            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400, fontSize: '0.9rem',
-          }}
-        >
-          {sa.order}
+        {/* Order number con icona Location SAO */}
+        <div className="mb-3 flex items-center gap-3">
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: '40px', height: '40px', borderRadius: '50%',
+              background: isCompleted ? 'rgba(127, 197, 34, 0.15)' : 'rgba(43, 115, 179, 0.2)',
+              border: `1px solid ${isCompleted ? 'rgba(127,197,34,0.4)' : 'rgba(92,196,240,0.4)'}`,
+            }}
+          >
+            <img
+              src={isCompleted ? '/sao/menu/Location_on.svg' : '/sao/menu/Location.svg'}
+              alt=""
+              className="w-5 h-5"
+              style={{
+                filter: isCompleted
+                  ? 'drop-shadow(0 0 5px rgba(127,197,34,0.6))'
+                  : 'drop-shadow(0 0 5px rgba(92,196,240,0.6))',
+              }}
+              draggable={false}
+            />
+          </div>
+          <span
+            style={{
+              color: isCompleted ? 'rgba(127,197,34,0.6)' : 'rgba(92,196,240,0.5)',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: '0.65rem',
+              letterSpacing: '0.2em',
+            }}
+          >
+            ZONA {sa.order}
+          </span>
         </div>
 
         {/* Name */}
         <h3
-          className="tracking-[0.2em] mb-2"
+          className="tracking-[0.25em] mb-2"
           style={{
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 700, fontSize: '1rem',
-            textShadow: '0 1px 0 rgba(255,255,255,0.1)',
+            fontWeight: 400,
+            fontSize: '1.05rem',
+            textShadow: '0 0 10px rgba(92,196,240,0.3), 0 2px 4px rgba(0,0,0,0.95)',
           }}
         >
           {sa.name.toUpperCase()}
@@ -2302,9 +2413,11 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
         <p
           className="leading-relaxed mb-3"
           style={{
-            color: 'rgba(251,251,251,0.5)',
+            color: 'rgba(251,251,251,0.6)',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400, fontSize: '0.7rem',
+            fontWeight: 300,
+            fontSize: '0.72rem',
+            textShadow: '0 1px 2px rgba(0,0,0,0.9)',
           }}
         >
           {sa.description}
@@ -2314,9 +2427,11 @@ function SubAreaCard({ sa, idx, isCompleted, onClick }: {
         <p
           className="tracking-[0.2em]"
           style={{
-            color: isCompleted ? 'rgba(127, 197, 34, 0.7)' : 'rgba(92, 196, 240, 0.5)',
+            color: isCompleted ? 'rgba(127, 197, 34, 0.75)' : 'rgba(92, 196, 240, 0.6)',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400, fontSize: '0.6rem',
+            fontWeight: 400,
+            fontSize: '0.6rem',
+            textShadow: `0 0 6px ${isCompleted ? 'rgba(127,197,34,0.3)' : 'rgba(92,196,240,0.3)'}, 0 1px 2px rgba(0,0,0,0.95)`,
           }}
         >
           {isCompleted ? '[ COMPLETATA — RIESPLORABILE ]' : '[ DISPONIBILE ]'}

@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useSaoSound } from '@/hooks/useSaoSound';
 import type { Item, ItemCategory } from '@/lib/sao-inventory-types';
 import { CATEGORIES } from '@/lib/sao-inventory-types';
-import { EXPLORE_AREAS, EXPLORE_SUBAREAS } from '@/lib/sao-explore-data';
+
 
 /**
  * SAO Journal Panel (Diario) — shows all discovered information.
@@ -22,7 +22,6 @@ import { EXPLORE_AREAS, EXPLORE_SUBAREAS } from '@/lib/sao-explore-data';
  *   - Armature
  *   - Accessori
  *   - Oggetti Missione
- *   - Aree e Zone (mapped areas/subareas)
  *   - MOB (enemies defeated — placeholder for combat system)
  *
  * Click on an item → its image appears on the LEFT side, rotating.
@@ -35,7 +34,7 @@ interface JournalPanelProps {
 }
 
 // Macro categories for the journal
-type JournalTab = 'weapons' | 'items' | 'armor' | 'accessories' | 'quest' | 'areas' | 'mob';
+type JournalTab = 'weapons' | 'items' | 'armor' | 'accessories' | 'quest' | 'mob';
 
 const TAB_LABELS: Record<JournalTab, string> = {
   weapons: 'ARMI',
@@ -43,7 +42,6 @@ const TAB_LABELS: Record<JournalTab, string> = {
   armor: 'ARMATURE',
   accessories: 'ACCESSORI',
   quest: 'OGGETTI MISSIONE',
-  areas: 'AREE E ZONE',
   mob: 'NEMICI',
 };
 
@@ -149,7 +147,6 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
     { key: 'armor', label: TAB_LABELS.armor, count: armorItemsFiltered.length },
     { key: 'accessories', label: TAB_LABELS.accessories, count: accessoryItemsFiltered.length },
     { key: 'quest', label: TAB_LABELS.quest, count: questItemsFiltered.length },
-    { key: 'areas', label: TAB_LABELS.areas, count: EXPLORE_AREAS.length },
     { key: 'mob', label: TAB_LABELS.mob, count: 0 },
   ];
 
@@ -396,35 +393,6 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                           <div className="grid grid-cols-2 gap-2">
                             {questItemsFiltered.map(item => <ItemEntry key={item.id} item={item} isSelected={selectedItem?.id === item.id} onClick={() => handleItemClick(item)} />)}
                             {questItemsFiltered.length === 0 && <EmptyState text="Nessun oggetto missione trovato." />}
-                          </div>
-                        )}
-
-                        {/* AREAS tab */}
-                        {activeTab === 'areas' && (
-                          <div className="flex flex-col gap-3">
-                            {EXPLORE_AREAS.map(area => (
-                              <div key={area.id}>
-                                <p className="tracking-[0.1em] mb-1.5" style={{ color: '#2B73B3', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.7rem' }}>
-                                  {area.name.toUpperCase()}
-                                </p>
-                                <p style={{ color: 'rgba(26,42,58,0.6)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.75rem', lineHeight: 1.5, marginBottom: '8px' }}>
-                                  {area.description}
-                                </p>
-                                <div className="flex flex-col gap-1">
-                                  {EXPLORE_SUBAREAS.filter(sa => sa.areaId === area.id).map(sa => (
-                                    <div key={sa.id} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'rgba(43,115,179,0.05)', border: '1px solid rgba(43,115,179,0.1)', clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}>
-                                      <span style={{ color: '#2B73B3', fontSize: '0.7rem' }}>◈</span>
-                                      <span style={{ color: '#1a2a3a', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 300, fontSize: '0.75rem' }}>
-                                        {sa.name}
-                                      </span>
-                                      <span className="ml-auto" style={{ color: 'rgba(26,42,58,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.75rem' }}>
-                                        {sa.terrainPalette.length} terreni
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
                           </div>
                         )}
 

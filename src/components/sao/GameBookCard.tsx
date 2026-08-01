@@ -8,19 +8,22 @@ import type { GameBookPage, GameBookState, GameBookChoice } from '@/lib/sao-game
 /**
  * GameBookCard — card centrale per l'esplorazione stile libro game.
  *
- * Struttura:
- *   - PARTE SUPERIORE: immagine (placeholder per ora)
- *   - PARTE CENTRALE: descrizione (stile Matrix: verde fosforescente su nero)
- *   - PARTE INFERIORE: scelte (bottoni SAO)
+ * Stile: coerente con il resto del gioco (Sword Art Online anime):
+ *   - Sfondo: pannello semi-trasparente blu scuro con blur (come GameScreen)
+ *   - Bordo: clip-path angolare SAO con color #5CC4F0
+ *   - Header: titolo grande con icona Location + glow azzurro
+ *   - Descrizione: testo bianco #FBFBFB su sfondo scuro, font SAO UI
+ *   - Scelte: pulsanti SAO con hover glow + icona ▸
  *
- * La card usa la stessa grafica SAO delle altre card (glass-panel, VR hover),
- * ma la zona descrizione ha uno sfondo nero con testo verde Matrix.
+ * Struttura:
+ *   - PARTE SUPERIORE: header con titolo + linea decorativa
+ *   - PARTE CENTRALE: descrizione (con typewriter)
+ *   - PARTE INFERIORE: scelte (bottoni SAO)
  */
 
 interface GameBookCardProps {
   state: GameBookState;
   onChoice: (choice: GameBookChoice) => void;
-  onResolveCurrentEvent?: () => void;
 }
 
 export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
@@ -33,10 +36,15 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
   const [resultText, setResultText] = useState<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const typedPagesRef = useRef<Set<string>>(new Set());
+  const skipRef = useRef<boolean>(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Typewriter effect per la descrizione (stile Matrix)
+  const description = currentPage?.description ?? '';
+
+  // Typewriter effect
   useEffect(() => {
-    const text = currentPage.description;
+    if (!currentPage) return;
+    const text = description;
     if (!text) { setTypedText(''); return; }
     if (typedPagesRef.current.has(currentPage.id)) {
       setTypedText(text);
@@ -44,21 +52,31 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
       return;
     }
     typedPagesRef.current.add(currentPage.id);
+    skipRef.current = false;
     setIsTyping(true);
     setTypedText('');
     setResultText(null);
     let i = 0;
-    const interval = setInterval(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      if (skipRef.current) {
+        setTypedText(text);
+        setIsTyping(false);
+        if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+        return;
+      }
       if (i < text.length) {
         setTypedText(text.slice(0, i + 1));
         i++;
       } else {
         setIsTyping(false);
-        clearInterval(interval);
+        if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
       }
-    }, 12); // Veloce per effetto Matrix
-    return () => clearInterval(interval);
-  }, [currentPage.id, currentPage.description]);
+    }, 14);
+    return () => {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    };
+  }, [currentPage?.id, description]);
 
   // VR hover
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -70,7 +88,7 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       setHover({
-        tilt: `perspective(800px) rotateX(${-(py - 0.5) * 6}deg) rotateY(${(px - 0.5) * 6}deg)`,
+        tilt: `perspective(1000px) rotateX(${-(py - 0.5) * 4}deg) rotateY(${(px - 0.5) * 4}deg)`,
         lightX: px * 100,
         lightY: py * 100,
       });
@@ -78,8 +96,17 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
     });
   };
 
+  const skipTyping = useCallback(() => {
+    if (isTyping) {
+      skipRef.current = true;
+      setTypedText(description);
+      setIsTyping(false);
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    }
+  }, [isTyping, description]);
+
   const handleChoice = (choice: GameBookChoice) => {
-    if (choice.locked) return;
+    if (choice.locked) { play('warning', 0.3); return; }
     play('click', 0.4);
     if (choice.resultText) {
       setResultText(choice.resultText);
@@ -94,129 +121,139 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { setHover(null); if (rafRef.current) cancelAnimationFrame(rafRef.current); }}
-      onClick={() => { if (isTyping) { setTypedText(currentPage.description); setIsTyping(false); } }}
-      className="relative overflow-hidden glass-panel"
+      className="relative overflow-hidden"
       style={{
         width: '100%',
-        maxWidth: '700px',
+        maxWidth: '720px',
         transform: hover?.tilt,
         transformStyle: 'preserve-3d',
         transition: 'transform 0.15s ease-out',
-        border: '2px solid rgba(251, 251, 251, 0.5)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.4), inset 0 0 20px rgba(43, 115, 179, 0.08)',
-        clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',
+        background: 'linear-gradient(180deg, rgba(8,22,40,0.85) 0%, rgba(2,8,20,0.92) 100%)',
+        border: '1.5px solid rgba(92,196,240,0.4)',
+        clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 0 30px rgba(43,115,179,0.08)',
         willChange: hover ? 'transform' : 'auto',
       }}
     >
-      {/* VR glow */}
+      {/* VR glow seguendo il cursore */}
       <div
         className="absolute inset-0 pointer-events-none transition-opacity duration-300"
         style={{
           opacity: hover ? 1 : 0,
-          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.15) 0%, transparent 50%)`,
+          background: `radial-gradient(circle at ${hover?.lightX ?? 50}% ${hover?.lightY ?? 50}%, rgba(92,196,240,0.12) 0%, transparent 50%)`,
           mixBlendMode: 'screen',
         }}
       />
 
-      {/* === PARTE SUPERIORE: Immagine === */}
+      {/* === HEADER: titolo + linea decorativa === */}
       <div
-        className="relative flex items-center justify-center"
+        className="relative px-6 pt-5 pb-3"
         style={{
-          height: '180px',
-          background: 'linear-gradient(180deg, rgba(2,8,20,0.6) 0%, rgba(2,8,20,0.9) 100%)',
-          borderBottom: '1px solid rgba(43,115,179,0.3)',
+          borderBottom: '1px solid rgba(92,196,240,0.25)',
+          background: 'linear-gradient(180deg, rgba(43,115,179,0.15) 0%, transparent 100%)',
         }}
       >
-        {currentPage.image ? (
+        <div className="flex items-center gap-3 justify-center">
           <img
-            src={currentPage.image}
-            alt={currentPage.title}
-            className="w-full h-full object-cover"
+            src="/sao/menu/Location_on.svg"
+            alt=""
+            className="w-5 h-5"
+            style={{ filter: 'drop-shadow(0 0 5px rgba(92,196,240,0.7))' }}
             draggable={false}
           />
-        ) : (
-          <div className="flex flex-col items-center gap-2" style={{ opacity: 0.3 }}>
-            <span style={{ fontSize: '2rem', color: 'rgba(92,196,240,0.4)' }}>◈</span>
-            <span style={{ color: 'rgba(92,196,240,0.3)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.6rem', letterSpacing: '0.2em' }}>
-              IMMAGINE ZONA
-            </span>
-          </div>
-        )}
-        {/* Titolo sovrapposto all'immagine */}
+          <h3
+            className="tracking-[0.35em] text-center"
+            style={{
+              color: '#FBFBFB',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: '1.1rem',
+              textShadow: '0 0 12px rgba(92,196,240,0.5), 0 2px 4px rgba(0,0,0,0.95)',
+            }}
+          >
+            {currentPage.title.toUpperCase()}
+          </h3>
+        </div>
+        {/* Linea decorativa SAO sotto il titolo */}
         <div
-          className="absolute bottom-2 left-0 right-0 text-center px-4"
+          className="mt-3 mx-auto"
+          style={{
+            width: '60%',
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(92,196,240,0.4), transparent)',
+          }}
+        />
+      </div>
+
+      {/* === PARTE CENTRALE: Descrizione === */}
+      <div
+        className="relative"
+        onClick={skipTyping}
+        style={{
+          background: 'rgba(0,0,0,0.4)',
+          padding: '24px 28px',
+          minHeight: '180px',
+          maxHeight: '320px',
+          overflowY: 'auto',
+          cursor: isTyping ? 'pointer' : 'default',
+        }}
+      >
+        {/* Effetto scanline sottile (SAO style) */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(92,196,240,0.02) 3px, rgba(92,196,240,0.02) 4px)',
+          }}
+        />
+
+        {/* Testo descrizione */}
+        <pre
           style={{
             color: '#FBFBFB',
             fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-            fontWeight: 400,
-            fontSize: '1rem',
-            letterSpacing: '0.2em',
-            textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
-          }}
-        >
-          {currentPage.title.toUpperCase()}
-        </div>
-      </div>
-
-      {/* === PARTE CENTRALE: Descrizione stile Matrix === */}
-      <div
-        className="relative"
-        style={{
-          background: '#000',
-          padding: '20px 24px',
-          minHeight: '160px',
-          maxHeight: '300px',
-          overflowY: 'auto',
-        }}
-      >
-        {/* Effetto scanline Matrix */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,255,65,0.03) 2px, rgba(0,255,65,0.03) 3px)',
-          }}
-        />
-        {/* Glow verde attorno al testo */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            boxShadow: 'inset 0 0 30px rgba(0,255,65,0.05)',
-          }}
-        />
-
-        {/* Testo descrizione o risultato */}
-        <pre
-          style={{
-            color: '#00ff41',
-            fontFamily: "'Courier New', 'Monaco', monospace",
-            fontSize: '0.85rem',
-            lineHeight: 1.6,
-            textShadow: '0 0 5px rgba(0,255,65,0.6), 0 0 10px rgba(0,255,65,0.3)',
+            fontWeight: 300,
+            fontSize: '0.88rem',
+            lineHeight: 1.75,
+            textShadow: '0 1px 2px rgba(0,0,0,0.95)',
             whiteSpace: 'pre-wrap',
             wordWrap: 'break-word',
             margin: 0,
             position: 'relative',
             zIndex: 1,
+            pointerEvents: 'none',
           }}
         >
           {resultText || typedText}
           {isTyping && !resultText && (
-            <span style={{ color: '#00ff41', animation: 'blink 0.8s infinite', textShadow: '0 0 8px rgba(0,255,65,0.8)' }}>█</span>
+            <span style={{
+              color: '#5CC4F0',
+              animation: 'blink 0.8s infinite',
+              textShadow: '0 0 6px rgba(92,196,240,0.8)',
+            }}>█</span>
           )}
         </pre>
 
-        {/* Indicatore "premi per saltare" durante typing */}
+        {/* Bottone "SKIP" */}
         {isTyping && !resultText && (
-          <div
-            className="absolute bottom-1 right-2"
+          <button
+            onClick={(e) => { e.stopPropagation(); skipTyping(); }}
+            className="absolute bottom-2 right-2 z-10"
             style={{
-              color: 'rgba(0,255,65,0.4)',
-              fontFamily: "'Courier New', monospace",
-              fontSize: '0.55rem',
+              background: 'rgba(92,196,240,0.1)',
+              border: '1px solid rgba(92,196,240,0.4)',
+              color: 'rgba(92,196,240,0.85)',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: '0.6rem',
+              padding: '3px 8px',
+              cursor: 'pointer',
+              clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)',
+              textShadow: '0 0 6px rgba(92,196,240,0.6)',
+              letterSpacing: '0.1em',
             }}
           >
-            [click per saltare]
-          </div>
+            ▼ SKIP
+          </button>
         )}
       </div>
 
@@ -224,11 +261,10 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
       <div
         className="flex flex-col gap-2 p-4"
         style={{
-          background: 'rgba(8, 22, 40, 0.85)',
-          borderTop: '1px solid rgba(43,115,179,0.3)',
+          background: 'rgba(8,22,40,0.7)',
+          borderTop: '1px solid rgba(92,196,240,0.25)',
         }}
       >
-        {/* Nascondi scelte durante typing */}
         {!isTyping && (
           <AnimatePresence>
             <motion.div
@@ -237,36 +273,52 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {currentPage.choices.map((choice) => (
-                <button
-                  key={choice.id}
-                  onClick={() => handleChoice(choice)}
-                  disabled={choice.locked}
-                  className="px-4 py-2.5 text-left transition-all"
-                  style={{
-                    background: choice.locked
-                      ? 'rgba(48,48,48,0.15)'
-                      : 'rgba(43,115,179,0.12)',
-                    border: `1px solid ${choice.locked ? 'rgba(48,48,48,0.2)' : 'rgba(43,115,179,0.35)'}`,
-                    clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
-                    color: choice.locked ? 'rgba(251,251,251,0.25)' : '#FBFBFB',
-                    fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
-                    fontWeight: 400,
-                    fontSize: '0.8rem',
-                    letterSpacing: '0.05em',
-                    cursor: choice.locked ? 'not-allowed' : 'pointer',
-                    opacity: choice.locked ? 0.5 : 1,
-                    textShadow: '0 0 6px rgba(0,0,0,0.95), 0 1px 3px rgba(0,0,0,0.9)',
-                  }}
-                >
-                  {choice.label}
-                  {choice.locked && choice.lockReason && (
-                    <span style={{ marginLeft: '8px', color: 'rgba(190,33,86,0.5)', fontSize: '0.65rem' }}>
-                      [BLOCCATO: {choice.lockReason}]
+              {currentPage.choices.map((choice, idx) => {
+                const isDisabled = !!choice.locked;
+                return (
+                  <motion.button
+                    key={choice.id}
+                    onClick={() => handleChoice(choice)}
+                    disabled={isDisabled}
+                    className="px-4 py-2.5 text-left transition-all flex items-center justify-between gap-3 group"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 * idx }}
+                    whileHover={!isDisabled ? { scale: 1.01, x: 4 } : {}}
+                    whileTap={!isDisabled ? { scale: 0.99 } : {}}
+                    style={{
+                      background: isDisabled
+                        ? 'rgba(48,48,48,0.15)'
+                        : 'linear-gradient(90deg, rgba(43,115,179,0.18) 0%, rgba(43,115,179,0.08) 100%)',
+                      border: `1px solid ${isDisabled ? 'rgba(48,48,48,0.3)' : 'rgba(92,196,240,0.35)'}`,
+                      clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
+                      color: isDisabled ? 'rgba(251,251,251,0.3)' : '#FBFBFB',
+                      fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                      fontWeight: 400,
+                      fontSize: '0.82rem',
+                      letterSpacing: '0.04em',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.55 : 1,
+                      textShadow: '0 1px 2px rgba(0,0,0,0.95)',
+                    }}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      {!isDisabled && (
+                        <span style={{ color: '#5CC4F0', fontSize: '0.7rem', textShadow: '0 0 5px rgba(92,196,240,0.6)' }}>▸</span>
+                      )}
+                      {isDisabled && (
+                        <span style={{ color: 'rgba(190,33,86,0.5)', fontSize: '0.7rem' }}>✕</span>
+                      )}
+                      {choice.label}
                     </span>
-                  )}
-                </button>
-              ))}
+                    {choice.locked && choice.lockReason && (
+                      <span style={{ color: 'rgba(190,33,86,0.5)', fontSize: '0.65rem' }}>
+                        [BLOCCATO: {choice.lockReason}]
+                      </span>
+                    )}
+                  </motion.button>
+                );
+              })}
             </motion.div>
           </AnimatePresence>
         )}
@@ -274,17 +326,33 @@ export default function GameBookCard({ state, onChoice }: GameBookCardProps) {
 
       {/* === Footer: statistiche === */}
       <div
-        className="flex justify-between items-center px-4 py-2"
+        className="flex justify-between items-center px-5 py-2"
         style={{
           background: 'rgba(2,8,20,0.6)',
-          borderTop: '1px solid rgba(43,115,179,0.15)',
+          borderTop: '1px solid rgba(92,196,240,0.15)',
         }}
       >
-        <span style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.55rem', letterSpacing: '0.1em' }}>
+        <span
+          style={{
+            color: 'rgba(92,196,240,0.4)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: '0.55rem',
+            letterSpacing: '0.15em',
+          }}
+        >
           {state.subAreaName.toUpperCase()}
         </span>
-        <span style={{ color: 'rgba(92,196,240,0.4)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontSize: '0.55rem', letterSpacing: '0.1em' }}>
-          PAGINE: {state.stats.pagesVisited} | SCELTE: {state.stats.choicesMade}
+        <span
+          style={{
+            color: 'rgba(92,196,240,0.4)',
+            fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+            fontWeight: 400,
+            fontSize: '0.55rem',
+            letterSpacing: '0.15em',
+          }}
+        >
+          PAG. {state.stats.pagesVisited} · SCELTE {state.stats.choicesMade}
         </span>
       </div>
     </div>
