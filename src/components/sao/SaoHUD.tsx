@@ -87,13 +87,28 @@ export default function SaoHUD({
     return () => clearTimeout(t);
   }, [play]);
 
+  // Responsive: scala automaticamente su mobile/tablet
+  const [autoScale, setAutoScale] = useState(scale);
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      if (w < 480) setAutoScale(scale * 0.7);      // mobile piccolo
+      else if (w < 768) setAutoScale(scale * 0.85); // mobile
+      else if (w < 1024) setAutoScale(scale * 0.95); // tablet
+      else setAutoScale(scale);                       // desktop
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [scale]);
+
   return (
     <motion.div
       className={embedded ? "relative z-30 select-none" : "fixed top-4 left-4 z-30 select-none"}
       initial={embedded ? false : { opacity: 0, x: -30, y: -10 }}
       animate={embedded ? {} : { opacity: 1, x: 0, y: 0 }}
       transition={embedded ? {} : { duration: 0.6, ease: 'easeOut', delay: 0.2 }}
-      style={embedded ? { transform: `scale(${scale})`, transformOrigin: 'top left' } : { transform: `scale(${scale})`, transformOrigin: 'top left' }}
+      style={embedded ? { transform: `scale(${autoScale})`, transformOrigin: 'top left' } : { transform: `scale(${autoScale})`, transformOrigin: 'top left' }}
     >
       <div className="relative flex flex-col gap-[2px]">
         <SaoBar

@@ -194,7 +194,7 @@ export default function GameBookCard({ state, onChoice, playerStats }: GameBookC
       className="relative overflow-hidden glass-panel"
       style={{
         width: '100%',
-        maxWidth: '700px',
+        maxWidth: 'min(700px, 94vw)',
         transform: hover?.tilt,
         transformStyle: 'preserve-3d',
         transition: 'transform 0.15s ease-out',

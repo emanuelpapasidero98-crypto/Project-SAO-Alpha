@@ -205,8 +205,8 @@ export default function DiceRollOverlay({ open, sides = 10, onResult }: DiceRoll
           <div
             className="relative overflow-hidden"
             style={{
-              width: '180px',
-              height: '240px', // 3 numeri visibili
+              width: 'min(180px, 60vw)',
+              height: 'min(240px, 50vh)', // 3 numeri visibili
               background: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(2,8,20,0.9) 50%, rgba(0,0,0,0.95) 100%)',
               border: '2px solid rgba(92,196,240,0.5)',
               clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)',

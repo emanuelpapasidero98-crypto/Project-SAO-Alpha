@@ -123,7 +123,7 @@ export default function SaoMainMenu({ onItemClick, onLogout }: SaoMainMenuProps)
           onMouseEnter={() => play('click', 0.15)}
           aria-label="Menu"
           className="relative block"
-          style={{ width: '52px', height: '52px' }}
+          style={{ width: 'min(52px, 12vw)', height: 'min(52px, 12vw)' }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.92 }}
         >

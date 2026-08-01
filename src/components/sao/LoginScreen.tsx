@@ -282,7 +282,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       <motion.form
         onSubmit={handleSubmit}
         className="relative w-full z-10"
-        style={{ maxWidth: 'min(95vw, 900px)' }}
+        style={{ maxWidth: 'min(95vw, 900px)', minWidth: 'min(360px, 95vw)' }}
         initial={{ scale: 0.92, opacity: 0, y: 20 }}
         animate={booting ? { scale: 0.92, opacity: 0, y: 20 } : { scale: 1, opacity: 1, y: 0 }}
         transition={{ duration: 1, ease: 'easeOut' }}

@@ -838,7 +838,7 @@ export default function ExplorePanel({ open, onClose, areaId = 'grandi-pianure',
               </h2>
 
               {/* Sub-area cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl w-full px-2">
                 {subAreas.map((sa, idx) => {
                   const status = exploreState.subAreaProgress[sa.id]?.status ?? 'unlocked';
                   const isCompleted = status === 'completed';
@@ -2479,7 +2479,7 @@ function SubAreaCard({ sa, idx, isCompleted, hasSavedState, onClick }: {
         onClick={onClick}
         className="relative cursor-pointer overflow-hidden"
         style={{
-          padding: '24px',
+          padding: 'clamp(16px, 4vw, 24px)',
           transform: hover?.tilt,
           transformStyle: 'preserve-3d',
           transition: 'transform 0.15s ease-out',

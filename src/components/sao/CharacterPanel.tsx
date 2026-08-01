@@ -286,11 +286,11 @@ export default function CharacterPanel({
                 </h2>
               </div>
 
-              {/* Main content: 2 columns — scrollable as a whole */}
-              <div className="grid md:grid-cols-[300px_1fr] gap-0 sao-scroll" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+              {/* Main content: 2 columns su desktop, 1 colonna su mobile — scrollable as a whole */}
+              <div className="grid md:grid-cols-[min(300px,40vw)_1fr] gap-0 sao-scroll" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
                 {/* ===== LEFT: Avatar box + sub-stats ===== */}
                 <div
-                  className="p-6 flex flex-col items-center"
+                  className="p-4 sm:p-6 flex flex-col items-center"
                   style={{
                     background: '#D6D6D6',
                     borderRight: '1px solid #A8A8A8',

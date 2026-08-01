@@ -208,10 +208,10 @@ export default function JournalPanel({ open, onClose, items }: JournalPanelProps
                   </div>
 
                   {/* Content: left (image preview) + right (tabs + list) */}
-                  <div className="flex" style={{ minHeight: '400px' }}>
+                  <div className="flex flex-col md:flex-row" style={{ minHeight: '400px' }}>
 
                     {/* LEFT: selected item image (rotating) */}
-                    <div className="flex-shrink-0 flex items-center justify-center" style={{ width: '280px', padding: '20px', borderRight: '1px solid rgba(43,115,179,0.15)' }}>
+                    <div className="flex-shrink-0 flex items-center justify-center" style={{ width: '100%', maxWidth: '280px', padding: '20px', borderRight: '1px solid rgba(43,115,179,0.15)' }}>
                       {selectedItem ? (
                         <div className="flex flex-col items-center gap-3">
                           <motion.img
