@@ -384,12 +384,14 @@ Il silenzio regna sovrano, l'unica fonte di luce è quella generata dal tuo glob
     ],
   };
 
-  // === PAGINA: Scende senza talismano ===
+  // === PAGINA: Scende senza talismano (Sotterraneo Buio) ===
   pages['descend_dark'] = {
     id: 'descend_dark',
     title: 'Il Sotterraneo Buio',
     zoneType: 'discovery',
-    description: `Il silenzio regna sovrano, non hai fonti di luce , attorno a te vi è solamente polvere, vecchi mobili marci e un buio che non ti fa capire bene cosa ti circonda`,
+    description: `Il silenzio regna sovrano, non hai fonti di luce, attorno a te vi è solamente polvere, vecchi mobili marci e un buio che non ti fa capire bene cosa ti circonda. Brancoli nel buio totale, le mani tese in avanti a cercare appigli, i piedi che calpestano pavimento di pietra fredda e scivolosa. Ogni passo è una scommessa: non sai cosa ci sia davanti a te, non sai cosa potrebbe nascondersi nell'ombra. L'aria è pesante, stantia, carica di un tanfo di umidità e decomposizione che ti fa arricciare il naso.
+
+Da qualche parte in questo buio totale, percepisci una presenza. Non un rumore, non un movimento — solo la sensazione gelida di non essere solo. Le tue dita sfiorano qualcosa di freddo, di metallico. È una lama? È un oggetto? Non puoi saperlo finché non la afferri.`,
     choices: [
       {
         id: 'roll_d10_dark',
@@ -398,8 +400,8 @@ Il silenzio regna sovrano, l'unica fonte di luce è quella generata dal tuo glob
         diceRoll: {
           sides: 10,
           outcomes: [
-            { min: 1, max: 10, parity: 'even', targetPage: 'dark_found_diary' },
-            { min: 1, max: 10, parity: 'odd', targetPage: 'dark_found_dagger' },
+            { min: 1, max: 10, parity: 'even', targetPage: 'dark_found_diary', setsFlags: ['took_diary'] },
+            { min: 1, max: 10, parity: 'odd', targetPage: 'dark_found_dagger', setsFlags: ['took_dagger'] },
           ],
         },
       },
@@ -416,7 +418,7 @@ Il silenzio regna sovrano, l'unica fonte di luce è quella generata dal tuo glob
 
 [OGGETTO OTTENUTO: Vecchio Diario x1]`,
     choices: [
-      { id: 'back_move_bookcase_from_diary', label: 'Torna su', outcome: 'back', targetPage: 'move_bookcase' },
+      { id: 'proceed_ambush_dark_diary', label: 'Risali le scale', outcome: 'progress', targetPage: 'after_take_item_dark' },
     ],
   };
 
@@ -428,7 +430,18 @@ Il silenzio regna sovrano, l'unica fonte di luce è quella generata dal tuo glob
 
 [OGGETTO OTTENUTO: Pugnale di Bronzo x1]`,
     choices: [
-      { id: 'back_move_bookcase_from_dagger', label: 'Torna su', outcome: 'back', targetPage: 'move_bookcase' },
+      { id: 'proceed_ambush_dark_dagger', label: 'Risali le scale', outcome: 'progress', targetPage: 'after_take_item_dark' },
+    ],
+  };
+
+  // === PAGINA: Dopo aver preso un oggetto (senza talismano, nel buio) ===
+  pages['after_take_item_dark'] = {
+    id: 'after_take_item_dark',
+    title: 'L\'imboscata nel buio',
+    zoneType: 'combat',
+    description: `una volta messo nel tuo inventario l'oggetto dietro di te sentirai un rumore che conosci bene, il rumore di Spawn...anzi, di due Spawn. Ti volti di scatto estraendo la tua arma, ma a causa del buio non riesci a vedere bene e sei costretto a combattere quasi alla cieca. Senti i passi dei due assalitori avvicinarsi da direzioni diverse, il sibilo delle loro armi nell'aria nera. Non puoi affidarti alla vista — solo all'udito e all'istinto.`,
+    choices: [
+      { id: 'fight_cultists_dark', label: 'Affronta i cultisti alla cieca', outcome: 'combat', targetPage: 'cultist_combat' },
     ],
   };
 
