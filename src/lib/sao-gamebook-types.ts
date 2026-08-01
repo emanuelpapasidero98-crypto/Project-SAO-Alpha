@@ -471,7 +471,7 @@ Il silenzio regna sovrano, l'unica fonte di luce è quella generata dal tuo glob
         label: 'Prendi l\'oggetto rimasto',
         outcome: 'item',
         oneTime: true,
-        targetPage: 'move_bookcase',
+        targetPage: 'est_mulini',
         setsFlags: ['took_remaining', 'secret_room_completed'],
       },
       { id: 'back_move_bookcase_3', label: 'Torna su', outcome: 'back', targetPage: 'move_bookcase' },
