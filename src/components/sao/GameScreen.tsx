@@ -52,7 +52,7 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
   const { play } = useSaoSound();
   // Preload all critical game images at mount to eliminate lag/flicker
   useImagePreload(SAO_CRITICAL_IMAGES);
-  const [stats] = useState<PlayerStats>(getStartingPlayerStats());
+  const [stats, setStats] = useState<PlayerStats>(getStartingPlayerStats());
   const level = 1;
   // HP/MP/Energy are computed from level + stats using the SAO stats engine
   const maxHp = calcMaxHp(level, stats.vit);
@@ -337,6 +337,75 @@ export default function GameScreen({ playerName, gender, isAdmin = false, onExit
               {label}
             </label>
           ))}
+
+          {/* Separatore */}
+          <div style={{ height: '1px', background: 'rgba(190,33,86,0.3)', margin: '8px 0' }} />
+
+          {/* Cheat statistiche: +10 per ogni stat */}
+          <p
+            className="tracking-[0.2em] mb-2 text-center"
+            style={{ color: 'rgba(190,33,86,0.7)', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.6rem' }}
+          >
+            STATISTICHE
+          </p>
+          {([
+            { key: 'str' as const, label: 'FOR', icon: '/sao/stats/Forza.png' },
+            { key: 'dex' as const, label: 'DES', icon: '/sao/stats/Destrezza.png' },
+            { key: 'agi' as const, label: 'AGI', icon: '/sao/stats/Agilità.png' },
+            { key: 'vit' as const, label: 'VIT', icon: '/sao/stats/Vita.png' },
+            { key: 'res' as const, label: 'RES', icon: '/sao/stats/Resistenza.png' },
+            { key: 'men' as const, label: 'MEN', icon: '/sao/stats/Mente.png' },
+            { key: 'int' as const, label: 'INT', icon: '/sao/stats/Intelligenza.png' },
+          ]).map(({ key, label, icon }) => (
+            <div key={key} className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-2">
+                <img src={icon} alt="" className="w-4 h-4" draggable={false} />
+                <span style={{ color: '#FBFBFB', fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif", fontWeight: 400, fontSize: '0.65rem' }}>
+                  {label} <span style={{ color: 'rgba(92,196,240,0.7)' }}>({stats[key]})</span>
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setStats((prev) => ({ ...prev, [key]: Math.min(90, prev[key] + 10) }));
+                  play('click', 0.3);
+                }}
+                className="px-2 py-0.5"
+                style={{
+                  background: 'rgba(190,33,86,0.2)',
+                  border: '1px solid rgba(190,33,86,0.5)',
+                  color: '#FBFBFB',
+                  fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+                  fontWeight: 400,
+                  fontSize: '0.6rem',
+                  cursor: 'pointer',
+                  clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)',
+                }}
+              >
+                +10
+              </button>
+            </div>
+          ))}
+          {/* Reset stats */}
+          <button
+            onClick={() => {
+              setStats(getStartingPlayerStats());
+              play('dismissLauncher', 0.3);
+            }}
+            className="w-full mt-2 py-1"
+            style={{
+              background: 'rgba(48,48,48,0.3)',
+              border: '1px solid rgba(251,251,251,0.2)',
+              color: 'rgba(251,251,251,0.6)',
+              fontFamily: "'SAO UI', 'Trebuchet MS', sans-serif",
+              fontWeight: 400,
+              fontSize: '0.55rem',
+              letterSpacing: '0.1em',
+              cursor: 'pointer',
+              clipPath: 'polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px)',
+            }}
+          >
+            RESET STATS
+          </button>
         </div>
       )}
 

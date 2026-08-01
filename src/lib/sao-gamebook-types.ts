@@ -146,9 +146,9 @@ export function createInitialGameBookState(subAreaId: string, subAreaName: strin
 Alle tue spalle, la titanica ombra dei cancelli in pietra della Città degli Inizi domina ancora il paesaggio, rigurgitando echi di vita. Il brusio ansioso dei novizi si mescola al tintinnio metallico di armature appena equipaggiate; un gruppo di quattro giocatori ti supera a passo di marcia lungo la strada e uno di loro ti lancia un'occhiata fugace, cercando di capire chi tu sia prima di voltarsi e seguire il suo party. altri invece combattono dei semplici cinghiali blu per guadagnare punti esperienza preziosi per riuscire a salire di livello.
 
 Davanti a te il mondo si dispiega in un richiamo all'esplorazione. Abbandonando la sicurezza della strada battuta verso est, l'erba si fa più alta e selvatica, cullata dal fruscio ritmico di gigantesche pale di legno dove una serie di imponenti mulini a vento macina instancabilmente. Seguendo invece il sentiero di terra chiara che punta a nord, la via si tuffa in un solido muro di tronchi secolari: è l'inizio del bosco che conduce al villaggio di Horunka, un intrico di foglie così denso da inghiottire la luce del sole e promettere un percorso insidioso. A ovest, infine, l'aria stessa vibra sotto l'eco di un rombo sordo; montagne dalle vette aspre squarciano la visuale, avvolte da banchi di foschia che tradiscono la presenza di maestose cascate celate tra i canyon. L'avventura è appena iniziata, e ogni direzione attende solo i tuoi passi.`,
-    revisitDescription: `Ti ritrovi nella vasta prateria ai piedi della Città degli Inizi. Il cielo di Aincrad si stende sopra di te, sormontato dalla mole incombente del Labirinto che porta al secondo piano. L'erba smeraldo ondeggia al vento, scricchiolando sotto i tuoi stivali.
+    revisitDescription: `I tuoi stivali calcano di nuovo l'erba smeraldo delle praterie, familiare ormai come una vecchia conoscenza. Il vento ti accarezza il viso portando con sé il profumo dolce della terra umida e quello più aspro del sudore dei novizi che si allenano alle tue spalle. Il cielo di Aincrad si stende sopra di te, immutato, con la mole incombente del Labirinto che incombe all'orizzonte come un promemoria silenzioso.
 
-I cancelli di pietra della città continuano a vomitare echi di vita alle tue spalle: novizi ansiosi, gruppi di giocatori diretti a caccia di cinghiali blu, il rumore metallico di equipaggiamenti appena comprati. I sentieri si diramano davanti a te: la strada a est verso i mulini a vento, quella a nord verso il bosco di Horunka, e quella a ovest verso le montagne avvolte nella foschia.`,
+Alle tue spalle, i cancelli di pietra della Città degli Inizi continuano a rigurgitare la loro vita ansiosa: il brusio dei novizi, il tintinnio metallico delle armature, le grida lontane di chi combatte i cinghiali blu per racimolare esperienza. Un refolo di vento fa piegare l'erba alta in onde successive, rivelando qui e là il luccichio azzurrognolo di un cinghiale che grufola. I sentieri si diramano davanti a te come arterie di esplorazione: a est il fruscio ritmico dei mulini a vento, a nord l'ombra fitta del bosco di Horunka, a ovest il rombo sordo delle cascate montane celate nella foschia.`,
     choices: [
       { id: 'combat_boars', label: 'Inizia un combattimento con i cinghiali blu', outcome: 'combat', resultText: 'Ti avvicini ai cinghiali blu che grufolano nella prateria, estrai la tua arma pronto al combattimento.' },
       { id: 'est_mulini', label: 'Prendi la strada verso Est che porta ai mulini', outcome: 'progress' },
@@ -169,26 +169,26 @@ Tuttavia, quando la distanza si accorcia, l'illusione si spezza. I mulini non so
     conditionalDescriptions: [
       {
         requiresFlags: ['windmill_event_resolved', 'houses_explored'],
-        description: `Ritorni nella zona dei mulini a vento. Il villaggio fantasma si stende davanti a te, immutato nella sua desolazione: case diroccate, orti soffocati dai rovi, attrezzi agricoli divorati dalla ruggine. Le pale dei mulini continuano il loro giro instancabile, scricchiolando nel vento. I cinghiali blu brontolano ancora tra le rovine.
+        description: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
 
-Hai già esplorato a fondo le case diroccate — non c'è più nulla di utile da cercare lì dentro. Anche il mulino a vento in cui sei entrato è ormai vuoto, silenzioso.`,
+Hai già frugato in ogni anfratto delle case diroccate — non resta che polvere, insetti e legno marcio. Anche il mulino a vento in cui sei entrato è ormai vuoto e silenzioso, svuotato di ogni segreto. L'aria ferma della zona porta solo l'eco lontana del vento tra le pale e il verso sporadico di un uccello solitario.`,
       },
       {
         requiresFlags: ['windmill_event_resolved'],
-        description: `Ritorni nella zona dei mulini a vento. Le pale continuano a girare instancabili, accompagnate dal coro di grugniti dei cinghiali blu. Il villaggio fantasma si stende davanti a te: case diroccate, orti soffocati, attrezzi abbandonati.
+        description: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
 
-Il mulino in cui sei entrato ora è silenzioso e vuoto. Le case diroccate, invece, potrebbero ancora nascondere qualcosa di utile.`,
+Il mulino in cui sei entrato è ora silenzioso e vuoto, svuotato di ogni presenza. Le case diroccate, invece, continuano a incombere con le loro ombre cupe — potrebbero ancora celare qualcosa di utile tra le macerie e la polvere.`,
       },
       {
         requiresFlags: ['houses_explored'],
-        description: `Ritorni nella zona dei mulini a vento. Il villaggio fantasma si stende davanti a te, immutato: case diroccate, orti soffocati, attrezzi arrugginiti. Le pale dei mulini continuano il loro giro monotono, scricchiolando nel vento. I cinghiali blu pattugliano ancora le rovine con i loro occhi ostili.
+        description: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
 
-Hai già setacciato le case diroccate — non c'è più nulla da cercare lì dentro. Resta però il grande mulino a vento: il portone semiaperto continua a stagliarsi come un varco buio e invitante, ancora inesplorato.`,
+Hai già setacciato le case diroccate fin nei minimi anfratti — non c'è più nulla da cercare tra quelle macerie. Resta però il grande mulino a vento: il suo portone semiaperto continua a stagliarsi come un varco buio e invitante, ancora inesplorato, con la luce che filtra dalle fessure delle pale in movimento.`,
       },
     ],
-    revisitDescription: `Ritorni nella zona dei mulini a vento. Le pale continuano a girare instancabili, accompagnate dal coro di grugniti dei cinghiali blu. Il villaggio fantasma si stende davanti a te: case diroccate, orti soffocati dai rovi, attrezzi abbandonati divorati dalla ruggine. L'aria è immobile, sospesa in un silenzio irreale rotto solo dallo scricchiolio del legno delle pale.
+    revisitDescription: `Ricalchi i tuoi passi tra l'erba alta che ti solletica i polpacci, diretto verso i mulini a vento. Lo scricchiolio ritmico delle pale di legno ti accoglie come un suono familiare, mescolato al grugnito soffocato dei cinghiali blu che raspano la terra secca tra le rovine. L'odore di muschio e legno marcio ti raggiunge prima ancora che il villaggio fantasma si sveli davanti ai tuoi occhi: scheletri di case con i tetti sfondati, orti divorati dai rovi, attrezzi agricoli che la ruggine ha reso irriconoscibili.
 
-Le case diroccate incombono come scheletri di pietra. Il grande mulino a vento, con il suo portone semiaperto, si staglia come un varco buio e invitante.`,
+Le case diroccate incombono come scheletri di pietra, le loro finestre vuote come orbite spalancate. Il grande mulino a vento, con il suo portone semiaperto, si staglia contro il cielo come un varco buio e invitante, mentre la luce filtra a tratti dalle fessure tra le pale in movimento.`,
     choices: [
       {
         id: 'explore_houses',
@@ -255,18 +255,18 @@ Tira un D10 [Se esce come risultato 1 trova l'oggetto "ciottolo x1"; Se esce com
         // Libreria scoperta ma secret room non completata
         requiresFlags: ['bookcase_discovered'],
         anyOfFlags: ['secret_room_completed'],
-        description: `Ritorni tra le case diroccate del villaggio fantasma. Cammini tra le macerie, entri in ogni stanza, sposti vecchi mobili e controlli ogni angolo. Hai già trovato una libreria particolare che nasconde un'entrata segreta — puoi tornarci direttamente per esplorare il sotterraneo.
+        description: `Riprendi la tua esplorazione tra le case diroccate. L'aria è densa di polvere sospesa che danza nei raggi di sole che penetrano dai tetti sfondati, e ogni passo solleva una nuvoletta grigia dal pavimento di legno marcio. Sposti vecchi mobili che scricchiolano sotto le tue mani, sollevi assi del pavimento che lasciano intravedere solo terra umida e insetti spaventati. Hai già trovato una libreria particolare che nasconde un'entrata segreta — puoi tornarci direttamente per esplorare il sotterraneo.
 
 Tira un D10 per cercare altro materiale tra le macerie.`,
       },
       {
         requiresFlags: ['bookcase_discovered'],
-        description: `Ritorni tra le case diroccate del villaggio fantasma. Cammini tra le macerie, entri in ogni stanza, sposti vecchi mobili e controlli ogni angolo. Hai già trovato una libreria particolare che nasconde un'entrata segreta — puoi tornarci direttamente per esplorare il sotterraneo.
+        description: `Riprendi la tua esplorazione tra le case diroccate. L'aria è densa di polvere sospesa che danza nei raggi di sole che penetrano dai tetti sfondati, e ogni passo solleva una nuvoletta grigia dal pavimento di legno marcio. Sposti vecchi mobili che scricchiolano sotto le tue mani, sollevi assi del pavimento che lasciano intravedere solo terra umida e insetti spaventati. Hai già trovato una libreria particolare che nasconde un'entrata segreta — puoi tornarci direttamente per esplorare il sotterraneo.
 
 Tira un D10 per cercare altro materiale tra le macerie.`,
       },
     ],
-    revisitDescription: `Ritorni tra le case diroccate del villaggio fantasma. Cammini tra le macerie, entri in ogni stanza, sposti vecchi mobili e controlli ogni angolo.
+    revisitDescription: `Riprendi la tua esplorazione tra le case diroccate. L'aria è densa di polvere sospesa che danza nei raggi di sole che penetrano dai tetti sfondati, e ogni passo solleva una nuvoletta grigia dal pavimento di legno marcio. Sposti vecchi mobili che scricchiolano sotto le tue mani, sollevi assi del pavimento che lasciano intravedere solo terra umida e insetti spaventati.
 
 Tira un D10 per cercare materiale tra le macerie.`,
     choices: [
@@ -348,7 +348,7 @@ Tira un D10 per cercare materiale tra le macerie.`,
     title: 'Scoperta Inaspettata',
     zoneType: 'discovery',
     description: `In una delle varie case immerse nel degrado e nella polvere trovi una libreria stranamente integra e ben pulita, con vari libri incastonati al suo interno in perfetto ordine e stato, con un'attenta occhiata ti rendi conto di una cosa, dietro di essa vi è quella che sembra una porta.`,
-    revisitDescription: `Torni davanti alla libreria che hai scoperto in precedenza. È ancora lì, stranamente integra e pulita rispetto al resto della casa diroccata, con i suoi libri perfettamente allineati. Dietro di essa sai che si nasconde una porta.`,
+    revisitDescription: `Torni davanti alla libreria che hai scoperto in precedenza. È ancora lì, stranamente integra e pulita rispetto al resto della casa diroccata, con i suoi libri perfettamente allineati che spargono un profumo di carta vecchia e cuoio in mezzo al tanfo di umidità e marciume. La luce che filtra dal tetto sfondato la colpisce quasi a proposito, come a indicartela. Dietro di essa sai che si nasconde una porta.`,
     choices: [
       { id: 'move_bookcase', label: 'Sposta la libreria', outcome: 'custom', requiresStat: { stat: 'STR', value: 8 }, targetPage: 'move_bookcase' },
       { id: 'back_est_mulini_2', label: 'Torna ai mulini', outcome: 'back', targetPage: 'est_mulini' },
@@ -539,9 +539,9 @@ Proprio quando stavi per andare via, senti la porta del mulino chiudersi a chiav
     id: 'windmill_empty',
     title: 'Dentro il Mulino',
     zoneType: 'discovery',
-    description: `Rientri nel mulino a vento. La luce filtra dai fori sul soffitto e dai grandi finestroni, illuminando lo stesso interno spoglio: cumuli di paglia, attrezzi da fattore arrugginiti, l'odore insistente di umidità e muschio. La porta alle tue spalle resta aperta.
+    description: `Varchi di nuovo la soglia del mulino a vento. La luce dorata filtra dai fori sul soffitto e dai grandi finestroni polverosi, disegnando lame di luce che tagliano l'aria satura di pulviscolo. Lo stesso interno spoglio ti accoglie: cumuli di paglia ingiallita, attrezzi da fattore arrugginiti abbandonati contro le pareti, l'odore insistente di umidità e muschio che ti si appiccica alle narici. Il vento fa girare le pale sopra di te con il loro scricchiolio familiare, e la porta alle tue spalle resta aperta, lasciando entrare la brezza erbosa della prateria.
 
-Il mulino è vuoto, silenzioso.`,
+Il mulino è vuoto, silenzioso. Solo il vento e il legno parlano.`,
     choices: [
       {
         id: 'leave_windmill_empty',
