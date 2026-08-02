@@ -679,8 +679,7 @@ Le fronde degli alberi si muovono serenamente a causa del venticello fresco che 
     zoneType: 'combat',
     description: `Ti apposti silenziosamente tra le felci, calcolando con freddezza il momento perfetto per scivolare alle spalle del primo cervo che si ferma a portata di tiro. Muovendo passi felpati per non far scricchiolare il fogliame del sottobosco, annulli gradualmente le distanze; non appena il grande bersaglio è a tiro, metti da parte ogni esitazione e fai scattare il polso, calando un fendente secco e spietato. La lama trancia l'aria con una rapidità invisibile, colpendo la creatura prima ancora che possa percepire la minaccia: in un battito di ciglia la sua forma si infrange silenziosamente, svanendo nell'aria per lasciare il posto a una pioggia scintillante di poligoni azzurri e frammenti di dati.
 
-[OGGETTO OTTENUTO: 1x Carne di Cervo Rovinata (Comune), 1x Pelle di Cervo Rovinata (Comune)]
-[Nota: con Skill Analisi liv.1 otterresti Carne di Cervo (Non Comune) e Pelle di Cervo (Non Comune); con Analisi liv.2 otterresti Carne di Cervo Pregiata (Raro) e Pelle di Cervo Perfetta (Raro)]`,
+[OGGETTO OTTENUTO: 1x Carne di Cervo Rovinata (Comune), 1x Pelle di Cervo Rovinata (Comune)]`,
     choices: [
       { id: 'back_caccia_cervi_1', label: 'Torna alla caccia', outcome: 'back', targetPage: 'caccia_cervi' },
       { id: 'back_varca_ponte_1', label: 'Torna al bosco', outcome: 'back', targetPage: 'varca_ponte' },
@@ -716,8 +715,7 @@ Le fronde degli alberi si muovono serenamente a causa del venticello fresco che 
     zoneType: 'discovery',
     description: `I due cervi si infrangono in una pioggia di poligoni azzurri, lasciando a terra il loro bottino. Il resto del branco si disperde nel folto del bosco, scomparendo tra le fronde scure. Nessun esemplare raro fa capolino questa volta — la fortuna non ti arride oltre.
 
-[OGGETTO OTTENUTO: 2x Carne di Cervo Rovinata (Comune), 2x Pelle di Cervo Rovinata (Comune)]
-[Nota: con Skill Analisi liv.1 otterresti 2x Carne di Cervo (Non Comune) e 2x Pelle di Cervo (Non Comune); con Analisi liv.2 otterresti 2x Carne di Cervo Pregiata (Raro) e 2x Pelle di Cervo Perfetta (Raro)]`,
+[OGGETTO OTTENUTO: 2x Carne di Cervo Rovinata (Comune), 2x Pelle di Cervo Rovinata (Comune)]`,
     choices: [
       { id: 'back_caccia_cervi_2', label: 'Torna alla caccia', outcome: 'back', targetPage: 'caccia_cervi' },
       { id: 'back_varca_ponte_2', label: 'Torna al bosco', outcome: 'back', targetPage: 'varca_ponte' },
@@ -806,8 +804,7 @@ L'obiettivo non si limita piÃ¹ a un singolo esemplare isolato, ma si allarga a
 "[NOME SWORD SKILL]"
 Il tuo grido squarcia la quiete del bosco mentre ti lanci all'attacco, trasformandoti in un inarrestabile vortice di fendenti luminosi. Sfruttando la furia cieca e il disperato istinto di sopravvivenza che ti spinge ad andare avanti in questo mondo mortale, la tua arma falcia l'aria, abbattendosi inesorabile su tutti i cervi troppo lenti per sfuggire alla tua carica; non c'Ã¨ sangue nÃ© carne strappata, ma solo un coro di mugolii terrorizzati che viene brutalmente silenziato, mentre i corpi degli animali crollano l'uno dopo l'altro, deflagrando in una magnifica e fredda tempesta di poligoni azzurri e stringhe di dati fluttuanti.
 
-[OGGETTO OTTENUTO: 5x Carne di Cervo Rovinata (Comune), 5x Pelle di Cervo Rovinata (Comune)]
-[Nota: con Skill Analisi liv.1 otterresti 5x Carne di Cervo (Non Comune) e 5x Pelle di Cervo (Non Comune); con Analisi liv.2 otterresti 5x Carne di Cervo Pregiata (Raro) e 5x Pelle di Cervo Perfetta (Raro)]`,
+[OGGETTO OTTENUTO: 5x Carne di Cervo Rovinata (Comune), 5x Pelle di Cervo Rovinata (Comune)]`,
     choices: [
       { id: 'back_caccia_cervi_7', label: 'Torna alla caccia', outcome: 'back', targetPage: 'caccia_cervi' },
     ],
