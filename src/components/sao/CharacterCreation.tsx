@@ -196,11 +196,11 @@ export default function CharacterCreation({ onComplete, onBack, onCardHover }: C
                 selected={false}
                 onClick={() => play('click', 0.2)}
               >
-                <div className="grid md:grid-cols-[200px_1fr] gap-5 p-5 sm:p-6">
+                <div className="grid md:grid-cols-[220px_1fr] gap-5 p-5 sm:p-6">
                   {/* Character preview */}
                   <div className="flex flex-col items-center">
                     <div
-                      className="relative w-full aspect-[137/316] max-w-[150px]"
+                      className="relative w-full aspect-[137/316] max-w-[180px]"
                       style={{
                         filter: 'drop-shadow(0 0 25px rgba(43, 115, 179, 0.5))',
                       }}
@@ -500,7 +500,7 @@ function GenderCardContent({ gender, highlighted }: { gender: Gender; highlighte
   return (
     <div className="flex flex-col items-center p-5 sm:p-6 min-h-[280px] justify-center">
       <div
-        className="relative w-full aspect-[137/316] max-w-[130px] transition-transform duration-300"
+        className="relative w-full aspect-[137/316] max-w-[160px] transition-transform duration-300"
         style={{
           filter: highlighted
             ? `drop-shadow(0 0 25px ${gender.glowColor})`

@@ -300,8 +300,8 @@ export default function CharacterPanel({
                   <div
                     className="relative mb-4"
                     style={{
-                      width: '180px',
-                      height: '240px',
+                      width: 'min(220px, 60vw)',
+                      height: 'min(300px, 70vw)',
                       background: '#303030',
                       border: '2px solid #151515',
                       boxShadow:
