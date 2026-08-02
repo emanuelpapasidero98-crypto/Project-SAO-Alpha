@@ -55,6 +55,9 @@ interface SaoNotificationWindowProps {
   notification: SaoNotificationData | null;
   onConfirm?: (id: number) => void;
   onCancel?: (id: number) => void;
+  /** z-index del overlay (default 40). Usare valore più alto (es. 200) quando
+   *  il notification window deve stare sopra altri overlay fixed come ExplorePanel. */
+  zIndex?: number;
 }
 
 const KIND_COLORS: Record<NotificationKind, string> = {
@@ -75,6 +78,7 @@ export default function SaoNotificationWindow({
   notification,
   onConfirm,
   onCancel,
+  zIndex = 40,
 }: SaoNotificationWindowProps) {
   const { play } = useSaoSound();
 
@@ -88,6 +92,7 @@ export default function SaoNotificationWindow({
           notification={notification}
           onConfirm={onConfirm}
           onCancel={onCancel}
+          zIndex={zIndex}
         />
       )}
     </AnimatePresence>
@@ -98,10 +103,12 @@ function SaoWindow({
   notification,
   onConfirm,
   onCancel,
+  zIndex = 40,
 }: {
   notification: SaoNotificationData;
   onConfirm?: (id: number) => void;
   onCancel?: (id: number) => void;
+  zIndex?: number;
 }) {
   const { play } = useSaoSound();
   const color = KIND_COLORS[notification.kind];
@@ -131,7 +138,7 @@ function SaoWindow({
 
   return (
     <motion.div
-      className="fixed inset-0 z-40 flex items-center justify-center px-4"
+      className="fixed inset-0 flex items-center justify-center px-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -139,6 +146,7 @@ function SaoWindow({
       style={{
         background: 'rgba(2, 8, 20, 0.6)',
         backdropFilter: 'blur(4px)',
+        zIndex,
       }}
     >
       {/* Window container — TV power-on animation (applied ONLY to the
